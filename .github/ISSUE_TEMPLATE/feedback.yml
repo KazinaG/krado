@@ -1,0 +1,21 @@
+name: Feature idea or feedback / 機能の提案・フィードバック
+description: Share an idea, feedback, or question / アイデア・感想・質問を送る
+labels: [enhancement]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Type / 種類
+      options:
+        - Feature idea / 機能の提案
+        - Feedback / フィードバック
+        - Question / 質問
+    validations:
+      required: true
+  - type: textarea
+    id: feedback
+    attributes:
+      label: Your idea, feedback, or question / アイデア・フィードバック・質問
+      description: Tell us what you would like to do or ask / 実現したいことや、伝えたいこと・質問を教えてください
+    validations:
+      required: true

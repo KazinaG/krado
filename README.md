@@ -45,33 +45,39 @@ The goal is zones roughly at least **640pt wide and about 500pt tall** for typic
 
 ## Install
 
-Packaged downloads, when published, are available on the [Releases page](https://github.com/KazinaG/krado/releases). To build v0.1.0 from a source checkout:
+1. **Get krado.app and move it to Applications.** Packaged downloads, when published, are available on the [Releases page](https://github.com/KazinaG/krado/releases). If you build from source instead, run `scripts/build-app.sh` from the repository folder to create `dist/krado.app`.
 
-```sh
-scripts/build-app.sh
-```
+   Drag **krado.app** into the **Applications** folder (`/Applications`). **Open at Login** needs krado to be in an Applications folder; your personal Applications folder (`~/Applications`) also works. Keep one installed copy there.
 
-This creates `dist/krado.app`, attempts ad-hoc signing, and never launches the app. Move **krado.app to `/Applications`** (or `~/Applications`), then open it yourself. Keep one copy in a stable location so Accessibility and login-item registration can identify it consistently.
+2. **Open krado and allow it through macOS security.** krado is not yet signed with an Apple Developer ID or notarized, so macOS may warn that the developer is unidentified or that it cannot verify the app. Only proceed with a copy you trust.
 
-The current build is **not Developer ID signed or notarized**. For a downloaded copy that you trust, use **right-click → Open**, or **System Settings → Privacy & Security → Open Anyway** if macOS offers that action. Alternatively, after moving the app, remove its quarantine attribute in Terminal:
+   - **macOS 15 Sequoia and later (including macOS 26/27):**
+     1. Double-click **krado** in Applications. When the warning appears, click **Done**. Do not move it to Trash.
+     2. Open **System Settings → Privacy & Security**, then scroll down to **Security**.
+     3. Find the message that **“krado was blocked…”** and click **Open Anyway**.
+     4. Enter your password or use Touch ID, then click **Open Anyway** again in the next dialog.
 
-```sh
-xattr -dr com.apple.quarantine /Applications/krado.app
-```
+     This approval is only needed once for that copy. **Control-click → Open no longer bypasses this warning on macOS 15 or later.**
+   - **macOS 14 Sonoma:** Control-click (right-click) **krado** in Applications, then choose **Open → Open**.
+   - **Advanced (Terminal):** after moving a trusted copy to Applications, you can remove its quarantine attribute instead:
 
-The build script uses local compiler caches and disables SwiftPM's build sandbox by default for restricted CLI environments. Set `KRADO_DISABLE_SANDBOX=0` to retain SwiftPM's sandbox. This does not change macOS privacy protections. Release builds omit debug information; signing failures are reported as warnings.
+     ```sh
+     xattr -dr com.apple.quarantine /Applications/krado.app
+     ```
 
-## First launch and permissions
+3. **Allow Accessibility so krado can arrange windows.** krado needs this permission to see where other apps' windows are and to move or resize them when you drop them on the grid.
 
-If Accessibility has not been allowed, krado opens a small setup guide:
+   **Privacy:** krado does not read what you type, does not record or look at screen contents, and has no network access. It only watches mouse drags to know when a window is being moved. It does not request Screen Recording permission.
 
-1. Choose **Open System Settings** in the guide. This requests the system permission prompt once and opens Accessibility settings.
-2. In **System Settings → Privacy & Security → Accessibility**, enable **krado**. Use `+` to add `/Applications/krado.app` if it is missing.
-3. Return to krado. The guide checks about once a second while open, shows **All set!**, and closes. Window-drag monitoring starts automatically.
+   1. On first launch, krado shows a setup guide. Click **Open System Settings**.
+   2. In **System Settings → Privacy & Security → Accessibility**, turn on **krado**. If it is missing, click **+** and add `/Applications/krado.app`.
+   3. krado detects the permission automatically, shows **All set!**, and closes the guide. You can now drag windows onto the grid.
 
-You can reopen the guide from the menu's Accessibility status. The menu also shows whether drags are being watched, any monitoring error, and each display's current grid and zone count; 1 × 1 is labeled **no split**.
+   You can reopen the guide from the Accessibility status in krado's menu.
 
-**Privacy:** krado needs Accessibility only to read and move other apps' windows. It never reads keystrokes or screen contents and sends nothing over the network. It does not request Screen Recording permission.
+4. **If an updated or rebuilt copy asks for Accessibility again, replace the old permission entry.** macOS ties this permission to the exact app build. Because krado is not Developer ID signed, each new build looks like a different app.
+
+   In **System Settings → Privacy & Security → Accessibility**, select the old **krado** entry and remove it with **−**. Then turn on the new **krado** entry; use **+** to add `/Applications/krado.app` if it is missing. You can click **Open System Settings** in krado's guide again to return to these settings. krado detects the new permission automatically.
 
 ## Open at Login
 
@@ -92,7 +98,7 @@ Use **Reload Displays** after a display change if needed; screen changes are als
 ## Troubleshooting
 
 - **Allowed, but windows do not snap:** check the menu's monitoring status and Accessibility setting. Quit and reopen krado from its installed location. Reload displays if the geometry looks outdated.
-- **After an update or rebuild:** in Accessibility settings, remove the old krado entry with `−`, then use `+` to add the current app and enable it again. An ad-hoc rebuild can invalidate a previous grant.
+- **Asked for permission again after an update or rebuild:** follow step 4 of [Install](#install) to replace the old Accessibility entry.
 - **Open at Login unavailable:** move the app to `/Applications` or `~/Applications`, reopen it, and check **System Settings → General → Login Items** for pending approval. Translocated or quarantined copies may need the installation steps above first.
 - **A window will not fit:** some apps enforce minimum sizes or do not expose writable Accessibility position/size. Native macOS tiling and full-screen or protected windows may also limit placement. krado skips unsupported windows; it does not override app constraints.
 
@@ -107,26 +113,16 @@ Movement is inferred from window position and size. A moved window can be detect
 - Developer ID signed and notarized builds.
 - App Store distribution later.
 
-## Contributing
+## Feedback & contributions
 
-Issues and pull requests are welcome. Run the pure KradoCore suite and build the bundle:
+krado is public, free & open source, and available under the [MIT license](LICENSE). Outside pull requests and code contributions are not accepted. Feedback, questions, and bug reports are welcome via [GitHub Issues](https://github.com/KazinaG/krado/issues). See [CONTRIBUTING.md](CONTRIBUTING.md) for this policy.
+
+You may fork and modify krado for yourself under MIT. To build and test your own copy from source:
 
 ```sh
 swift test
 scripts/build-app.sh
 ```
-
-Tests use Swift Testing and do not launch krado, create event taps, or request permissions. KradoCore stays free of AppKit and Accessibility APIs. See [docs/design.md](docs/design.md) for architecture and remaining manual checks.
-
-To regenerate the icon, cover, and layout diagram using offscreen AppKit/CoreGraphics drawing and the macOS `sips`/`iconutil` tools:
-
-```sh
-swift scripts/make-icon.swift
-```
-
-To regenerate only the layout diagram, use `swift scripts/make-icon.swift --layouts-only`.
-
-Generated PNGs and `Resources/AppIcon.icns` are included in the repository; ordinary builds do not regenerate artwork.
 
 ## License
 

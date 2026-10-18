@@ -1,0 +1,57 @@
+name: Bug report / 不具合報告
+description: Report a problem with krado / krado の不具合を報告する
+labels: [bug]
+body:
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS version / macOS のバージョン
+      description: Include the full version number / 詳しいバージョン番号を記入してください
+      placeholder: e.g. / 例 15.7
+    validations:
+      required: true
+  - type: input
+    id: krado-version
+    attributes:
+      label: krado version / krado のバージョン
+      description: Version from About krado, or build/commit if known / 「krado について」のバージョン、または分かればビルド・コミット
+      placeholder: e.g. / 例 0.1.0
+    validations:
+      required: true
+  - type: textarea
+    id: display-setup
+    attributes:
+      label: Display setup / ディスプレイ構成
+      description: Number of displays, resolution/scaling, and orientation / 画面数、解像度・拡大率、縦置き・横置きなど
+      placeholder: e.g. MacBook display + one external display / 例 MacBook 内蔵画面と外部ディスプレイ1台
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce / 再現手順
+      description: Describe what you did, including affected apps / 操作手順と、問題が起きたアプリを教えてください
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior / 期待した動作
+      description: What did you expect to happen? / どのような動作を期待しましたか？
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior / 実際の動作
+      description: What happened instead? Include any error message / 実際の動作と、表示されたエラーを教えてください
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs (optional) / ログ（任意）
+      description: Paste relevant logs if available; remove personal information / 関連するログがあれば、個人情報を除いて貼り付けてください
+      render: text
+    validations:
+      required: false
