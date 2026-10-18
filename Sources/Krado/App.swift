@@ -1,11 +1,14 @@
 import AppKit
 import ApplicationServices
 import KradoCore
+import Sparkle
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let screens = ScreenManager()
     private let loginItem = LoginItemManager()
+    private var updaterController: SPUStandardUpdaterController?
+    private let updateItem = NSMenuItem(title: "", action: #selector(checkForUpdates), keyEquivalent: "")
     private var monitor: DragMonitor!
     private var hotKeys: HotKeys!
     private var statusItem: NSStatusItem!
@@ -34,6 +37,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self?.errorItem.title = error ?? ""
             self?.errorItem.isHidden = error == nil
         })
+        if UpdaterPolicy.isConfigured(
+            publicKey: Bundle.main.object(forInfoDictionaryKey: "SUPublicEDKey") as? String,
+            feedURL: Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String
+        ) {
+            updaterController = SPUStandardUpdaterController(
+                startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil
+            )
+        }
         buildMenu()
         reloadScreens()
         loginItem.applyFirstRunDefault()
@@ -75,6 +86,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         for item in [loginToggle, loginHint, loginSettings, loginError] { menu.addItem(item) }
         menu.addItem(.separator())
         addAction(L10n.text("Reload Displays"), #selector(reloadScreens), to: menu)
+        updateItem.title = L10n.text("Check for Updates…")
+        updateItem.target = self
+        updateItem.isEnabled = updaterController?.updater.canCheckForUpdates ?? false
+        menu.addItem(updateItem)
         addAction(L10n.text("About krado"), #selector(showAbout), to: menu)
         addAction(L10n.text("krado on GitHub…"), #selector(openGitHub), to: menu)
         menu.addItem(.separator())
@@ -89,6 +104,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func menuWillOpen(_ menu: NSMenu) {
+        updateItem.isEnabled = updaterController?.updater.canCheckForUpdates ?? false
         refreshPermission()
         refreshLoginState()
     }
@@ -157,6 +173,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         loginError.title = loginItem.errorMessage.map { L10n.format("⚠︎ Open at Login: %@", $0) } ?? ""
         loginError.isHidden = loginItem.errorMessage == nil
     }
+
+    @objc private func checkForUpdates() { updaterController?.checkForUpdates(nil) }
 
     @objc private func showPermissionGuide() { permissionGuide.show() }
     @objc private func toggleLoginItem() { loginItem.toggle(); refreshLoginState() }

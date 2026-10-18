@@ -46,3 +46,5 @@
 "Window drag monitoring is unavailable. krado will retry automatically." = "Window drag monitoring is unavailable. krado will retry automatically.";
 "krado — Monitoring paused" = "krado — Monitoring paused";
 "krado — Monitoring stopped" = "krado — Monitoring stopped";
+
+"Check for Updates…" = "Check for Updates…";

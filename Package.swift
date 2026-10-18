@@ -36,9 +36,16 @@ let package = Package(
         .library(name: "KradoCore", targets: ["KradoCore"]),
         .executable(name: "krado", targets: ["Krado"]),
     ],
+    dependencies: [
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.6.0"),
+    ],
     targets: [
         .target(name: "KradoCore"),
-        .executableTarget(name: "Krado", dependencies: ["KradoCore"]),
+        .executableTarget(
+            name: "Krado",
+            dependencies: ["KradoCore", .product(name: "Sparkle", package: "Sparkle")],
+            linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])]
+        ),
         .testTarget(name: "KradoCoreTests", dependencies: ["KradoCore"], swiftSettings: testingMacroSettings()),
     ]
 )

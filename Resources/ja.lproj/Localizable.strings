@@ -46,3 +46,5 @@
 "Window drag monitoring is unavailable. krado will retry automatically." = "ウインドウのドラッグを監視できません。kradoが自動的に再試行します。";
 "krado — Monitoring paused" = "krado — 監視を一時停止中";
 "krado — Monitoring stopped" = "krado — 監視を停止中";
+
+"Check for Updates…" = "アップデートを確認…";

@@ -3,6 +3,8 @@
 # krado
 English | [日本語](README.ja.md)
 
+[Changelog](CHANGELOG.md)
+
 **Drag a window. Drop it on the grid.** A free, open-source menu-bar window-tiling app for macOS.
 
 krado means 'grid' (マス目) in Esperanto, pronounced 'KRAH-doh' (クラード).
@@ -15,7 +17,7 @@ krado means 'grid' (マス目) in Esperanto, pronounced 'KRAH-doh' (クラード
 - Multiple displays, Retina pixel alignment, and work areas that respect the Dock and menu bar.
 - A clear menu-bar status, friendly Accessibility setup, and an Open at Login toggle.
 - The interface follows your macOS language setting (Japanese localization included).
-- Local operation, no accounts, no dependencies, and an MIT license.
+- Local window tiling, no accounts, and an MIT license.
 
 ## How it works
 
@@ -40,11 +42,13 @@ The goal is zones roughly at least **640pt wide and about 500pt tall** for typic
 
 - macOS **14 or later**.
 - Accessibility permission to read and move other apps' windows.
-- Building from source: Swift **6 or later** and Apple's Command Line Tools. No Xcode project or external packages are required.
+- Building from source: Swift **6 or later** and Apple's Command Line Tools. No Xcode project is required; SwiftPM downloads Sparkle for the app's update support.
 
 ## Install
 
-1. **Get krado.app and move it to Applications.** Packaged downloads, when published, are available on the [Releases page](https://github.com/KazinaG/krado/releases). If you build from source instead, run `scripts/build-app.sh` from the repository folder to create `dist/krado.app`.
+Updates via **Check for Updates…** will be enabled once releases are signed with the Sparkle update key. The item is currently disabled.
+
+1. **Download `krado-x.y.z.dmg` from [Releases](https://github.com/KazinaG/krado/releases) once published.** Open the DMG and drag **krado** to **Applications**. If you build from source instead, run `scripts/build-app.sh` from the repository folder to create `dist/krado.app`.
 
    Drag **krado.app** into the **Applications** folder (`/Applications`). **Open at Login** needs krado to be in an Applications folder; your personal Applications folder (`~/Applications`) also works. Keep one installed copy there.
 
@@ -66,7 +70,7 @@ The goal is zones roughly at least **640pt wide and about 500pt tall** for typic
 
 3. **Allow Accessibility so krado can arrange windows.** krado needs this permission to see where other apps' windows are and to move or resize them when you drop them on the grid.
 
-   **Privacy:** krado does not read what you type, does not record or look at screen contents, and has no network access. It only watches mouse drags to know when a window is being moved. It does not request Screen Recording permission.
+   **Privacy:** krado does not read what you type, does not record or look at screen contents, and keeps window tiling local. Once configured, update checks contact GitHub to fetch the feed and update downloads. It only watches mouse drags to know when a window is being moved. It does not request Screen Recording permission.
 
    1. On first launch, krado shows a setup guide. Click **Open System Settings**.
    2. In **System Settings → Privacy & Security → Accessibility**, turn on **krado**. If it is missing, click **+** and add `/Applications/krado.app`.
