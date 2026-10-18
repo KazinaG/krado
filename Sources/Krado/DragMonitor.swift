@@ -21,21 +21,28 @@ final class DragMonitor {
 
     private let screens: ScreenManager
     private let report: (String?) -> Void
+    private let stateDidChange: () -> Void
     private var tap: CFMachPort?
     private var source: CFRunLoopSource?
     private var pollTimer: Timer?
     private var drag: Drag?
     private var cursor = CGPoint.zero
     private var target: (window: AXUIElement, frame: CGRect)?
-    var isRunning: Bool { tap != nil }
+    var isRunning: Bool {
+        guard let tap, CFMachPortIsValid(tap) else { return false }
+        return CGEvent.tapIsEnabled(tap: tap)
+    }
 
-    init(screens: ScreenManager, report: @escaping (String?) -> Void) {
+    init(screens: ScreenManager, report: @escaping (String?) -> Void, stateDidChange: @escaping () -> Void) {
         self.screens = screens
         self.report = report
+        self.stateDidChange = stateDidChange
     }
 
     func start() -> Bool {
-        guard tap == nil else { return true }
+        if isRunning { return true }
+        // A retained but disabled/invalid tap is not an active monitor. Recreate it on retry.
+        if tap != nil { stop() }
         // Do not create a tap until the non-prompting trust check succeeds.
         guard AXIsProcessTrusted() else { return false }
         let mask = [CGEventType.leftMouseDown, .leftMouseDragged, .leftMouseUp].reduce(CGEventMask(0)) {
@@ -55,7 +62,9 @@ final class DragMonitor {
         source = newSource
         CFRunLoopAddSource(CFRunLoopGetMain(), newSource, .commonModes)
         CGEvent.tapEnable(tap: newTap, enable: true)
-        return true
+        if isRunning { return true }
+        stop()
+        return false
     }
 
     func stop() {
@@ -81,7 +90,10 @@ final class DragMonitor {
         switch type {
         case .tapDisabledByTimeout, .tapDisabledByUserInput:
             cancelDrag()
-            if let tap, AXIsProcessTrusted() { CGEvent.tapEnable(tap: tap, enable: true) }
+            if let tap, CFMachPortIsValid(tap), AXIsProcessTrusted() {
+                CGEvent.tapEnable(tap: tap, enable: true)
+            }
+            stateDidChange()
         case .leftMouseDown:
             cancelDrag()
             cursor = location

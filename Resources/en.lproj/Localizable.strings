@@ -30,3 +30,19 @@
 "Waiting for Accessibility permission…" = "Waiting for Accessibility permission…";
 "✓ All set! Accessibility is allowed." = "✓ All set! Accessibility is allowed.";
 "⚠︎ Window placement failed. The app may restrict its window size or position." = "⚠︎ Window placement failed. The app may restrict its window size or position.";
+
+/* Visual status: short labels and full tooltip descriptions. */
+"Permission needed" = "Permission needed";
+"Accessibility allowed" = "Accessibility allowed";
+"Watching" = "Watching";
+"Stopped" = "Stopped";
+"Monitoring unavailable" = "Monitoring unavailable";
+"Accessibility permission is required. Click to open setup." = "Accessibility permission is required. Click to open setup.";
+"Accessibility permission is granted." = "Accessibility permission is granted.";
+"krado is watching window drags." = "krado is watching window drags.";
+"Monitoring is paused until Accessibility permission is granted." = "Monitoring is paused until Accessibility permission is granted.";
+"Window drag monitoring is paused." = "Window drag monitoring is paused.";
+"Window drag monitoring is stopped." = "Window drag monitoring is stopped.";
+"Window drag monitoring is unavailable. krado will retry automatically." = "Window drag monitoring is unavailable. krado will retry automatically.";
+"krado — Monitoring paused" = "krado — Monitoring paused";
+"krado — Monitoring stopped" = "krado — Monitoring stopped";

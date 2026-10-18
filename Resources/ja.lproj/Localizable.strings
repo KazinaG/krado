@@ -30,3 +30,19 @@
 "Waiting for Accessibility permission…" = "アクセシビリティの許可を待っています…";
 "✓ All set! Accessibility is allowed." = "✓ 準備完了！アクセシビリティが許可されました。";
 "⚠︎ Window placement failed. The app may restrict its window size or position." = "⚠︎ ウインドウを配置できませんでした。アプリ側でサイズや位置が制限されている場合があります。";
+
+/* Visual status: short labels and full tooltip descriptions. */
+"Permission needed" = "許可が必要";
+"Accessibility allowed" = "アクセシビリティ許可済み";
+"Watching" = "監視中";
+"Stopped" = "停止中";
+"Monitoring unavailable" = "監視できません";
+"Accessibility permission is required. Click to open setup." = "アクセシビリティの許可が必要です。クリックして設定を開いてください。";
+"Accessibility permission is granted." = "アクセシビリティの使用が許可されています。";
+"krado is watching window drags." = "kradoはウインドウのドラッグを監視しています。";
+"Monitoring is paused until Accessibility permission is granted." = "アクセシビリティが許可されるまで監視を一時停止しています。";
+"Window drag monitoring is paused." = "ウインドウのドラッグ監視を一時停止しています。";
+"Window drag monitoring is stopped." = "ウインドウのドラッグ監視を停止しています。";
+"Window drag monitoring is unavailable. krado will retry automatically." = "ウインドウのドラッグを監視できません。kradoが自動的に再試行します。";
+"krado — Monitoring paused" = "krado — 監視を一時停止中";
+"krado — Monitoring stopped" = "krado — 監視を停止中";

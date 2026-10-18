@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import KradoCore
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
@@ -22,10 +23,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
-        monitor = DragMonitor(screens: screens) { [weak self] error in
+        monitor = DragMonitor(screens: screens, report: { [weak self] error in
             self?.errorItem.title = error ?? ""
             self?.errorItem.isHidden = error == nil
-        }
+        }, stateDidChange: { [weak self] in
+            self?.refreshStatus()
+        })
         buildMenu()
         reloadScreens()
         loginItem.applyFirstRunDefault()
@@ -49,7 +52,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.delegate = self
         for item in [permissionItem, monitorItem, errorItem] { menu.addItem(item) }
         permissionItem.target = self
-        monitorItem.isEnabled = false
+        // Enabled, actionless rows preserve palette colors instead of AppKit's disabled tint.
+        monitorItem.isEnabled = true
         errorItem.isEnabled = false
         errorItem.isHidden = true
         menu.addItem(displaySeparator)
@@ -86,28 +90,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func refreshPermission() {
         let trusted = AXIsProcessTrusted()
-        permissionItem.title = L10n.text(trusted
-            ? "✓ Accessibility: allowed"
-            : "⚠︎ Accessibility: not allowed — click to set up")
-        permissionItem.isEnabled = !trusted
         requestItem.isHidden = trusted
-        let running: Bool
-        if trusted { running = monitor.start() } else { monitor.stop(); running = false }
-        monitorItem.title = L10n.text(running ? "✓ Watching window drags" : "Paused")
-        if trusted && !running {
-            monitorItem.title = L10n.text("⚠︎ Could not watch window drags — retrying")
-        }
-        let description = L10n.text(!trusted
-            ? "krado — Accessibility permission needed"
-            : (running ? "krado — Watching window drags" : "krado — Event monitoring error"))
-        let symbol = !trusted ? "lock.square" : (running ? "square.grid.2x2" : "exclamationmark.triangle.fill")
-        if let image = NSImage(systemSymbolName: symbol, accessibilityDescription: description) {
-            image.isTemplate = true
-            statusItem.button?.image = image
-            statusItem.button?.title = ""
-        } else { statusItem.button?.title = "krado" }
+        if trusted { _ = monitor.start() } else { monitor.stop() }
+        refreshStatus()
+    }
+
+    private func refreshStatus() {
+        let state = statusState(permissionGranted: AXIsProcessTrusted(), tapActive: monitor.isRunning)
+        let appearance = statusAppearance(for: state)
+        permissionItem.action = state == .permissionNeeded ? #selector(showPermissionGuide) : nil
+        permissionItem.isEnabled = true
+        configureStatusRow(permissionItem, symbol: appearance.permission,
+            title: StatusPresentation.permissionTitle(for: state),
+            description: StatusPresentation.permissionDescription(for: state))
+        configureStatusRow(monitorItem, symbol: appearance.monitor,
+            title: StatusPresentation.monitorTitle(for: state),
+            description: StatusPresentation.monitorDescription(for: state))
+        let description = L10n.text(StatusPresentation.menuBarDescription(for: state))
+        statusItem.button?.image = StatusPresentation.menuBarImage(for: state, description: description)
+        statusItem.button?.title = ""
         statusItem.button?.toolTip = description
         statusItem.button?.setAccessibilityLabel(description)
+    }
+
+    private func configureStatusRow(_ item: NSMenuItem, symbol: StatusSymbol, title: String, description: String) {
+        let title = L10n.text(title)
+        let description = L10n.text(description)
+        item.title = title
+        item.attributedTitle = StatusPresentation.rowTitle(title)
+        item.image = StatusPresentation.image(for: symbol, description: description)
+        item.toolTip = description
+        item.setAccessibilityLabel(description)
     }
 
     private func refreshLoginState() {
