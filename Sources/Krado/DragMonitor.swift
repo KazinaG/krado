@@ -1,0 +1,139 @@
+import AppKit
+import ApplicationServices
+import KradoCore
+
+// The source is installed exclusively on CFRunLoopGetMain(), so this callback runs on the main actor.
+private let mouseTapCallback: CGEventTapCallBack = { _, type, event, userInfo in
+    guard let userInfo else { return Unmanaged.passUnretained(event) }
+    let monitor = Unmanaged<DragMonitor>.fromOpaque(userInfo).takeUnretainedValue()
+    let location = event.location
+    MainActor.assumeIsolated { monitor.handle(type: type, location: location) }
+    return Unmanaged.passUnretained(event)
+}
+
+@MainActor
+final class DragMonitor {
+    private struct Drag {
+        let window: AXUIElement
+        let initial: WindowSnapshot
+        var hasDragged = false
+    }
+
+    private let screens: ScreenManager
+    private let report: (String?) -> Void
+    private var tap: CFMachPort?
+    private var source: CFRunLoopSource?
+    private var pollTimer: Timer?
+    private var drag: Drag?
+    private var cursor = CGPoint.zero
+    private var target: (window: AXUIElement, frame: CGRect)?
+    var isRunning: Bool { tap != nil }
+
+    init(screens: ScreenManager, report: @escaping (String?) -> Void) {
+        self.screens = screens
+        self.report = report
+    }
+
+    func start() -> Bool {
+        guard tap == nil else { return true }
+        // Do not create a tap until the non-prompting trust check succeeds.
+        guard AXIsProcessTrusted() else { return false }
+        let mask = [CGEventType.leftMouseDown, .leftMouseDragged, .leftMouseUp].reduce(CGEventMask(0)) {
+            $0 | (CGEventMask(1) << $1.rawValue)
+        }
+        // Session events suffice; the tap only observes events and never changes/consumes them.
+        guard let newTap = CGEvent.tapCreate(
+            tap: .cgSessionEventTap, place: .headInsertEventTap, options: .listenOnly,
+            eventsOfInterest: mask, callback: mouseTapCallback,
+            userInfo: Unmanaged.passUnretained(self).toOpaque()
+        ) else { return false }
+        guard let newSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, newTap, 0) else {
+            CFMachPortInvalidate(newTap)
+            return false
+        }
+        tap = newTap
+        source = newSource
+        CFRunLoopAddSource(CFRunLoopGetMain(), newSource, .commonModes)
+        CGEvent.tapEnable(tap: newTap, enable: true)
+        return true
+    }
+
+    func stop() {
+        cancelDrag()
+        if let tap {
+            CGEvent.tapEnable(tap: tap, enable: false)
+            CFMachPortInvalidate(tap)
+        }
+        if let source { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
+        source = nil
+        tap = nil
+    }
+
+    func cancelDrag() {
+        pollTimer?.invalidate()
+        pollTimer = nil
+        drag = nil
+        target = nil
+        screens.hideAll()
+    }
+
+    fileprivate func handle(type: CGEventType, location: CGPoint) {
+        switch type {
+        case .tapDisabledByTimeout, .tapDisabledByUserInput:
+            cancelDrag()
+            if let tap, AXIsProcessTrusted() { CGEvent.tapEnable(tap: tap, enable: true) }
+        case .leftMouseDown:
+            cancelDrag()
+            cursor = location
+            guard let window = Accessibility.window(at: location),
+                  let initial = Accessibility.snapshot(of: window) else { return }
+            drag = Drag(window: window, initial: initial)
+            pollTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30, repeats: true) { [weak self] _ in
+                MainActor.assumeIsolated { self?.sample() }
+            }
+            if let pollTimer { RunLoop.main.add(pollTimer, forMode: .common) }
+        case .leftMouseDragged:
+            cursor = location
+            drag?.hasDragged = true
+        case .leftMouseUp:
+            cursor = location
+            // Invalidate a formerly valid target if the window resized or disappeared before release.
+            sample()
+            let finalTarget = target
+            cancelDrag()
+            if let finalTarget {
+                if !Accessibility.setFrame(finalTarget.frame, of: finalTarget.window) {
+                    report(L10n.text("⚠︎ Window placement failed. The app may restrict its window size or position."))
+                } else {
+                    report(nil)
+                }
+            }
+        default:
+            break
+        }
+    }
+
+    private func sample() {
+        target = nil
+        guard let drag, drag.hasDragged else { return }
+        guard let current = Accessibility.snapshot(of: drag.window) else {
+            cancelDrag()
+            return
+        }
+        switch WindowMovement.classify(initial: drag.initial, current: current) {
+        case .resized:
+            // Once a resize is observed, never reclassify this gesture as a move.
+            cancelDrag()
+        case .stationary:
+            screens.hideAll()
+        case .moving:
+            guard let screen = screens.screen(at: cursor) else {
+                screens.hideAll()
+                return
+            }
+            let span = screen.geometry.hitTest(cursor)
+            screens.show(screen, target: span)
+            if let span { target = (drag.window, screen.geometry.frame(for: span)) }
+        }
+    }
+}
