@@ -112,7 +112,7 @@ if !layoutsOnly {
         text("Drag a window.", x: 76, y: 300, size: 42, weight: .semibold)
         text("Drop it on the grid.", x: 76, y: 246, size: 42, weight: .semibold)
         text("Window tiling for macOS — free & open source", x: 78, y: 194, size: 22, fill: muted)
-        text("macOS 14+   ·   English & 日本語", x: 78, y: 79, size: 17, weight: .medium, fill: muted)
+        text("macOS 14+", x: 78, y: 79, size: 17, weight: .medium, fill: muted)
         let display = CGRect(x: 765, y: 204, width: 443, height: 298)
         context.setShadow(offset: CGSize(width: 0, height: -16), blur: 35, color: color(0, 0, 0, 0.25))
         rounded(context, display, radius: 19, fill: color(0.26, 0.33, 0.44))
@@ -121,7 +121,6 @@ if !layoutsOnly {
         grid(context, rect: display.insetBy(dx: 25, dy: 25), columns: 4, rows: 2, gap: 10, radius: 8)
         rounded(context, CGRect(x: 966, y: 147, width: 42, height: 57), radius: 5, fill: color(0.25, 0.33, 0.43))
         rounded(context, CGRect(x: 909, y: 138, width: 156, height: 13), radius: 6.5, fill: color(0.36, 0.44, 0.55))
-        centeredText("Room for your next idea.", centerX: 987, y: 88, size: 17, fill: muted)
     }
 }
 

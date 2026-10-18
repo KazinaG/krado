@@ -4,7 +4,7 @@
 
 **Drag a window. Drop it on the grid.** A free, open-source menu-bar window-tiling app for macOS.
 
-English · [日本語](README.ja.md)
+日本語の説明は [README.ja.md](README.ja.md) をご覧ください。
 
 krado means 'grid' (マス目) in Esperanto, pronounced 'KRAH-doh' (クラード).
 
@@ -15,7 +15,7 @@ krado means 'grid' (マス目) in Esperanto, pronounced 'KRAH-doh' (クラード
 - Automatic layouts sized for each display, including portrait screens and ultrawides.
 - Multiple displays, Retina pixel alignment, and work areas that respect the Dock and menu bar.
 - A clear menu-bar status, friendly Accessibility setup, and an Open at Login toggle.
-- English and Japanese UI. English is the default; macOS chooses the language from your preferences.
+- The interface follows your macOS language setting (Japanese localization included).
 - Local operation, no accounts, no dependencies, and an MIT license.
 
 ## How it works
