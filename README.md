@@ -1,10 +1,9 @@
 ![krado — Drag a window. Drop it on the grid.](docs/assets/cover.png)
 
 # krado
+English | [日本語](README.ja.md)
 
 **Drag a window. Drop it on the grid.** A free, open-source menu-bar window-tiling app for macOS.
-
-日本語の説明は [README.ja.md](README.ja.md) をご覧ください。
 
 krado means 'grid' (マス目) in Esperanto, pronounced 'KRAH-doh' (クラード).
 

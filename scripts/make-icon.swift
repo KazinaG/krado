@@ -2,6 +2,7 @@
 // Deterministic, offscreen artwork. No NSApplication, windows, or network access.
 // Run from the repository root: swift scripts/make-icon.swift
 // Regenerate only the layout diagram: swift scripts/make-icon.swift --layouts-only
+// Generate only Japanese documentation images: swift scripts/make-icon.swift --locale ja
 import AppKit
 import CoreGraphics
 import Foundation
@@ -10,9 +11,19 @@ let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingL
 let assets = root.appendingPathComponent("docs/assets", isDirectory: true)
 let resources = root.appendingPathComponent("Resources", isDirectory: true)
 let iconset = assets.appendingPathComponent("AppIcon.iconset", isDirectory: true)
+let arguments = Array(CommandLine.arguments.dropFirst())
+var locale = "en"
+if let index = arguments.firstIndex(of: "--locale") {
+    guard index + 1 < arguments.count, ["en", "ja"].contains(arguments[index + 1]) else {
+        throw NSError(domain: "krado.artwork", code: 2, userInfo: [NSLocalizedDescriptionKey: "Usage: --locale en|ja (default: en)"])
+    }
+    locale = arguments[index + 1]
+}
+let japanese = locale == "ja"
+let imageSuffix = japanese ? ".ja" : ""
 let layoutsOnly = CommandLine.arguments.contains("--layouts-only")
 let fileManager = FileManager.default
-for directory in layoutsOnly ? [assets] : [assets, resources, iconset] {
+for directory in (japanese || layoutsOnly) ? [assets] : [assets, resources, iconset] {
     try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
 }
 
@@ -38,16 +49,24 @@ func gradient(_ context: CGContext, rect: CGRect, radius: CGFloat, colors: [CGCo
     context.restoreGState()
 }
 
+func font(size: CGFloat, weight: NSFont.Weight) -> NSFont {
+    if japanese {
+        let name = weight.rawValue >= NSFont.Weight.semibold.rawValue ? "HiraginoSans-W6" : "HiraginoSans-W3"
+        if let font = NSFont(name: name, size: size) { return font }
+    }
+    return NSFont.systemFont(ofSize: size, weight: weight)
+}
+
 func text(_ value: String, x: CGFloat, y: CGFloat, size: CGFloat, weight: NSFont.Weight = .regular, fill: CGColor = white) {
     let attributes: [NSAttributedString.Key: Any] = [
-        .font: NSFont.systemFont(ofSize: size, weight: weight),
+        .font: font(size: size, weight: weight),
         .foregroundColor: NSColor(cgColor: fill)!,
     ]
     (value as NSString).draw(at: CGPoint(x: x, y: y), withAttributes: attributes)
 }
 
 func centeredText(_ value: String, centerX: CGFloat, y: CGFloat, size: CGFloat, weight: NSFont.Weight = .regular, fill: CGColor = white) {
-    let width = (value as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: size, weight: weight)]).width
+    let width = (value as NSString).size(withAttributes: [.font: font(size: size, weight: weight)]).width
     text(value, x: centerX - width / 2, y: y, size: size, weight: weight, fill: fill)
 }
 
@@ -100,19 +119,21 @@ func render(width: Int, height: Int, to destination: URL, draw: (CGContext) -> V
     try png.write(to: destination)
 }
 
-if !layoutsOnly {
+if !japanese && !layoutsOnly {
     try render(width: 1024, height: 1024, to: assets.appendingPathComponent("icon.png")) { context in
         icon(context, rect: CGRect(x: 0, y: 0, width: 1024, height: 1024))
     }
+}
 
-    try render(width: 1280, height: 640, to: assets.appendingPathComponent("cover.png")) { context in
+if !layoutsOnly {
+    try render(width: 1280, height: 640, to: assets.appendingPathComponent("cover\(imageSuffix).png")) { context in
         gradient(context, rect: CGRect(x: 0, y: 0, width: 1280, height: 640), radius: 0, colors: [color(0.055, 0.075, 0.17), color(0.055, 0.18, 0.24)])
         icon(context, rect: CGRect(x: 58, y: 368, width: 150, height: 150))
         text("krado", x: 230, y: 396, size: 76, weight: .bold)
-        text("Drag a window.", x: 76, y: 300, size: 42, weight: .semibold)
-        text("Drop it on the grid.", x: 76, y: 246, size: 42, weight: .semibold)
-        text("Window tiling for macOS — free & open source", x: 78, y: 194, size: 22, fill: muted)
-        text("macOS 14+", x: 78, y: 79, size: 17, weight: .medium, fill: muted)
+        text(japanese ? "ウィンドウをドラッグして、" : "Drag a window.", x: 76, y: 300, size: japanese ? 40 : 42, weight: .semibold)
+        text(japanese ? "マス目に置くだけ。" : "Drop it on the grid.", x: 76, y: 246, size: japanese ? 40 : 42, weight: .semibold)
+        text(japanese ? "macOS のための、無料・オープンソースのウィンドウ整列アプリ" : "Window tiling for macOS — free & open source", x: 78, y: 194, size: japanese ? 18 : 22, fill: muted)
+        text(japanese ? "macOS 14 以降" : "macOS 14+", x: 78, y: 79, size: 17, weight: .medium, fill: muted)
         let display = CGRect(x: 765, y: 204, width: 443, height: 298)
         context.setShadow(offset: CGSize(width: 0, height: -16), blur: 35, color: color(0, 0, 0, 0.25))
         rounded(context, display, radius: 19, fill: color(0.26, 0.33, 0.44))
@@ -124,18 +145,18 @@ if !layoutsOnly {
     }
 }
 
-try render(width: 1280, height: 640, to: assets.appendingPathComponent("layouts.png")) { context in
+try render(width: 1280, height: 640, to: assets.appendingPathComponent("layouts\(imageSuffix).png")) { context in
     gradient(context, rect: CGRect(x: 0, y: 0, width: 1280, height: 640), radius: 0, colors: [color(0.055, 0.075, 0.17), color(0.055, 0.18, 0.24)])
-    text("A grid that fits your display", x: 64, y: 550, size: 36, weight: .bold)
-    text("Visible work area in points · same rule for built-in and external displays", x: 66, y: 514, size: 19, fill: muted)
-    text("1. Portrait: H > W → 1 × 2 if H ≥ 1200; otherwise 1 × 1", x: 65, y: 466, size: 20, weight: .medium)
-    text("2. Ultrawide: W/H ≥ 2.1 and W ≥ 2400 → 4 × 2 if H ≥ 1300; otherwise 4 × 1", x: 65, y: 431, size: 20, weight: .medium)
-    text("3. Otherwise, choose the width band below:", x: 65, y: 386, size: 19, weight: .medium, fill: muted)
+    text(japanese ? "画面に合わせたマス目" : "A grid that fits your display", x: 64, y: 550, size: 36, weight: .bold)
+    text(japanese ? "作業領域のポイント数で分割 · 内蔵画面も外部画面も同じ規則" : "Visible work area in points · same rule for built-in and external displays", x: 66, y: 514, size: 19, fill: muted)
+    text(japanese ? "1. 縦向き：H > W → H ≥ 1200 なら 1 × 2、それ以外は 1 × 1" : "1. Portrait: H > W → 1 × 2 if H ≥ 1200; otherwise 1 × 1", x: 65, y: 466, size: 20, weight: .medium)
+    text(japanese ? "2. 超横長：W/H ≥ 2.1 かつ W ≥ 2400 → H ≥ 1300 なら 4 × 2、それ以外は 4 × 1" : "2. Ultrawide: W/H ≥ 2.1 and W ≥ 2400 → 4 × 2 if H ≥ 1300; otherwise 4 × 1", x: 65, y: 431, size: japanese ? 18 : 20, weight: .medium)
+    text(japanese ? "3. それ以外は、下の幅の区分で分割：" : "3. Otherwise, choose the width band below:", x: 65, y: 386, size: 19, weight: .medium, fill: muted)
     let items: [(String, String, String, Int, Int, CGRect)] = [
-        ("Large", "4 × 2", "W ≥ 2800", 4, 2, CGRect(x: 65, y: 198, width: 255, height: 150)),
-        ("Mid-size", "2 × 2", "1800 ≤ W < 2800", 2, 2, CGRect(x: 352, y: 198, width: 255, height: 150)),
-        ("Small", "2 × 1", "1200 ≤ W < 1800", 2, 1, CGRect(x: 639, y: 198, width: 255, height: 150)),
-        ("Tiny", "1 × 1", "W < 1200", 1, 1, CGRect(x: 926, y: 198, width: 255, height: 150)),
+        (japanese ? "大きい画面" : "Large", "4 × 2", "W ≥ 2800", 4, 2, CGRect(x: 65, y: 198, width: 255, height: 150)),
+        (japanese ? "中くらいの画面" : "Mid-size", "2 × 2", "1800 ≤ W < 2800", 2, 2, CGRect(x: 352, y: 198, width: 255, height: 150)),
+        (japanese ? "小さい画面" : "Small", "2 × 1", "1200 ≤ W < 1800", 2, 1, CGRect(x: 639, y: 198, width: 255, height: 150)),
+        (japanese ? "とても小さい画面" : "Tiny", "1 × 1", "W < 1200", 1, 1, CGRect(x: 926, y: 198, width: 255, height: 150)),
     ]
     for (label, layout, condition, columns, rows, frame) in items {
         rounded(context, frame, radius: 12, fill: color(0.25, 0.33, 0.44))
@@ -144,7 +165,7 @@ try render(width: 1280, height: 640, to: assets.appendingPathComponent("layouts.
         centeredText(layout, centerX: frame.midX, y: 115, size: 29, weight: .bold, fill: accent)
         centeredText(condition, centerX: frame.midX, y: 83, size: 16, fill: muted)
     }
-    text("Priority: portrait → ultrawide → width bands. W = visible width; H = visible height.", x: 65, y: 32, size: 17, fill: muted)
+    text(japanese ? "優先順：縦向き → 超横長 → 幅の区分。W = 作業領域の幅、H = 作業領域の高さ。" : "Priority: portrait → ultrawide → width bands. W = visible width; H = visible height.", x: 65, y: 32, size: 17, fill: muted)
 }
 
 func run(_ executable: String, _ arguments: [String]) throws {
@@ -163,7 +184,10 @@ func run(_ executable: String, _ arguments: [String]) throws {
     }
 }
 
-if !layoutsOnly {
+if japanese {
+    let images = layoutsOnly ? "layouts.ja.png" : "{cover,layouts}.ja.png"
+    print("Generated docs/assets/\(images) only (offscreen).")
+} else if !layoutsOnly {
     for size in [16, 32, 128, 256, 512] {
         for scale in [1, 2] {
             let pixels = size * scale
