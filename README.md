@@ -90,6 +90,13 @@ Automatic registration is skipped when the app is outside `/Applications` or `~/
 2. Move onto the desired grid cell. Near an internal divider, the highlight expands to two cells; at a 2 × 2 or 4 × 2 grid intersection it expands to four.
 3. Release to place the window. Release outside the visible work area to leave it unsnapped.
 
+- **Shift + drag:** hold Shift and sweep across cells to select their bounding rectangle, including three or four columns and multiple rows. Selection starts at the current cell when Shift goes down, includes boundary highlights, and stays selected outside the work area. Moving to another display starts a new selection there; releasing Shift returns to the normal highlight.
+- **Option + drag:** ignore zones and hide the grid while Option is held. Release Option before dropping to resume snapping; dropping with Option held never snaps. Option takes precedence over Shift and clears its selection.
+- **Ctrl + Cmd + Arrow:** move the focused window one zone, keeping its span size. An unaligned window first snaps to the cell containing its centre. At a display edge, move to the nearest facing zone on an adjacent display, if available.
+- **Ctrl + Cmd + Shift + Arrow:** extend the window's span by one cell in that direction, within the current display. An unaligned window starts from the cell containing its centre.
+
+These shortcuts avoid Ctrl + Option because it is VoiceOver's modifier. Ctrl + Cmd + Arrow has a minor overlap with Xcode navigation while krado is running.
+
 The boundary band is 24pt wide (12pt on either side). Outer edges do not combine cells. A single-row layout has no horizontal internal divider. In 1 × 1, dropping anywhere in the zone fills the visible work area. There are no gaps between tiles. Resizing a window cancels snapping for that drag. Windows opened before krado are supported.
 
 Use **Reload Displays** after a display change if needed; screen changes are also detected automatically. The menu includes **About krado**, a GitHub link, and **Quit krado**.

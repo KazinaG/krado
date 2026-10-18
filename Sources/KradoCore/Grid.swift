@@ -67,6 +67,13 @@ public struct GridSpan: Equatable, Sendable {
         self.columns = columns
         self.rows = rows
     }
+
+    public func union(_ other: GridSpan) -> GridSpan {
+        GridSpan(
+            columns: min(columns.lowerBound, other.columns.lowerBound)..<max(columns.upperBound, other.columns.upperBound),
+            rows: min(rows.lowerBound, other.rows.lowerBound)..<max(rows.upperBound, other.rows.upperBound)
+        )
+    }
 }
 
 /// All frames/points use a global top-left origin (AX/CGEvent coordinates).

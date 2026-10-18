@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let screens = ScreenManager()
     private let loginItem = LoginItemManager()
     private var monitor: DragMonitor!
+    private var hotKeys: HotKeys!
     private var statusItem: NSStatusItem!
     private let permissionItem = NSMenuItem(title: "", action: #selector(showPermissionGuide), keyEquivalent: "")
     private let monitorItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
@@ -28,6 +29,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self?.errorItem.isHidden = error == nil
         }, stateDidChange: { [weak self] in
             self?.refreshStatus()
+        })
+        hotKeys = HotKeys(screens: screens, report: { [weak self] error in
+            self?.errorItem.title = error ?? ""
+            self?.errorItem.isHidden = error == nil
         })
         buildMenu()
         reloadScreens()
@@ -91,7 +96,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func refreshPermission() {
         let trusted = AXIsProcessTrusted()
         requestItem.isHidden = trusted
-        if trusted { _ = monitor.start() } else { monitor.stop() }
+        if trusted {
+            _ = monitor.start()
+            hotKeys.start()
+        } else {
+            monitor.stop()
+            hotKeys.stop()
+        }
         refreshStatus()
     }
 
@@ -192,6 +203,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         permissionTimer?.invalidate()
         permissionGuide.stop()
         monitor.stop()
+        hotKeys.stop()
         screens.hideAll()
         NotificationCenter.default.removeObserver(self)
     }

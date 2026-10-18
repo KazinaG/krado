@@ -28,6 +28,7 @@ final class DragMonitor {
     private var drag: Drag?
     private var cursor = CGPoint.zero
     private var target: (window: AXUIElement, frame: CGRect)?
+    private var accumulator = SpanAccumulator<CGDirectDisplayID>()
     var isRunning: Bool {
         guard let tap, CFMachPortIsValid(tap) else { return false }
         return CGEvent.tapIsEnabled(tap: tap)
@@ -83,6 +84,7 @@ final class DragMonitor {
         pollTimer = nil
         drag = nil
         target = nil
+        accumulator.reset()
         screens.hideAll()
     }
 
@@ -128,6 +130,13 @@ final class DragMonitor {
     private func sample() {
         target = nil
         guard let drag, drag.hasDragged else { return }
+        let flags = CGEventSource.flagsState(.combinedSessionState)
+        let shift = flags.contains(.maskShift)
+        let option = flags.contains(.maskAlternate)
+        if option {
+            _ = accumulator.update(screenID: nil, hit: nil, shift: shift, option: true)
+        }
+        if !shift { accumulator.reset() }
         guard let current = Accessibility.snapshot(of: drag.window) else {
             cancelDrag()
             return
@@ -139,11 +148,19 @@ final class DragMonitor {
         case .stationary:
             screens.hideAll()
         case .moving:
-            guard let screen = screens.screen(at: cursor) else {
+            guard !option else {
                 screens.hideAll()
                 return
             }
-            let span = screen.geometry.hitTest(cursor)
+            let currentScreen = screens.screen(at: cursor)
+            let retainedScreen = shift ? screens.screens.first { $0.displayID == accumulator.screenID } : nil
+            guard let screen = currentScreen ?? retainedScreen else {
+                screens.hideAll()
+                return
+            }
+            let span = accumulator.update(
+                screenID: screen.displayID, hit: screen.geometry.hitTest(cursor), shift: shift, option: false
+            )
             screens.show(screen, target: span)
             if let span { target = (drag.window, screen.geometry.frame(for: span)) }
         }

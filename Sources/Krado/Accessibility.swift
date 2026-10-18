@@ -5,6 +5,14 @@ import KradoCore
 /// AX calls are confined to the main run loop. No permission prompts are made here.
 @MainActor
 enum Accessibility {
+    static func focusedWindow() -> AXUIElement? {
+        guard AXIsProcessTrusted(), let app = NSWorkspace.shared.frontmostApplication else { return nil }
+        let element = AXUIElementCreateApplication(app.processIdentifier)
+        AXUIElementSetMessagingTimeout(element, 0.1)
+        guard let window = elementAttribute(element, kAXFocusedWindowAttribute) else { return nil }
+        return movableWindow(window)
+    }
+
     static func window(at point: CGPoint) -> AXUIElement? {
         let system = AXUIElementCreateSystemWide()
         AXUIElementSetMessagingTimeout(system, 0.1)
