@@ -23,6 +23,9 @@ final class HotKeys {
     private let report: (String?) -> Void
     private var handler: EventHandlerRef?
     private var registrations: [EventHotKeyRef] = []
+    /// The window being grown with Ctrl+Cmd+Shift+Arrow, the zone the grow started from,
+    /// and the frame krado last gave it. Any other move forgets it.
+    private var resize: (window: AXUIElement, anchor: ResizeAnchor, frame: CGRect)?
 
     init(screens: ScreenManager, report: @escaping (String?) -> Void) {
         self.screens = screens
@@ -54,7 +57,13 @@ final class HotKeys {
         }
     }
 
+    /// Forget the grow anchor, e.g. after a drag or any other krado action.
+    func resetResizeAnchor() {
+        resize = nil
+    }
+
     func stop() {
+        resetResizeAnchor()
         for reference in registrations { UnregisterEventHotKey(reference) }
         registrations.removeAll()
         if let handler { RemoveEventHandler(handler) }
@@ -67,8 +76,28 @@ final class HotKeys {
               let snapshot = Accessibility.snapshot(of: window) else { return }
         let available = screens.screens.map { NavigationScreen(geometry: $0.geometry, frame: $0.screenFrameAX) }
         let frame = CGRect(origin: snapshot.position, size: snapshot.size)
-        guard let target = ZoneNavigator.target(windowFrame: frame, screens: available, direction: direction, extend: id >= 256) else { return }
+        guard id >= 256 else {
+            resize = nil
+            guard let target = ZoneNavigator.target(windowFrame: frame, screens: available, direction: direction) else { return }
+            place(target, of: window, screens: available)
+            return
+        }
+        // Reuse the anchor only for the same window, still exactly where the last grow/shrink left it.
+        let anchor = resize.flatMap { previous in
+            CFEqual(previous.window, window) && ZoneNavigator.framesMatch(previous.frame, frame) ? previous.anchor : nil
+        }
+        guard let step = ZoneNavigator.resize(windowFrame: frame, screens: available, direction: direction, anchor: anchor) else { return }
+        resize = nil
+        if place(step.target, of: window, screens: available), let newAnchor = step.anchor,
+           let placed = Accessibility.snapshot(of: window) {
+            resize = (window, newAnchor, CGRect(origin: placed.position, size: placed.size))
+        }
+    }
+
+    @discardableResult
+    private func place(_ target: NavigationTarget, of window: AXUIElement, screens available: [NavigationScreen]) -> Bool {
         let placed = Accessibility.setFrame(available[target.screenIndex].geometry.frame(for: target.span), of: window)
         report(placed ? nil : L10n.text("⚠︎ Window placement failed. The app may restrict its window size or position."))
+        return placed
     }
 }

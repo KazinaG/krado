@@ -22,6 +22,7 @@ final class DragMonitor {
     private let screens: ScreenManager
     private let report: (String?) -> Void
     private let stateDidChange: () -> Void
+    private let didMoveWindow: () -> Void
     private var tap: CFMachPort?
     private var source: CFRunLoopSource?
     private var pollTimer: Timer?
@@ -34,10 +35,13 @@ final class DragMonitor {
         return CGEvent.tapIsEnabled(tap: tap)
     }
 
-    init(screens: ScreenManager, report: @escaping (String?) -> Void, stateDidChange: @escaping () -> Void) {
+    /// didMoveWindow runs after any drag, snapped or not, so keyboard grow anchors are forgotten.
+    init(screens: ScreenManager, report: @escaping (String?) -> Void, stateDidChange: @escaping () -> Void,
+         didMoveWindow: @escaping () -> Void = {}) {
         self.screens = screens
         self.report = report
         self.stateDidChange = stateDidChange
+        self.didMoveWindow = didMoveWindow
     }
 
     func start() -> Bool {
@@ -114,7 +118,9 @@ final class DragMonitor {
             // Invalidate a formerly valid target if the window resized or disappeared before release.
             sample()
             let finalTarget = target
+            let dragged = drag?.hasDragged == true
             cancelDrag()
+            if dragged { didMoveWindow() }
             if let finalTarget {
                 if !Accessibility.setFrame(finalTarget.frame, of: finalTarget.window) {
                     report(L10n.text("⚠︎ Window placement failed. The app may restrict its window size or position."))

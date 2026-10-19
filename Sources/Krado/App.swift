@@ -32,6 +32,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self?.errorItem.isHidden = error == nil
         }, stateDidChange: { [weak self] in
             self?.refreshStatus()
+        }, didMoveWindow: { [weak self] in
+            self?.hotKeys?.resetResizeAnchor()
         })
         hotKeys = HotKeys(screens: screens, report: { [weak self] error in
             self?.errorItem.title = error ?? ""
@@ -182,6 +184,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func reloadScreens() {
         monitor.cancelDrag()
+        hotKeys?.resetResizeAnchor()
         screens.reload()
         guard let menu = statusItem.menu else { return }
         displayItems.forEach { menu.removeItem($0) }

@@ -15,7 +15,7 @@ No version has been released; all work so far is unreleased.
 - Automatic split tiers: portrait 1 × 1 or 1 × 2, ultrawide 4 × 1 or 4 × 2, and landscape 1 × 1, 2 × 1, 2 × 2, or 4 × 2 based on visible work area.
 - Multiple-display support, Retina pixel alignment, Dock/menu-bar work-area handling, and automatic display refresh.
 - Shift+drag to span visited cells and Option+drag to bypass snapping.
-- Ctrl+Cmd+Arrow to move the focused window between zones and adjacent displays; Ctrl+Cmd+Shift+Arrow to extend its span.
+- Ctrl+Cmd+Arrow to move the focused window between zones and adjacent displays; Ctrl+Cmd+Shift+Arrow to extend its span, with the opposite arrow shrinking it back toward the zone where growing started (never below that zone).
 - Accessibility setup guidance, permission/monitoring status, placement error feedback, and recovery checks.
 - Open at Login with an installation-path policy, approval guidance, and a menu toggle.
 - English and Japanese localization, illustrated READMEs, an app icon, and MIT licensing.

@@ -97,7 +97,7 @@ Automatic registration is skipped when the app is outside `/Applications` or `~/
 - **Shift + drag:** hold Shift and sweep across cells to select their bounding rectangle, including three or four columns and multiple rows. Selection starts at the current cell when Shift goes down, includes boundary highlights, and stays selected outside the work area. Moving to another display starts a new selection there; releasing Shift returns to the normal highlight.
 - **Option + drag:** ignore zones and hide the grid while Option is held. Release Option before dropping to resume snapping; dropping with Option held never snaps. Option takes precedence over Shift and clears its selection.
 - **Ctrl + Cmd + Arrow:** move the focused window one zone, keeping its span size. An unaligned window first snaps to the cell containing its centre. At a display edge, move to the nearest facing zone on an adjacent display, if available.
-- **Ctrl + Cmd + Shift + Arrow:** extend the window's span by one cell in that direction, within the current display. An unaligned window starts from the cell containing its centre.
+- **Ctrl + Cmd + Shift + Arrow:** extend the window's span by one cell in that direction, within the current display. An unaligned window starts from the cell containing its centre. krado remembers the zone where growing started; the opposite arrow then shrinks the span back toward it one cell per press, never smaller than that zone. Moving the window (by dragging or Ctrl + Cmd + Arrow) or switching to another window forgets the starting zone.
 
 These shortcuts avoid Ctrl + Option because it is VoiceOver's modifier. Ctrl + Cmd + Arrow has a minor overlap with Xcode navigation while krado is running.
 
