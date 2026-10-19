@@ -5,6 +5,8 @@ name: Release
 # SUFeedURL uses releases/latest/download/, which ignores drafts and prereleases.
 # Branch pushes that touch release files run the same pipeline as a dry run
 # (build + sign + verify) and keep the files only as a workflow artifact.
+# Every run also opens the built DMG in Finder on macOS 15 and 26 (render job) and keeps
+# screenshots of the real window; a draft release is only created after that passes.
 on:
   push:
     tags: ['v*']
@@ -18,6 +20,11 @@ on:
       - scripts/ci-signing-keychain.sh
       - Package.swift
       - Package.resolved
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
+      - scripts/make-dmg.sh
+      - packaging/dmg/**
   workflow_dispatch:
 
 permissions:
@@ -76,6 +83,24 @@ jobs:
           test -L "$mnt/Applications"
           tiffutil -info "$mnt/.background.tiff" | grep -q 'Resolution: 144, 144'
           codesign --verify --deep --strict "$mnt/krado.app"
+          # The geometry that keeps the window intact with Finder's global Path Bar /
+          # Status Bar on, and the frame and picture size actually written into the DMG.
+          python3 packaging/dmg/make_backgrounds.py --check
+          .build/dmgbuild-venv/bin/python - "$mnt" <<'PY'
+          import json, subprocess, sys
+          from ds_store import DSStore
+          L = json.load(open("packaging/dmg/layout.json"))
+          w, h = L["window"]["width"], L["window"]["height"]
+          with DSStore.open(sys.argv[1] + "/.DS_Store", "r") as d:
+              bounds = d["."]["bwsp"]["WindowBounds"]
+              assert bounds.endswith(f"{{{w}, {h + L['titlebar']}}}}}"), bounds
+              assert tuple(d["krado.app"]["Iloc"]) == tuple(L["app"]), d["krado.app"]["Iloc"]
+              assert tuple(d["Applications"]["Iloc"]) == tuple(L["applications"])
+          info = subprocess.run(["tiffutil", "-info", sys.argv[1] + "/.background.tiff"],
+                                capture_output=True, text=True).stdout
+          assert f"Image Width: {w} Image Length: {h + L['bleed']}" in info, info
+          print("DMG window", bounds, "background", w, "x", h + L["bleed"])
+          PY
 
       - name: Show signature
         run: |
@@ -174,9 +199,38 @@ jobs:
         if: always()
         run: scripts/ci-signing-keychain.sh cleanup
 
+  render:
+    # Opens the DMG built above in Finder, as a user does, with default Finder settings and
+    # with Path Bar, Status Bar and filename extensions on (global settings a DMG cannot
+    # override), and keeps the window screenshots as artifacts (render-<os>).
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-26]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ${{ github.ref_type == 'tag' && 'release' || 'dryrun' }}
+          path: built
+      - name: Open the DMG in Finder and screenshot the window
+        run: |
+          expected=$(python3 -c 'import json; L = json.load(open("packaging/dmg/layout.json")); print(L["window"]["height"] + L["titlebar"])')
+          packaging/dmg/render/render-dmg.sh "$(ls built/krado-*.dmg | head -1)" dist/render \
+            release-${{ matrix.os }} "$expected"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: render-${{ matrix.os }}
+          path: dist/render
+          if-no-files-found: error
+          retention-days: 7
+
   draft-release:
     if: github.ref_type == 'tag'
-    needs: build
+    needs: [build, render]
     runs-on: ubuntu-latest
     permissions:
       contents: write

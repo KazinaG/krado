@@ -20,13 +20,18 @@ icon = defines["volume_icon"]  # noqa: F821
 
 # background.png + background@2x.png are combined into one HiDPI TIFF by dmgbuild.
 background = os.path.join(here, style, "background.png")
+# Finder honours toolbar and sidebar per window, but View > Show Path Bar / Show
+# Status Bar (and "Show all filename extensions") are the user's global preferences:
+# the false values below are ignored when the user has them on. The background keeps
+# its bottom layout["bars_reserve"] pt free of art for that case (make_backgrounds.py).
 show_status_bar = False
 show_tab_view = False
 show_toolbar = False
 show_pathbar = False
 show_sidebar = False
-# window_rect height is the whole window; Finder's title bar takes about 28 pt.
-window_rect = ((200, 640), (w, h + 28))
+# window_rect is the whole window frame: the title bar is 32 pt on macOS 26 (measured
+# from v0.1.0, which assumed 28 pt). The background PNG is h + bleed tall.
+window_rect = ((200, 640), (w, h + layout["titlebar"]))
 default_view = "icon-view"
 show_icon_preview = False
 include_icon_view_settings = True

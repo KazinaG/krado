@@ -1,7 +1,12 @@
 {
-  "window": {"width": 660, "height": 420},
+  "window": {"width": 660, "height": 432},
+  "titlebar": 32,
+  "bleed": 16,
+  "bars_reserve": 56,
+  "scroll_margin": 36,
   "icon_size": 128,
   "text_size": 13,
-  "app": [172, 250],
-  "applications": [488, 250]
+  "app": [172, 226],
+  "applications": [488, 226],
+  "label_band": [62, 106]
 }
