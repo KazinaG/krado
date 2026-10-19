@@ -46,7 +46,7 @@ cat > "$bundle/Contents/Info.plist" <<'PLIST'
     <key>CFBundleLocalizations</key><array><string>en</string><string>ja</string></array>
     <key>CFBundleIconFile</key><string>AppIcon</string>
     <key>SUFeedURL</key><string>https://github.com/KazinaG/krado/releases/latest/download/appcast.xml</string>
-    <key>SUPublicEDKey</key><string>KRADO_SPARKLE_PUBLIC_KEY_PLACEHOLDER</string>
+    <key>SUPublicEDKey</key><string>bRmzA8ypSOmFUKGrUZwvEowrEbm4mC8SUrEBpN2i0ZI=</string>
     <key>SUEnableAutomaticChecks</key><true/>
     <key>SUAutomaticallyUpdate</key><false/>
     <key>SUAllowsAutomaticUpdates</key><false/>

@@ -3,61 +3,87 @@
 No version has been released yet. [CHANGELOG.md](../CHANGELOG.md) is the source of
 truth; keep the Japanese translation's `## [...]` headings byte-identical.
 
+Distribution is a DMG attached to a GitHub Release plus a Sparkle 2 appcast. There
+is no Homebrew tap.
+
 ## Update feed
 
 `SUFeedURL` is `https://github.com/KazinaG/krado/releases/latest/download/appcast.xml`.
-Upload `appcast.xml` alongside the DMG as an asset of every GitHub Release. GitHub's
-latest-release redirect provides a stable feed URL without GitHub Pages. Enclosure
-URLs inside the feed must use the specific release's `/releases/download/<tag>/`
-asset URLs, so older feed entries keep pointing to the correct downloads.
+`appcast.xml` is uploaded alongside the DMG as an asset of every GitHub Release.
+GitHub's `releases/latest` redirect always points at the newest **published**,
+non-prerelease release, so:
 
-The public key is currently `KRADO_SPARKLE_PUBLIC_KEY_PLACEHOLDER`. No updater is
-created until a valid Ed25519 public key and HTTPS feed are configured. The menu
-item stays disabled and `SUEnableAutomaticChecks` defaults to false.
+- the feed URL never changes and needs no GitHub Pages site or bot commits to `main`;
+- a draft release is invisible to the feed until it is published, which
+  makes "Publish release" the single go-live switch.
 
-## One-time setup — owner approval required
+Enclosure URLs inside the feed use the specific release's
+`/releases/download/<tag>/` asset URL, so an entry always points at its own DMG.
+Each feed contains only the newest version, which is all Sparkle needs to offer
+an update (no delta updates are generated).
 
-The owner must approve key generation and Keychain access before running Sparkle's
-`generate_keys`. Run it only as an explicit future owner action, keep the private
-key safe, and replace the placeholder `SUPublicEDKey` in `scripts/build-app.sh`
-with the public key. Never commit private keys. Review the setup guide's privacy
-text before enabling network update checks in a released build.
+## Signing key
 
-Sparkle EdDSA archive signatures are separate from Apple Developer ID signing and
-notarization. The current build script uses ad-hoc signing only; it does not provide
-Developer ID signing or notarization. See [Sparkle setup](https://sparkle-project.org/documentation/)
-for signing and distribution requirements. No signing keys are created by the
-build or DMG scripts.
+Updates are signed with an Ed25519 (EdDSA) key in Sparkle 2's format:
 
-## Future release checklist
+- `SUPublicEDKey` in `scripts/build-app.sh` is the base64 of the 32-byte public key.
+- The private key is the base64 of the 32-byte seed, the same format
+  `generate_keys -x` exports and `sign_update`/`generate_appcast --ed-key-file`
+  read. It is stored only in the repository's Actions secret
+  `SPARKLE_ED_PRIVATE_KEY` (and the maintainer's offline backup). It is never
+  committed, and the workflow passes it to Sparkle's tools through standard
+  input (`--ed-key-file -`), never as an argument or a file.
 
-1. Bump both `CFBundleShortVersionString` and `CFBundleVersion` in the Info.plist
-   heredoc in `scripts/build-app.sh`, following Semantic Versioning and increasing
-   the build version.
-2. Move the contents of Unreleased to the chosen version and actual release date
-   in both changelogs; keep a new `## [Unreleased]` section. Run
+Losing the private key means existing installs can no longer verify updates.
+Sparkle accepts an update when either its EdDSA signature or its code signature
+matches the installed app, so with the stable code-signing certificate below a key
+rotation is possible in principle; it has not been tested, so keep the backup safe.
+
+## Code-signing certificate
+
+Release builds are signed with the self-signed `krado Self-Signed` certificate so
+the Accessibility permission survives updates. The p12 and its password are the
+Actions secrets `KRADO_SIGNING_P12_BASE64` and `KRADO_SIGNING_P12_PASSWORD`;
+`scripts/ci-signing-keychain.sh` imports them into a temporary keychain on the
+runner and deletes it at the end of the job. Never regenerate it. Details, the
+update-test feed and the uninstall file list:
+[signing-and-update-test.md](signing-and-update-test.md).
+
+## Release workflow
+
+[`.github/workflows/release.yml`](../.github/workflows/release.yml):
+
+- **Tag `v<version>` pushed:** runs the changelog check and tests, builds the DMG
+  with `scripts/make-dmg.sh`, checks that the tag matches
+  `CFBundleShortVersionString`, takes the notes from the `## [<version>]` section
+  of `CHANGELOG.md` (`scripts/changelog-section.sh`), signs the DMG and writes
+  `appcast.xml` with Sparkle's `generate_appcast`, verifies the signature, length
+  and URL, then creates a **draft** GitHub Release with the DMG and appcast.
+- **Tag `v<version>-test` pushed:** builds update-test build B with
+  `KRADO_VERSION=<version>`, writes `appcast-test.xml`, and creates a **draft
+  pre-release**. See [signing-and-update-test.md](signing-and-update-test.md).
+- **Branch push touching release files:** the same build, signing and
+  verification as a dry run; the files are kept only as a workflow artifact.
+
+Sparkle's tools come from the checksum-pinned Sparkle SwiftPM artifact
+(`.build/artifacts/.../Sparkle/bin`), matching the framework version in
+`Package.resolved`.
+
+## Release checklist
+
+1. Bump the default version (`version="${KRADO_VERSION:-…}"`) in
+   `scripts/build-app.sh`; it sets both `CFBundleShortVersionString` and
+   `CFBundleVersion`. Follow Semantic Versioning.
+2. Move the contents of Unreleased to `## [<version>] - <date>` in both
+   changelogs and keep a new empty `## [Unreleased]` section. Run
    `scripts/check-changelog-headings.sh` and `swift test --disable-keychain`.
-3. Run `scripts/make-dmg.sh` to build `dist/krado-<version>.dmg` (or use
-   `OUTPUT_DIR=/path/to/output`). It does not mount the image or open Finder.
-   Verify the app's signature and framework linkage. Developer ID signing and
-   notarization, when available, must happen before final packaging/signing.
-4. With separately approved access to the owner's signing key, use Sparkle's
-   `sign_update` to sign the final DMG and put its EdDSA signature and byte length
-   in the appcast, or use `generate_appcast` to sign archives and generate the feed.
-   These tools are in Sparkle's distribution `bin` directory (SwiftPM artifacts
-   may also include them). For example, generate a feed from a release directory
-   containing the final DMG using:
+3. Merge to `main`, then push the tag `v<version>` on that commit (maintainer
+   approval required).
+4. Wait for the Release workflow. Download the draft's DMG and check it on a Mac.
+5. Publish the draft (maintainer approval required). Confirm
+   `releases/latest/download/appcast.xml` now serves the new feed, then verify
+   updating from an older build with **Check for Updates…**.
 
-   ```sh
-   /path/to/Sparkle/bin/generate_appcast --download-url-prefix "https://github.com/KazinaG/krado/releases/download/<tag>/" /path/to/release-directory
-   ```
-
-   Check the tool's help for the installed version. Inspect the generated
-   `appcast.xml`: its version, HTTPS enclosure URL, signature, and length must
-   match the final asset. Do not modify the DMG after signing. Upload any delta
-   archives too if the feed references them.
-5. After the owner approves publication, create the GitHub Release for that
-   version and upload the DMG and `appcast.xml` together. Confirm the stable feed
-   URL resolves to this appcast and that the enclosure downloads correctly.
-   In a separately authorized manual session, verify updating from an older
-   configured build before declaring updates ready.
+The app is signed with the self-signed certificate, not Apple Developer ID, and is
+not notarized, so macOS Gatekeeper asks users to approve the first launch (see
+the README). Sparkle's EdDSA signature is independent of Apple code signing.

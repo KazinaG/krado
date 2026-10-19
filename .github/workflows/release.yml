@@ -1,0 +1,195 @@
+name: Release
+
+# A pushed v* tag builds, signs, and attaches the DMG and appcast to a DRAFT
+# GitHub Release. Nothing reaches users until the draft is published:
+# SUFeedURL uses releases/latest/download/, which ignores drafts and prereleases.
+# Branch pushes that touch release files run the same pipeline as a dry run
+# (build + sign + verify) and keep the files only as a workflow artifact.
+on:
+  push:
+    tags: ['v*']
+    branches: ['**']
+    paths:
+      - .github/workflows/release.yml
+      - scripts/build-app.sh
+      - scripts/make-dmg.sh
+      - scripts/changelog-section.sh
+      - scripts/ci-signing-keychain.sh
+      - Package.swift
+      - Package.resolved
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: macos-latest
+    env:
+      CLANG_MODULE_CACHE_PATH: ${{ github.workspace }}/.build/module-cache
+      SWIFT_MODULECACHE_PATH: ${{ github.workspace }}/.build/module-cache
+      RELEASE_DIR: ${{ github.workspace }}/dist/release
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve release kind
+        run: |
+          # v1.2.3 = release (appcast.xml). v1.2.3-test = update-test build B: a draft
+          # pre-release with appcast-test.xml, which releases/latest never serves.
+          if [ "$GITHUB_REF_TYPE" = tag ] && [[ "$GITHUB_REF_NAME" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)-test$ ]]; then
+            { echo "KRADO_TEST_BUILD=1"; echo "KRADO_VERSION=${BASH_REMATCH[1]}"; echo "FEED_NAME=appcast-test.xml"; } >> "$GITHUB_ENV"
+          else
+            { echo "KRADO_TEST_BUILD=0"; echo "FEED_NAME=appcast.xml"; } >> "$GITHUB_ENV"
+          fi
+
+      - name: Check changelogs
+        run: scripts/check-changelog-headings.sh
+
+      - name: Test
+        run: swift test --disable-keychain
+
+      - name: Import code-signing certificate (temporary keychain)
+        env:
+          KRADO_SIGNING_P12_BASE64: ${{ secrets.KRADO_SIGNING_P12_BASE64 }}
+          KRADO_SIGNING_P12_PASSWORD: ${{ secrets.KRADO_SIGNING_P12_PASSWORD }}
+        run: scripts/ci-signing-keychain.sh import
+
+      - name: Build DMG
+        # build-app.sh signs with KRADO_SIGN_IDENTITY and fails unless the designated
+        # requirement is certificate-based (not a cdhash) and has no Team ID.
+        run: OUTPUT_DIR="$RELEASE_DIR" scripts/make-dmg.sh
+
+      - name: Show signature
+        run: |
+          codesign -dv --verbose=2 dist/krado.app 2>&1 | grep -E '^(Identifier|Authority|TeamIdentifier|Signature)'
+          codesign -d -r- dist/krado.app 2>&1 | grep '^designated'
+
+      - name: Resolve version and release notes
+        id: version
+        run: |
+          plist=dist/krado.app/Contents/Info.plist
+          version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist")
+          key=$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$plist")
+          if [ "$(printf '%s' "$key" | base64 -D | wc -c | tr -d ' ')" != 32 ]; then
+            echo "::error::SUPublicEDKey is not a 32-byte Ed25519 public key." && exit 1
+          fi
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            expected="v$version"
+            [ "$KRADO_TEST_BUILD" = 1 ] && expected="v$version-test"
+            if [ "$GITHUB_REF_NAME" != "$expected" ]; then
+              echo "::error::Tag $GITHUB_REF_NAME does not match app version $version." && exit 1
+            fi
+            section=$version
+            [ "$KRADO_TEST_BUILD" = 1 ] && section=Unreleased
+          else
+            section=Unreleased
+          fi
+          # Same base name as the DMG, so generate_appcast embeds it as release notes.
+          notes="$RELEASE_DIR/krado-$version.md"
+          if [ "$section" = Unreleased ]; then
+            # Test builds and dry runs: Unreleased may be empty right after a release.
+            scripts/changelog-section.sh Unreleased > "$notes" 2>/dev/null \
+              || echo "Test build of krado $version. Not for general use." > "$notes"
+          else
+            scripts/changelog-section.sh "$section" > "$notes"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Locate Sparkle tools
+        run: |
+          # Shipped inside the checksum-pinned Sparkle SwiftPM artifact (Package.resolved).
+          bin=$(dirname "$(find .build/artifacts -type f -path '*/Sparkle/bin/generate_appcast' -print -quit)")
+          test -x "$bin/generate_appcast" && test -x "$bin/sign_update"
+          echo "SPARKLE_BIN=$GITHUB_WORKSPACE/$bin" >> "$GITHUB_ENV"
+
+      - name: Sign DMG and generate appcast
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ github.ref_type == 'tag' && github.ref_name || format('v{0}', steps.version.outputs.version) }}
+        run: |
+          if [ -z "$SPARKLE_ED_PRIVATE_KEY" ]; then
+            echo "::error::Secret SPARKLE_ED_PRIVATE_KEY is not available." && exit 1
+          fi
+          # The key goes through stdin (--ed-key-file -); it is never written to disk or argv.
+          printf '%s\n' "$SPARKLE_ED_PRIVATE_KEY" | "$SPARKLE_BIN/generate_appcast" \
+            --ed-key-file - \
+            --download-url-prefix "https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/" \
+            --embed-release-notes \
+            --maximum-deltas 0 \
+            --link "https://github.com/$GITHUB_REPOSITORY" \
+            -o "$RELEASE_DIR/$FEED_NAME" \
+            "$RELEASE_DIR"
+
+      - name: Verify appcast and signature
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ github.ref_type == 'tag' && github.ref_name || format('v{0}', steps.version.outputs.version) }}
+        run: |
+          appcast="$RELEASE_DIR/$FEED_NAME"
+          dmg="$RELEASE_DIR/krado-$VERSION.dmg"
+          cat "$appcast"
+          # generate_appcast omits the signature when the app's SUPublicEDKey does not
+          # match the signing key, so a present signature proves the pair matches.
+          sig=$(sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p' "$appcast" | head -1)
+          test -n "$sig" || { echo "::error::No EdDSA signature in appcast (key mismatch?)."; exit 1; }
+          url="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/krado-$VERSION.dmg"
+          grep -qF "url=\"$url\"" "$appcast" || { echo "::error::Enclosure URL is not $url."; exit 1; }
+          grep -qF "length=\"$(stat -f %z "$dmg")\"" "$appcast" || { echo "::error::Enclosure length mismatch."; exit 1; }
+          printf '%s\n' "$SPARKLE_ED_PRIVATE_KEY" | "$SPARKLE_BIN/sign_update" --verify --ed-key-file - "$dmg" "$sig"
+          ls -l "$RELEASE_DIR"
+
+      - name: Keep release files
+        # Tags: handed to draft-release. Branch/dispatch dry runs: workflow artifact only.
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.ref_type == 'tag' && 'release' || 'dryrun' }}
+          path: |
+            ${{ env.RELEASE_DIR }}/krado-${{ steps.version.outputs.version }}.dmg
+            ${{ env.RELEASE_DIR }}/krado-${{ steps.version.outputs.version }}.md
+            ${{ env.RELEASE_DIR }}/${{ env.FEED_NAME }}
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Delete temporary keychain
+        if: always()
+        run: scripts/ci-signing-keychain.sh cleanup
+
+  draft-release:
+    if: github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+          path: release
+      - name: Create draft GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          if [[ "$GITHUB_REF_NAME" == *-test ]]; then
+            # Update-test build: draft pre-release; publishing it (as a pre-release) is a
+            # separate owner decision. releases/latest never points at a pre-release.
+            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+              --draft --prerelease --verify-tag \
+              --title "krado $VERSION (update test)" \
+              --notes "Update test build for krado $VERSION. Not for general use." \
+              "release/krado-$VERSION.dmg" release/appcast-test.xml
+          else
+            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+              --draft --verify-tag \
+              --title "krado $VERSION" \
+              --notes-file "release/krado-$VERSION.md" \
+              "release/krado-$VERSION.dmg" release/appcast.xml
+          fi

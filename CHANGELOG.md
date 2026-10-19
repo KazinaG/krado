@@ -5,9 +5,10 @@ English | [日本語](CHANGELOG.ja.md)
 All notable changes to krado are documented in this file, the source of truth.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-No version has been released; all work so far is unreleased.
 
 ## [Unreleased]
+
+## [0.1.0] - 2026-10-20
 
 ### Added
 
@@ -22,8 +23,9 @@ No version has been released; all work so far is unreleased.
 - English and Japanese localization, illustrated READMEs, an app icon, and MIT licensing.
 - Pure-logic tests and design/manual-check documentation; feedback and issue templates with a contribution policy.
 - A DMG packaging script with an Applications shortcut and an optional output directory.
-- Sparkle 2 framework bundling, HTTPS appcast configuration, a tested configuration policy, and a localized Check for Updates menu item. Automatic update checks are on from the start without Sparkle's permission prompt; a found update is shown in Sparkle's standard alert and is never downloaded or installed silently. Updates stay disabled while the public key is a placeholder.
+- Sparkle 2 framework bundling, HTTPS appcast configuration, a tested configuration policy, and a localized Check for Updates menu item. Automatic update checks are on from the start without Sparkle's permission prompt; a found update is shown in Sparkle's standard alert and is never downloaded or installed silently. Updates are verified with krado's Sparkle EdDSA public key.
 - An opt-in test feed (`KradoTestFeedURL`, limited to this repository's release assets and still EdDSA-verified) for trying an update between unpublished builds.
+- A tag-triggered release workflow that builds the DMG, signs it and the appcast entry with the Sparkle key from a GitHub Actions secret, and attaches both to a draft GitHub Release with notes from this changelog. It signs the app with the "krado Self-Signed" certificate from Actions secrets in a temporary keychain that is deleted at the end of the job; `v<version>-test` tags make a draft pre-release with `appcast-test.xml` for update tests.
 - Bilingual changelogs, a matching-heading check, GitHub Actions checks for changelog headings and Swift tests, and future release instructions.
 
 ### Changed
