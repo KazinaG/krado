@@ -14,14 +14,16 @@ No version has been released; all work so far is unreleased.
 - Menu-bar window tiling for macOS with drag-to-snap zone overlays and boundary/intersection spanning.
 - Automatic split tiers: portrait 1 × 1 or 1 × 2, ultrawide 4 × 1 or 4 × 2, and landscape 1 × 1, 2 × 1, 2 × 2, or 4 × 2 based on visible work area.
 - Multiple-display support, Retina pixel alignment, Dock/menu-bar work-area handling, and automatic display refresh.
-- Shift+drag to span visited cells, Option+drag to bypass snapping, and Esc during a drag to cancel snapping for that drag.
+- Shift+drag to span visited cells, Option+drag to bypass snapping, and Esc during a drag to cancel snapping for that drag (the window stays where it is released).
 - Ctrl+Cmd+Arrow to move the focused window between zones and adjacent displays; Ctrl+Cmd+Shift+Arrow to extend its span, with the opposite arrow shrinking it back toward the zone where growing started (never below that zone).
 - Accessibility setup guidance, permission/monitoring status, placement error feedback, and recovery checks.
-- A single Launch at Login checkbox in the menu (SMAppService), on by default from the first launch in Applications, with a one-line hint only when macOS needs approval or krado is outside Applications.
+- A single Launch at Login checkbox in the menu (SMAppService), off by default; the welcome guide offers a one-click button to turn it on, with a one-line hint only when macOS needs approval or krado is outside Applications.
+- An Uninstall krado… menu item: after confirmation it unregisters the login item, resets krado's own Accessibility entry with `tccutil` (current user, no sudo), removes its preferences, caches and HTTP storage, moves the app to the Trash, and quits; if any step fails it explains the manual steps and opens Accessibility settings.
 - English and Japanese localization, illustrated READMEs, an app icon, and MIT licensing.
 - Pure-logic tests and design/manual-check documentation; feedback and issue templates with a contribution policy.
 - A DMG packaging script with an Applications shortcut and an optional output directory.
-- Sparkle 2 framework bundling, HTTPS appcast configuration, a tested configuration policy, and a localized Check for Updates menu item. Updates remain disabled while the public key is a placeholder; automatic checks default to off.
+- Sparkle 2 framework bundling, HTTPS appcast configuration, a tested configuration policy, and a localized Check for Updates menu item. Automatic update checks are on from the start without Sparkle's permission prompt; a found update is shown in Sparkle's standard alert and is never downloaded or installed silently. Updates stay disabled while the public key is a placeholder.
+- An opt-in test feed (`KradoTestFeedURL`, limited to this repository's release assets and still EdDSA-verified) for trying an update between unpublished builds.
 - Bilingual changelogs, a matching-heading check, GitHub Actions checks for changelog headings and Swift tests, and future release instructions.
 
 ### Changed
@@ -30,4 +32,4 @@ No version has been released; all work so far is unreleased.
 - Status presentation uses SF Symbols and color, with localized labels and accessibility descriptions; an offscreen renderer supplies reference images.
 - README presentation includes language switching and Japanese cover/layout images.
 - Installation documentation describes future DMG downloads, macOS first-launch approval, and signed-update availability.
-- App packaging embeds and ad-hoc signs Sparkle and verifies bundle signatures, framework linkage, and the executable's framework search path.
+- App packaging embeds Sparkle and verifies bundle signatures, framework linkage, and the executable's framework search path. Release builds are signed with a stable self-signed certificate ("krado Self-Signed", imported into a temporary CI keychain) so Accessibility permission survives updates; local builds without it fall back to ad-hoc signing.

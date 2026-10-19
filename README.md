@@ -31,10 +31,10 @@ Drag any window by its title bar. A grid appears on the screen under the pointer
 | --- | --- |
 | **Shift + drag** — sweep across zones to cover all of them. | ![Shift + drag spans several zones](docs/assets/demo/shift-drag.gif) |
 | **Option + drag** — ignore the grid and drop the window anywhere. | ![Option + drag ignores the grid](docs/assets/demo/option-drag.gif) |
-| **Esc while dragging** — cancel snapping for this drag. | ![Esc cancels snapping](docs/assets/demo/esc-cancel.gif) |
+| **Esc while dragging** — cancel snapping for this drag; the window stays where you release it. | ![Esc cancels snapping](docs/assets/demo/esc-cancel.gif) |
 | **Keyboard** — **⌃⌘ + arrow** moves the active window one zone (and onto the next screen at the edge). **⌃⌘⇧ + arrow** grows it; the opposite arrow shrinks it back. | ![Move, grow and shrink with the keyboard](docs/assets/demo/keyboard.gif) |
 
-The menu-bar icon shows whether krado is working. Its menu has **Launch at Login** and **Check for Updates…**.
+The menu-bar icon shows whether krado is working. Its menu has **Launch at Login** (off until you turn it on; the welcome window offers it as one click) and **Check for Updates…**. krado checks for updates automatically and always asks before installing one.
 
 ## Install
 
@@ -46,7 +46,13 @@ Requires macOS 14 or later.
    - **macOS 14:** Control-click krado in Applications and choose **Open**.
 3. Allow **Accessibility** when krado asks. It needs this to move and resize other apps' windows. krado detects the permission automatically.
 
-If an update asks for Accessibility again, remove the old **krado** entry in **System Settings → Privacy & Security → Accessibility** and turn on the new one.
+Releases are signed with the same certificate every time, so updates keep the Accessibility permission. If macOS still asks again, remove the old **krado** entry in **System Settings → Privacy & Security → Accessibility** and turn on the new one.
+
+## Uninstall
+
+Choose **Uninstall krado…** in krado's menu. It turns off Launch at Login, removes krado's Accessibility permission, settings and caches, moves the app to the Trash, and quits.
+
+If that is not possible (for example when krado runs from the disk image), remove **krado** in **System Settings → General → Login Items & Extensions** and in **Privacy & Security → Accessibility** (select it and click **−**), then move krado to the Trash.
 
 ## Privacy
 

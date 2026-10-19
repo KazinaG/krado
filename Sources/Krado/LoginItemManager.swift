@@ -4,7 +4,6 @@ import KradoCore
 
 @MainActor
 final class LoginItemManager {
-    private static let defaultAppliedKey = "didApplyDefaultLoginItem"
     private(set) var errorMessage: String?
     var status: SMAppService.Status { SMAppService.mainApp.status }
     var state: LoginItemState {
@@ -22,26 +21,28 @@ final class LoginItemManager {
         )
     }
 
-    func applyFirstRunDefault() {
-        let defaults = UserDefaults.standard
-        guard LoginItemPolicy.shouldAutoRegister(
-            bundlePath: Bundle.main.bundlePath, homeDirectory: NSHomeDirectory(),
-            didApplyDefaultLoginItem: defaults.bool(forKey: Self.defaultAppliedKey)
-        ) else { return }
-        // Consume the default only at a stable install location. Never override a later opt-out.
-        defaults.set(true, forKey: Self.defaultAppliedKey)
-        if status == .notRegistered || status == .notFound { register() }
+    /// Launch at Login is off by default. It is only registered when the user asks, from
+    /// the onboarding button or the menu checkbox.
+    var onboardingOffer: LoginOnboardingOffer {
+        LoginItemPolicy.onboardingOffer(state: state, installedInApplications: isInstalled)
+    }
+
+    /// The onboarding guide's one-click button.
+    func enableFromOnboarding() {
+        switch onboardingOffer {
+        case .turnOn: register()
+        case .openSettings: openSettings()
+        case .moveToApplications, .alreadyOn: break
+        }
     }
 
     /// One menu item does everything: turn on, turn off, or open Login Items when macOS
-    /// is waiting for approval. Any explicit choice also stops the first-run default.
+    /// is waiting for approval.
     func toggle() {
         switch LoginItemPolicy.toggleAction(state: state, installedInApplications: isInstalled) {
         case .register:
-            UserDefaults.standard.set(true, forKey: Self.defaultAppliedKey)
             register()
         case .unregister:
-            UserDefaults.standard.set(true, forKey: Self.defaultAppliedKey)
             do {
                 try SMAppService.mainApp.unregister()
                 errorMessage = nil

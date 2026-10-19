@@ -11,11 +11,14 @@ public enum LoginItemPolicy {
             && (path.hasPrefix("/Applications/") || path.hasPrefix(userApplications + "/"))
     }
 
-    public static func shouldAutoRegister(
-        bundlePath: String, homeDirectory: String, didApplyDefaultLoginItem: Bool
-    ) -> Bool {
-        !didApplyDefaultLoginItem
-            && isInstalledInApplications(bundlePath: bundlePath, homeDirectory: homeDirectory)
+    /// What the onboarding guide offers. Launch at Login is off by default and is only
+    /// ever turned on by the user, from this offer or from the menu checkbox.
+    public static func onboardingOffer(state: LoginItemState, installedInApplications: Bool) -> LoginOnboardingOffer {
+        switch state {
+        case .enabled: .alreadyOn
+        case .needsApproval: .openSettings
+        case .disabled, .unavailable: installedInApplications ? .turnOn : .moveToApplications
+        }
     }
 
     /// What the single "Launch at Login" menu item does when chosen.
@@ -44,6 +47,17 @@ public enum LoginItemState: Equatable, Sendable {
 
 public enum LoginToggleAction: Equatable, Sendable {
     case register, unregister, openSettings, moveToApplications
+}
+
+public enum LoginOnboardingOffer: Equatable, Sendable {
+    /// One-click button that registers the login item.
+    case turnOn
+    /// macOS is waiting for approval; the button opens Login Items settings.
+    case openSettings
+    /// Registration is not possible from this location; show a hint, no button.
+    case moveToApplications
+    /// Nothing to offer.
+    case alreadyOn
 }
 
 public enum LoginHint: Equatable, Sendable {
