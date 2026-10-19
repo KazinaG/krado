@@ -9,7 +9,7 @@ An ad-hoc DR is the build's cdhash, so every new build loses the grant.
 Release builds are therefore signed with one long-lived self-signed certificate:
 
 - Identity: `krado Self-Signed` (no OU, so no Team ID), code-signing EKU, valid until 2056.
-- DR: `identifier "io.github.kazinag.krado" and certificate root = H"…"`, identical for every build.
+- DR: `identifier "io.github.kazinag.krado" and certificate leaf = H"…"`, identical for every build.
   `scripts/build-app.sh` fails if the DR is a cdhash or a Team ID is present.
 - CI: `scripts/ci-signing-keychain.sh import` decodes the `KRADO_SIGNING_P12_BASE64`
   secret with `KRADO_SIGNING_P12_PASSWORD` into a temporary keychain under
@@ -20,7 +20,9 @@ Release builds are therefore signed with one long-lived self-signed certificate:
   Accessibility once more. Its backup lives with the Sparkle EdDSA key.
 
 This is not Developer ID: Gatekeeper still treats krado as an unidentified developer
-on first launch (macOS 15+: **Open Anyway** in Privacy & Security). Sparkle accepts
+on first launch (macOS 15+: **Open Anyway** in Privacy & Security). The
+[Gatekeeper workflow](../.github/workflows/gatekeeper.yml) checks this on every build
+with a quarantined copy; see the release checklist. Sparkle accepts
 updates because they carry a valid EdDSA signature from the release key.
 
 ## Update defaults

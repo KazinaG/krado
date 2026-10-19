@@ -45,9 +45,9 @@ Microsoft PowerToys の FancyZones に着想を得ています。krado はマス
 macOS 14 以降で使えます。
 
 1. [Releases](https://github.com/KazinaG/krado/releases) から `krado-x.y.z.dmg` をダウンロードして開き、<strong>krado</strong> を<strong>「アプリケーション」</strong>へドラッグします。
-2. krado を開きます。「検証できません」と出たときは：
-   - <strong>macOS 15 以降：</strong>「完了」を押し、<strong>システム設定 → プライバシーとセキュリティ</strong>で<strong>「このまま開く」</strong>を押します。
-   - <strong>macOS 14：</strong>「アプリケーション」の krado を Control キーを押しながらクリックし、<strong>「開く」</strong>を選びます。
+2. krado を開きます。krado は Apple のノータリゼーション（公証）を受けていないため、初めて開くときだけ macOS が止めます。この手順は一度だけで、アップデートのあとはそのまま開けます。
+   - <strong>macOS 15 以降：</strong><strong>「“krado.app”は開いていません」</strong>と出たら<strong>「完了」</strong>を押します。<strong>システム設定 → プライバシーとセキュリティ</strong>を開いて<strong>「セキュリティ」</strong>まで下にスクロールし、krado についての表示の横にある<strong>「このまま開く」</strong>を押して、パスワードで確かめます。このボタンは、krado を開こうとしてから約1時間表示されます。macOS 15 以降では、Control キーを押しながらクリックして「開く」を選ぶ方法は使えません。
+   - <strong>macOS 14：</strong>「アプリケーション」の krado を Control キーを押しながらクリックし、<strong>「開く」</strong>を選んで、もう一度<strong>「開く」</strong>を押します。
 3. krado に聞かれたら、<strong>アクセシビリティ</strong>を許可します。ほかのアプリのウインドウを動かしたり大きさを変えたりするのに必要です。許可すると krado が自動で気づきます。
 
 リリースは毎回同じ証明書で署名しているので、アップデートしてもアクセシビリティの許可はそのまま使えます。それでももう一度求められたら、<strong>システム設定 → プライバシーとセキュリティ → アクセシビリティ</strong>で古い <strong>krado</strong> を削除し、新しい <strong>krado</strong> をオンにしてください。

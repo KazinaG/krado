@@ -1,7 +1,7 @@
 # Releasing krado
 
-No version has been released yet. [CHANGELOG.md](../CHANGELOG.md) is the source of
-truth; keep the Japanese translation's `## [...]` headings byte-identical.
+The first public release was v0.1.0 (2026-10-19). Never move or rewrite the tag
+of a published release. [CHANGELOG.md](../CHANGELOG.md) is the source of truth; keep the Japanese translation's `## [...]` headings byte-identical.
 
 Distribution is a DMG attached to a GitHub Release plus a Sparkle 2 appcast. There
 is no Homebrew tap.
@@ -80,9 +80,23 @@ Sparkle's tools come from the checksum-pinned Sparkle SwiftPM artifact
 3. Merge to `main`, then push the tag `v<version>` on that commit (maintainer
    approval required).
 4. Wait for the Release workflow. Download the draft's DMG and check it on a Mac.
-5. Publish the draft (maintainer approval required). Confirm
+5. **Gatekeeper first launch (quarantined download).** The
+   [Gatekeeper workflow](../.github/workflows/gatekeeper.yml) runs after every Release
+   run on the DMG it built: it copies `krado.app` out of the image, adds a Safari-style
+   `com.apple.quarantine` attribute, and runs `spctl --assess --type execute -vv`
+   (plus `syspolicy_check distribution` when available). Confirm it passed and read the
+   result in its job summary. Expected today: **rejected** (self-signed, not
+   notarized), so the README's first-launch steps (**Open Anyway**) must be present
+   and match the current macOS. If the signing ever changes, change
+   `GATEKEEPER_EXPECTED` and the README together.
+   A DMG copied to a Mac with `scp`, `curl`, `gh` or an agent tool has **no**
+   quarantine attribute and opens without any Gatekeeper dialog, so it is not a
+   first-launch test. When signing changes, also do one real first launch on a Mac
+   from a DMG downloaded in Safari.
+6. Publish the draft (maintainer approval required). Confirm
    `releases/latest/download/appcast.xml` now serves the new feed, then verify
-   updating from an older build with **Check for Updates…**.
+   updating from an older build with **Check for Updates…**. The Gatekeeper
+   workflow runs again on the public DMG, downloaded without signing in.
 
 The app is signed with the self-signed certificate, not Apple Developer ID, and is
 not notarized, so macOS Gatekeeper asks users to approve the first launch (see

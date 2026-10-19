@@ -45,9 +45,9 @@ The menu-bar icon shows whether krado is working. Its menu has **Launch at Login
 Requires macOS 14 or later.
 
 1. Download `krado-x.y.z.dmg` from [Releases](https://github.com/KazinaG/krado/releases), open it, and drag **krado** to **Applications**.
-2. Open krado. If macOS says it cannot verify the app:
-   - **macOS 15 or later:** click **Done**, then go to **System Settings → Privacy & Security** and click **Open Anyway**.
-   - **macOS 14:** Control-click krado in Applications and choose **Open**.
+2. Open krado. The first time, macOS stops it with **“krado.app” Not Opened**, because krado isn’t notarized by Apple. You only do this once; updates open normally.
+   - **macOS 15 or later:** click **Done**. Go to **System Settings → Privacy & Security**, scroll down to **Security**, click **Open Anyway** next to the message about krado, and confirm with your password. The button stays there for about an hour after you try to open krado. Control-click → **Open** no longer works on macOS 15 and later.
+   - **macOS 14:** Control-click krado in Applications, choose **Open**, then click **Open** again.
 3. Allow **Accessibility** when krado asks. It needs this to move and resize other apps' windows. krado detects the permission automatically.
 
 Releases are signed with the same certificate every time, so updates keep the Accessibility permission. If macOS still asks again, remove the old **krado** entry in **System Settings → Privacy & Security → Accessibility** and turn on the new one.
