@@ -10,6 +10,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Fixed
 
+- Larger screens are divided evenly by a minimum zone size (about 900 × 1000 pt), up to 8 × 4: 4K at native size stays 4 × 2, 6K gets 6 × 3, 8K gets 8 × 4. MacBook screens stay 2 × 1.
 - Wide but short screens (under 900 pt tall) are no longer split top and bottom, so no zone is shorter than 450 pt.
 
 - The "new version available" alert no longer appears during first-run setup: scheduled update checks start only after Accessibility is allowed and the welcome guide is closed. Check for Updates… always works.

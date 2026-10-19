@@ -18,16 +18,13 @@ Release bundling passes `-debug-info-format none`: no dSYM is needed for v0.1 di
 
 Policy input is `ScreenDescriptor(isBuiltin, visibleSize, name)`; both name and `isBuiltin` are informational. The same policy applies to built-in and external screens. Rules are evaluated in order, using the width **W** and height **H** of `NSScreen.visibleFrame` in **points**, not hardware pixels:
 
-| Priority | Visible size | Columns × rows |
-| --- | --- | --- |
-| 1 | Portrait: H > W | H ≥ 1200pt → 1 × 2; otherwise 1 × 1 |
-| 2 | Ultrawide: W/H ≥ 2.1 **and** W ≥ 2400pt | H ≥ 1300pt → 4 × 2; otherwise 4 × 1 |
-| 3 | W ≥ 2800pt (large / 4K-class) | H ≥ 900pt → 4 × 2; otherwise 4 × 1 |
-| 4 | W ≥ 1800pt (mid-size) | H ≥ 900pt → 2 × 2; otherwise 2 × 1 |
-| 5 | W ≥ 1200pt (MacBook Air 13-class) | 2 × 1 |
-| 6 | Otherwise | 1 × 1 (no split) |
+Columns = floor(W / 900) and rows = floor(H / 1000), capped at 8 × 4, so every zone stays large and the screen is divided evenly:
 
-Named constants in `GridPolicy` are `portraitSplitMinimumHeight` (1200), `ultrawideMinimumAspectRatio` (2.1), `ultrawideMinimumWidth` (2400), `ultrawideTwoRowMinimumHeight` (1300), `largeDisplayMinimumWidth` (2800), `midSizeDisplayMinimumWidth` (1800), `twoColumnMinimumWidth` (1200), and `twoRowMinimumHeight` (900, so no zone is shorter than 450pt). Portrait takes precedence even on very large screens; equality H = W is not portrait. Ultrawide requires both its aspect ratio and width thresholds, and precedes the general large-screen rule: 2800×1000pt gets 4×1, not 4×2.
+- W ≥ 1200pt → at least 2 columns; otherwise 1.
+- Two or more rows need, in portrait, H ≥ 1200pt; in landscape, H ≥ 900pt and W ≥ 1800pt (laptop-class screens such as a MacBook Air stay one row).
+- Ultrawide (W/H ≥ 2.1 and W ≥ 2400pt): at least 4 columns; rows only from H ≥ 1300pt.
+
+Examples: MacBook Air 2 × 1, 1080p/1440p-class 2 × 2, 4K at native size 4 × 2, 5K native 5 × 2, 6K native 6 × 3, 8K native 8 × 4, portrait 4K 1 × 2 (native 2 × 3), 3440 × 1440 ultrawide 4 × 2. Constants live in `GridPolicy`.
 
 The aim is to keep zones roughly at least 640pt wide and about 500pt tall so typical app windows fit. Mid-size screens get 2×2 rather than three narrow columns. Small landscape screens get full-height left/right halves. Below about 1200pt, even halves become too narrow, so a single zone fills the visible work area. Portrait screens split only with at least 1200pt of height; ultrawides use two rows only with at least 1300pt. These are sizing heuristics, not enforced minimum dimensions: the 1200pt width threshold permits 600pt halves, and unusual work-area aspect ratios or app size constraints may still produce smaller usable windows.
 

@@ -18,12 +18,12 @@ krado chooses the split from the screen's size, as set in **System Settings → 
 
 | Screen | Grid | For example |
 | --- | --- | --- |
-| Large | **4 × 2** | Big high-resolution displays (about 2800 wide or more) |
-| Medium | **2 × 2** | Typical desktop monitors such as 1920 × 1080 or 2560 × 1440 |
-| Small | **2 × 1** | MacBook screens at their default size |
+| MacBook | **2 × 1** | MacBook Air / Pro screens at their default size |
+| Typical monitor | **2 × 2** | 1920 × 1080, 2560 × 1440, or a 4K/5K display at its default size |
+| Large | **3 × 2** to **8 × 4** | High-resolution displays at native size: 4K → 4 × 2, 6K → 6 × 3, 8K → 8 × 4 |
 | Very small | **1 × 1** | Narrow or low-resolution screens |
-| Portrait | **1 × 2** | A monitor turned vertical (short portrait screens stay 1 × 1) |
-| Ultrawide | **4 × 1** or **4 × 2** | Very wide monitors, with two rows when tall enough |
+| Portrait | **1 × 2** or more | A monitor turned vertical (short portrait screens stay 1 × 1) |
+| Ultrawide | **4 × 1** or more | Very wide monitors, with two rows when tall enough |
 
 ![Grids for large, medium, small, very small and portrait screens](docs/assets/layouts.png)
 
