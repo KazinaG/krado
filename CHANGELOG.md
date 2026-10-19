@@ -26,6 +26,7 @@ No version has been released; all work so far is unreleased.
 
 ### Changed
 
+- The drag grid uses rounded, slightly inset tiles and fades in and out (instantly with Reduce Motion).
 - Status presentation uses SF Symbols and color, with localized labels and accessibility descriptions; an offscreen renderer supplies reference images.
 - README presentation includes language switching and Japanese cover/layout images.
 - Installation documentation describes future DMG downloads, macOS first-launch approval, and signed-update availability.

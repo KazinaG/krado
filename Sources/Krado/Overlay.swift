@@ -25,24 +25,29 @@ private final class GridView: NSView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
+        // Rounded, slightly inset tiles read like macOS's own window tiling previews.
+        // The inset is visual only; placed windows still fill their zones exactly.
         for span in geometry.zones {
-            let rect = localFrame(span)
+            let path = Self.roundedPath(localFrame(span).insetBy(dx: 4, dy: 4))
             NSColor.controlAccentColor.withAlphaComponent(0.10).setFill()
-            NSBezierPath(rect: rect).fill()
+            path.fill()
             NSColor.white.withAlphaComponent(0.5).setStroke()
-            let path = NSBezierPath(rect: rect.insetBy(dx: 0.5, dy: 0.5))
             path.lineWidth = 1
             path.stroke()
         }
         if let target {
-            let rect = localFrame(target).insetBy(dx: 2, dy: 2)
+            let path = Self.roundedPath(localFrame(target).insetBy(dx: 5.5, dy: 5.5))
             NSColor.controlAccentColor.withAlphaComponent(0.30).setFill()
-            NSBezierPath(rect: rect).fill()
+            path.fill()
             NSColor.controlAccentColor.withAlphaComponent(0.95).setStroke()
-            let path = NSBezierPath(rect: rect)
             path.lineWidth = 3
             path.stroke()
         }
+    }
+
+    private static func roundedPath(_ rect: CGRect) -> NSBezierPath {
+        let radius = min(10, rect.width / 4, rect.height / 4)
+        return NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
     }
 }
 
@@ -54,6 +59,9 @@ final class ScreenGrid {
     let screenFrameAX: CGRect
     private let panel: OverlayPanel
     private let gridView: GridView
+    /// True between show() and hide(); a fade-out finishes only if no show() came in between.
+    private var wantsVisible = false
+    private static let fadeDuration: TimeInterval = 0.12
 
     init(screen: NSScreen, displayID: CGDirectDisplayID, mainScreenHeight: CGFloat) {
         self.displayID = displayID
@@ -90,15 +98,41 @@ final class ScreenGrid {
 
     func show(target: GridSpan?) {
         if gridView.target != target { gridView.target = target }
-        if !panel.isVisible { panel.orderFrontRegardless() }
+        guard !wantsVisible else { return }
+        wantsVisible = true
+        if !panel.isVisible {
+            panel.alphaValue = 0
+            panel.orderFrontRegardless()
+        }
+        fade(to: 1, completion: nil)
     }
 
     func hide() {
-        if panel.isVisible { panel.orderOut(nil) }
-        if gridView.target != nil { gridView.target = nil }
+        guard wantsVisible else { return }
+        wantsVisible = false
+        fade(to: 0) { [weak self] in
+            guard let self, !self.wantsVisible else { return }
+            self.panel.orderOut(nil)
+            if self.gridView.target != nil { self.gridView.target = nil }
+        }
     }
 
-    func close() { panel.close() }
+    func close() {
+        wantsVisible = false
+        panel.close()
+    }
+
+    /// A short ease-out fade; instant when the user has Reduce Motion on.
+    private func fade(to alpha: CGFloat, completion: (@MainActor @Sendable () -> Void)?) {
+        let duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : Self.fadeDuration
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = duration
+            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            panel.animator().alphaValue = alpha
+        }, completionHandler: {
+            MainActor.assumeIsolated { completion?() }
+        })
+    }
 }
 
 @MainActor
