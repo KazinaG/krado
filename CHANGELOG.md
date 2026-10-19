@@ -14,7 +14,7 @@ No version has been released; all work so far is unreleased.
 - Menu-bar window tiling for macOS with drag-to-snap zone overlays and boundary/intersection spanning.
 - Automatic split tiers: portrait 1 × 1 or 1 × 2, ultrawide 4 × 1 or 4 × 2, and landscape 1 × 1, 2 × 1, 2 × 2, or 4 × 2 based on visible work area.
 - Multiple-display support, Retina pixel alignment, Dock/menu-bar work-area handling, and automatic display refresh.
-- Shift+drag to span visited cells and Option+drag to bypass snapping.
+- Shift+drag to span visited cells, Option+drag to bypass snapping, and Esc during a drag to cancel snapping for that drag.
 - Ctrl+Cmd+Arrow to move the focused window between zones and adjacent displays; Ctrl+Cmd+Shift+Arrow to extend its span, with the opposite arrow shrinking it back toward the zone where growing started (never below that zone).
 - Accessibility setup guidance, permission/monitoring status, placement error feedback, and recovery checks.
 - A single Launch at Login checkbox in the menu (SMAppService), on by default from the first launch in Applications, with a one-line hint only when macOS needs approval or krado is outside Applications.

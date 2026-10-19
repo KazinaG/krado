@@ -30,6 +30,10 @@ final class DragMonitor {
     private var cursor = CGPoint.zero
     private var target: (window: AXUIElement, frame: CGRect)?
     private var accumulator = SpanAccumulator<CGDirectDisplayID>()
+    private var snapSession = DragSnapSession()
+    /// Passive global key monitor, installed only while a drag is in progress so Esc can
+    /// cancel snapping. Global key monitoring relies on the Accessibility permission krado has.
+    private var keyMonitor: Any?
     var isRunning: Bool {
         guard let tap, CFMachPortIsValid(tap) else { return false }
         return CGEvent.tapIsEnabled(tap: tap)
@@ -89,6 +93,9 @@ final class DragMonitor {
         drag = nil
         target = nil
         accumulator.reset()
+        snapSession.end()
+        if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
+        keyMonitor = nil
         screens.hideAll()
     }
 
@@ -106,6 +113,11 @@ final class DragMonitor {
             guard let window = Accessibility.window(at: location),
                   let initial = Accessibility.snapshot(of: window) else { return }
             drag = Drag(window: window, initial: initial)
+            snapSession.begin()
+            keyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                let keyCode = event.keyCode
+                MainActor.assumeIsolated { self?.handleKey(keyCode) }
+            }
             pollTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30, repeats: true) { [weak self] _ in
                 MainActor.assumeIsolated { self?.sample() }
             }
@@ -133,9 +145,20 @@ final class DragMonitor {
         }
     }
 
+    private func handleKey(_ keyCode: UInt16) {
+        guard snapSession.keyDown(keyCode) else { return }
+        target = nil
+        accumulator.reset()
+        screens.hideAll()
+    }
+
     private func sample() {
         target = nil
         guard let drag, drag.hasDragged else { return }
+        guard snapSession.allowsSnap else {
+            screens.hideAll()
+            return
+        }
         let flags = CGEventSource.flagsState(.combinedSessionState)
         let shift = flags.contains(.maskShift)
         let option = flags.contains(.maskAlternate)
