@@ -1,6 +1,8 @@
+"Launch at Login" = "ログイン時に起動";
+"Allow krado in System Settings → Login Items" = "システム設定 → ログイン項目で krado を許可してください";
+"Move krado to Applications to launch at login" = "ログイン時に起動するには krado を「アプリケーション」に移動してください";
+"⚠︎ Launch at Login: %@" = "⚠︎ ログイン時に起動：%@";
 "Accessibility Setup…" = "アクセシビリティの設定…";
-"Open at Login" = "ログイン時に起動";
-"Open Login Items Settings…" = "ログイン項目の設定を開く…";
 "Reload Displays" = "画面構成を再読込";
 "About krado" = "kradoについて";
 "krado on GitHub…" = "GitHubでkradoを見る…";
@@ -13,11 +15,6 @@
 "krado — Accessibility permission needed" = "krado — アクセシビリティの許可が必要です";
 "krado — Watching window drags" = "krado — ウインドウのドラッグを監視中";
 "krado — Event monitoring error" = "krado — イベント監視エラー";
-"Move krado to the Applications folder to open at login" = "ログイン時に起動するにはkradoをアプリケーションフォルダへ移動してください";
-"⚠︎ Allow krado in System Settings → Login Items" = "⚠︎ システム設定 → ログイン項目でkradoを許可してください";
-"⚠︎ Login item unavailable. Try reinstalling krado in Applications." = "⚠︎ ログイン項目を利用できません。アプリケーションフォルダにkradoを入れ直してください。";
-"⚠︎ Login item status is unavailable" = "⚠︎ ログイン項目の状態を確認できません";
-"⚠︎ Open at Login: %@" = "⚠︎ ログイン時に起動：%@";
 "%@: %d × %d (%d zones)" = "%@：%d × %d（%dゾーン）";
 "%@: 1 × 1 (no split)" = "%@：1 × 1（分割なし）";
 "Drag a window. Drop it on the grid.\nFree & open source. MIT License." = "ウインドウをドラッグ。マス目にドロップ。\n無料・オープンソース。MITライセンス。";

@@ -17,7 +17,7 @@ No version has been released; all work so far is unreleased.
 - Shift+drag to span visited cells and Option+drag to bypass snapping.
 - Ctrl+Cmd+Arrow to move the focused window between zones and adjacent displays; Ctrl+Cmd+Shift+Arrow to extend its span, with the opposite arrow shrinking it back toward the zone where growing started (never below that zone).
 - Accessibility setup guidance, permission/monitoring status, placement error feedback, and recovery checks.
-- Open at Login with an installation-path policy, approval guidance, and a menu toggle.
+- A single Launch at Login checkbox in the menu (SMAppService), on by default from the first launch in Applications, with a one-line hint only when macOS needs approval or krado is outside Applications.
 - English and Japanese localization, illustrated READMEs, an app icon, and MIT licensing.
 - Pure-logic tests and design/manual-check documentation; feedback and issue templates with a contribution policy.
 - A DMG packaging script with an Applications shortcut and an optional output directory.

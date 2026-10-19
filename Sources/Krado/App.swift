@@ -19,7 +19,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let loginToggle = NSMenuItem(title: "", action: #selector(toggleLoginItem), keyEquivalent: "")
     private let loginHint = NSMenuItem(title: "", action: nil, keyEquivalent: "")
     private let loginError = NSMenuItem(title: "", action: nil, keyEquivalent: "")
-    private let loginSettings = NSMenuItem(title: "", action: #selector(openLoginSettings), keyEquivalent: "")
     private let displaySeparator = NSMenuItem.separator()
     private var displayItems: [NSMenuItem] = []
     private var permissionTimer: Timer?
@@ -79,13 +78,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         requestItem.target = self
         menu.addItem(requestItem)
         menu.addItem(.separator())
-        loginToggle.title = L10n.text("Open at Login")
+        loginToggle.title = L10n.text("Launch at Login")
         loginToggle.target = self
         loginHint.isEnabled = false
         loginError.isEnabled = false
-        loginSettings.title = L10n.text("Open Login Items Settings…")
-        loginSettings.target = self
-        for item in [loginToggle, loginHint, loginSettings, loginError] { menu.addItem(item) }
+        for item in [loginToggle, loginHint, loginError] { menu.addItem(item) }
         menu.addItem(.separator())
         addAction(L10n.text("Reload Displays"), #selector(reloadScreens), to: menu)
         updateItem.title = L10n.text("Check for Updates…")
@@ -153,26 +150,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func refreshLoginState() {
-        let status = loginItem.status
-        loginToggle.state = status == .enabled ? .on : (status == .requiresApproval ? .mixed : .off)
-        loginToggle.isEnabled = loginItem.isInstalled || status == .enabled || status == .requiresApproval
-        loginHint.isHidden = false
-        if !loginItem.isInstalled {
-            loginHint.title = L10n.text("Move krado to the Applications folder to open at login")
-        } else {
-            switch status {
-            case .enabled: loginHint.isHidden = true
-            case .requiresApproval:
-                loginHint.title = L10n.text("⚠︎ Allow krado in System Settings → Login Items")
-            case .notFound:
-                loginHint.title = L10n.text("⚠︎ Login item unavailable. Try reinstalling krado in Applications.")
-            case .notRegistered: loginHint.isHidden = true
-            @unknown default:
-                loginHint.title = L10n.text("⚠︎ Login item status is unavailable")
-            }
+        let state = loginItem.state
+        let installed = loginItem.isInstalled
+        // A plain checkbox: checked only when krado really launches at login.
+        loginToggle.state = state == .enabled ? .on : .off
+        loginToggle.isEnabled = LoginItemPolicy.toggleAction(state: state, installedInApplications: installed) != .moveToApplications
+        switch LoginItemPolicy.hint(state: state, installedInApplications: installed) {
+        case .allowInSettings:
+            loginHint.title = L10n.text("Allow krado in System Settings → Login Items")
+            loginHint.isHidden = false
+        case .moveToApplications:
+            loginHint.title = L10n.text("Move krado to Applications to launch at login")
+            loginHint.isHidden = false
+        case nil:
+            loginHint.isHidden = true
         }
-        loginSettings.isHidden = status != .requiresApproval
-        loginError.title = loginItem.errorMessage.map { L10n.format("⚠︎ Open at Login: %@", $0) } ?? ""
+        loginError.title = loginItem.errorMessage.map { L10n.format("⚠︎ Launch at Login: %@", $0) } ?? ""
         loginError.isHidden = loginItem.errorMessage == nil
     }
 
@@ -180,7 +173,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func showPermissionGuide() { permissionGuide.show() }
     @objc private func toggleLoginItem() { loginItem.toggle(); refreshLoginState() }
-    @objc private func openLoginSettings() { loginItem.openSettings() }
 
     @objc private func reloadScreens() {
         monitor.cancelDrag()

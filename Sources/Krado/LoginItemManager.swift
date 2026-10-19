@@ -7,6 +7,15 @@ final class LoginItemManager {
     private static let defaultAppliedKey = "didApplyDefaultLoginItem"
     private(set) var errorMessage: String?
     var status: SMAppService.Status { SMAppService.mainApp.status }
+    var state: LoginItemState {
+        switch status {
+        case .enabled: .enabled
+        case .requiresApproval: .needsApproval
+        case .notRegistered: .disabled
+        case .notFound: .unavailable
+        @unknown default: .unavailable
+        }
+    }
     var isInstalled: Bool {
         LoginItemPolicy.isInstalledInApplications(
             bundlePath: Bundle.main.bundlePath, homeDirectory: NSHomeDirectory()
@@ -24,17 +33,23 @@ final class LoginItemManager {
         if status == .notRegistered || status == .notFound { register() }
     }
 
+    /// One menu item does everything: turn on, turn off, or open Login Items when macOS
+    /// is waiting for approval. Any explicit choice also stops the first-run default.
     func toggle() {
-        // An explicit choice also prevents a later launch from undoing an opt-out.
-        if status == .enabled || status == .requiresApproval {
+        switch LoginItemPolicy.toggleAction(state: state, installedInApplications: isInstalled) {
+        case .register:
+            UserDefaults.standard.set(true, forKey: Self.defaultAppliedKey)
+            register()
+        case .unregister:
             UserDefaults.standard.set(true, forKey: Self.defaultAppliedKey)
             do {
                 try SMAppService.mainApp.unregister()
                 errorMessage = nil
             } catch { errorMessage = error.localizedDescription }
-        } else if isInstalled {
-            UserDefaults.standard.set(true, forKey: Self.defaultAppliedKey)
-            register()
+        case .openSettings:
+            openSettings()
+        case .moveToApplications:
+            break // The hint already explains this; the item stays harmless.
         }
     }
 

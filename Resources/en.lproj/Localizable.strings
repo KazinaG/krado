@@ -1,6 +1,8 @@
+"Launch at Login" = "Launch at Login";
+"Allow krado in System Settings → Login Items" = "Allow krado in System Settings → Login Items";
+"Move krado to Applications to launch at login" = "Move krado to Applications to launch at login";
+"⚠︎ Launch at Login: %@" = "⚠︎ Launch at Login: %@";
 "Accessibility Setup…" = "Accessibility Setup…";
-"Open at Login" = "Open at Login";
-"Open Login Items Settings…" = "Open Login Items Settings…";
 "Reload Displays" = "Reload Displays";
 "About krado" = "About krado";
 "krado on GitHub…" = "krado on GitHub…";
@@ -13,11 +15,6 @@
 "krado — Accessibility permission needed" = "krado — Accessibility permission needed";
 "krado — Watching window drags" = "krado — Watching window drags";
 "krado — Event monitoring error" = "krado — Event monitoring error";
-"Move krado to the Applications folder to open at login" = "Move krado to the Applications folder to open at login";
-"⚠︎ Allow krado in System Settings → Login Items" = "⚠︎ Allow krado in System Settings → Login Items";
-"⚠︎ Login item unavailable. Try reinstalling krado in Applications." = "⚠︎ Login item unavailable. Try reinstalling krado in Applications.";
-"⚠︎ Login item status is unavailable" = "⚠︎ Login item status is unavailable";
-"⚠︎ Open at Login: %@" = "⚠︎ Open at Login: %@";
 "%@: %d × %d (%d zones)" = "%@: %d × %d (%d zones)";
 "%@: 1 × 1 (no split)" = "%@: 1 × 1 (no split)";
 "Drag a window. Drop it on the grid.\nFree & open source. MIT License." = "Drag a window. Drop it on the grid.\nFree & open source. MIT License.";
