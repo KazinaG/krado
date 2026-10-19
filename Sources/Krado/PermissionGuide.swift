@@ -7,10 +7,26 @@ final class PermissionGuide: NSObject, NSWindowDelegate {
     private var window: NSWindow?
     private var pollTimer: Timer?
     private var closeTimer: Timer?
-    private var didRequestPrompt = false
+    private let onboarding = AccessibilityOnboarding(
+        system: AccessibilitySystem(
+            isTrusted: { AXIsProcessTrusted() },
+            requestPrompt: {
+                // The only prompting call in krado (once per install; see AccessibilityOnboarding).
+                let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+                _ = AXIsProcessTrustedWithOptions(options)
+            },
+            openSettings: {
+                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                    NSWorkspace.shared.open(url)
+                }
+            }
+        ),
+        record: DefaultsPromptRecord()
+    )
     private let permissionChanged: () -> Void
     private let loginOffer: () -> LoginOnboardingOffer
     private let enableLogin: () -> Void
+    private let closed: () -> Void
     private var statusLabel: NSTextField?
     private var settingsButton: NSButton?
     private var loginButton: NSButton?
@@ -21,12 +37,17 @@ final class PermissionGuide: NSObject, NSWindowDelegate {
     init(
         permissionChanged: @escaping () -> Void,
         loginOffer: @escaping () -> LoginOnboardingOffer,
-        enableLogin: @escaping () -> Void
+        enableLogin: @escaping () -> Void,
+        closed: @escaping () -> Void
     ) {
         self.permissionChanged = permissionChanged
         self.loginOffer = loginOffer
         self.enableLogin = enableLogin
+        self.closed = closed
     }
+
+    /// True while the welcome guide is on screen (onboarding not finished).
+    var isOpen: Bool { window?.isVisible ?? false }
 
     func show() {
         guard !AXIsProcessTrusted() else { permissionChanged(); return }
@@ -39,6 +60,7 @@ final class PermissionGuide: NSObject, NSWindowDelegate {
         window?.center()
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        onboarding.begin()
         startPolling()
     }
 
@@ -105,15 +127,9 @@ final class PermissionGuide: NSObject, NSWindowDelegate {
     }
 
     @objc private func openSettings() {
-        // The only prompting path. Opening the guide and all polling are non-prompting.
-        if !didRequestPrompt {
-            didRequestPrompt = true
-            let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
-            _ = AXIsProcessTrustedWithOptions(options)
-        }
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-            NSWorkspace.shared.open(url)
-        }
+        // One click, one system call: the first ever raises macOS's alert alone (its own
+        // button opens Settings and closes it); later clicks only open Settings.
+        onboarding.openSettingsTapped()
     }
 
     @objc private func turnOnLogin() {
@@ -140,7 +156,8 @@ final class PermissionGuide: NSObject, NSWindowDelegate {
         pollTimer?.invalidate()
         pollTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
-                guard let self, AXIsProcessTrusted() else { return }
+                // Non-prompting check only; true once, on the tick that sees the grant.
+                guard let self, self.onboarding.poll() else { return }
                 self.permissionChanged()
                 self.statusLabel?.stringValue = L10n.text("✓ All set! Accessibility is allowed.")
                 self.settingsButton?.isEnabled = false
@@ -160,7 +177,11 @@ final class PermissionGuide: NSObject, NSWindowDelegate {
         if let pollTimer { RunLoop.main.add(pollTimer, forMode: .common) }
     }
 
-    func windowWillClose(_ notification: Notification) { stop() }
+    func windowWillClose(_ notification: Notification) {
+        stop()
+        // After the close completes, so isOpen is already false for the callback.
+        Task { @MainActor [weak self] in self?.closed() }
+    }
 
     func stop() {
         pollTimer?.invalidate()

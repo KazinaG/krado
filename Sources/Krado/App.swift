@@ -8,6 +8,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let screens = ScreenManager()
     private let loginItem = LoginItemManager()
     private var updaterController: SPUStandardUpdaterController?
+    /// Sparkle is created stopped; scheduled checks begin only after onboarding.
+    private var updaterStarted = false
     private let updaterDelegate = UpdaterDelegate()
     private let updateItem = NSMenuItem(title: "", action: #selector(checkForUpdates), keyEquivalent: "")
     private var monitor: DragMonitor!
@@ -29,7 +31,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         enableLogin: { [weak self] in
             self?.loginItem.enableFromOnboarding()
             self?.refreshLoginState()
-        }
+        },
+        closed: { [weak self] in self?.startUpdaterIfOnboarded(guideOpen: false) }
     )
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -51,7 +54,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             feedURL: Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String
         ) {
             updaterController = SPUStandardUpdaterController(
-                startingUpdater: true, updaterDelegate: updaterDelegate, userDriverDelegate: nil
+                startingUpdater: false, updaterDelegate: updaterDelegate, userDriverDelegate: nil
             )
         }
         buildMenu()
@@ -94,7 +97,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         addAction(L10n.text("Reload Displays"), #selector(reloadScreens), to: menu)
         updateItem.title = L10n.text("Check for Updates…")
         updateItem.target = self
-        updateItem.isEnabled = updaterController?.updater.canCheckForUpdates ?? false
+        refreshUpdateItem()
         menu.addItem(updateItem)
         addAction(L10n.text("About krado"), #selector(showAbout), to: menu)
         addAction(L10n.text("krado on GitHub…"), #selector(openGitHub), to: menu)
@@ -111,8 +114,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func menuWillOpen(_ menu: NSMenu) {
-        updateItem.isEnabled = updaterController?.updater.canCheckForUpdates ?? false
         refreshPermission()
+        refreshUpdateItem()
         refreshLoginState()
     }
 
@@ -127,6 +130,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             hotKeys.stop()
         }
         refreshStatus()
+        startUpdaterIfOnboarded(guideOpen: permissionGuide.isOpen)
+    }
+
+    /// Starts Sparkle's scheduled checks once Accessibility is allowed and the welcome
+    /// guide is closed, so the update alert never interrupts onboarding.
+    private func startUpdaterIfOnboarded(guideOpen: Bool) {
+        guard let updaterController, UpdaterStartPolicy.shouldStartScheduledChecks(
+            configured: true, alreadyStarted: updaterStarted,
+            accessibilityGranted: AXIsProcessTrusted(), onboardingOpen: guideOpen
+        ) else { return }
+        updaterStarted = true
+        updaterController.startUpdater()
+        refreshUpdateItem()
+    }
+
+    private func refreshUpdateItem() {
+        switch UpdaterStartPolicy.manualCheck(configured: updaterController != nil, alreadyStarted: updaterStarted) {
+        case .unavailable: updateItem.isEnabled = false
+        case .startThenCheck: updateItem.isEnabled = true
+        case .check: updateItem.isEnabled = updaterController?.updater.canCheckForUpdates ?? false
+        }
     }
 
     private func refreshStatus() {
@@ -177,7 +201,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         loginError.isHidden = loginItem.errorMessage == nil
     }
 
-    @objc private func checkForUpdates() { updaterController?.checkForUpdates(nil) }
+    @objc private func checkForUpdates() {
+        guard let updaterController else { return }
+        switch UpdaterStartPolicy.manualCheck(configured: true, alreadyStarted: updaterStarted) {
+        case .unavailable: return
+        case .startThenCheck:
+            // An explicit request always works, even during onboarding.
+            updaterStarted = true
+            updaterController.startUpdater()
+        case .check: break
+        }
+        updaterController.checkForUpdates(nil)
+    }
 
     @objc private func showPermissionGuide() { permissionGuide.show() }
     @objc private func uninstall() {
