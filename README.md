@@ -12,20 +12,21 @@ Free and open source (MIT License).
 
 ## A grid that fits each screen
 
-Inspired by Microsoft PowerToys FancyZones, krado builds the grid for you, and never makes zones too small for the screen. A typical 4K display tops out at 4 columns, and a MacBook Air's built-in screen is never split top and bottom, because each half would be too short to work in.
+Inspired by Microsoft PowerToys FancyZones, krado builds the grid for you with one rule: it keeps halving the screen, across and down, while every zone stays at least 640 pt wide and 720 pt tall. So columns are 1, 2, 4 or 8 and rows are 1, 2 or 4. A MacBook's built-in screen is never split top and bottom, and a typical 4K display tops out at 4 columns.
 
-krado chooses the split from the screen's size, as set in **System Settings → Displays**. Every screen, built-in or external, follows the same rules.
+The size is the whole screen as set in **System Settings → Displays**, so showing or hiding the Dock or menu bar never changes the grid. Built-in and external screens follow the same rule.
 
 | Screen | Grid | For example |
 | --- | --- | --- |
 | MacBook | **2 × 1** | MacBook Air / Pro screens at their default size |
-| Typical monitor | **2 × 2** | 1920 × 1080, 2560 × 1440, or a 4K/5K display at its default size |
-| Large | **3 × 2** to **8 × 4** | High-resolution displays at native size: 4K → 4 × 2, 6K → 6 × 3, 8K → 8 × 4 |
-| Very small | **1 × 1** | Narrow or low-resolution screens |
-| Portrait | **1 × 2** or more | A monitor turned vertical (short portrait screens stay 1 × 1) |
-| Ultrawide | **4 × 1** or more | Very wide monitors, with two rows when tall enough |
+| Full HD class | **2 × 1** | 1920 × 1080, or a 4K display at its default size |
+| 1440p class | **4 × 2** | 2560 × 1440, 5K and 6K displays at their default size, 4K at native size |
+| Very high resolution | **8 × 4** | 5K, 6K and 8K at native size |
+| Portrait | **1 × 2** or **2 × 4** | 1080 × 1920; a 4K display turned vertical at native size |
+| Ultrawide | **4 × 1** to **8 × 2** | 2560 × 1080 → 4 × 1, 3440 × 1440 → 4 × 2, 5120 × 1440 → 8 × 2 |
+| Small | **1 × 1** | Landscape screens narrower than 1280 pt |
 
-![Grids for a MacBook Air, 4K, 6K, 4K and 8K at native size, a portrait 4K and an ultrawide screen](docs/assets/layouts.png)
+![Grids for a MacBook Air, 1920 × 1080, 2560 × 1440, 4K and 8K at native size, a portrait 4K and an ultrawide screen](docs/assets/layouts.png)
 
 ## Use it
 

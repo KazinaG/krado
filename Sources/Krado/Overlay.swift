@@ -75,7 +75,8 @@ final class ScreenGrid {
         name = screen.localizedName
         let descriptor = ScreenDescriptor(
             isBuiltin: CGDisplayIsBuiltin(displayID) != 0,
-            visibleSize: screen.visibleFrame.size, name: screen.localizedName
+            // The grid rule reads the whole screen size so the menu bar and Dock never change it.
+            visibleSize: screen.frame.size, name: screen.localizedName
         )
         geometry = GridGeometry(
             workArea: flipY(screen.visibleFrame, mainScreenHeight: mainScreenHeight),

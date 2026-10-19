@@ -16,27 +16,14 @@ Release bundling passes `-debug-info-format none`: no dSYM is needed for v0.1 di
 
 ## Display policy and geometry
 
-Policy input is `ScreenDescriptor(isBuiltin, visibleSize, name)`; both name and `isBuiltin` are informational. The same policy applies to built-in and external screens. Rules are evaluated in order, using the width **W** and height **H** of `NSScreen.visibleFrame` in **points**, not hardware pixels:
+Policy input is `ScreenDescriptor(isBuiltin, visibleSize, name)`; both name and `isBuiltin` are informational, and the same policy applies to built-in and external screens. `visibleSize` carries the **whole** screen size, `NSScreen.frame`, in **points** (not hardware pixels), so showing or hiding the Dock or menu bar never changes the grid. The zones themselves still fill the visible work area (`NSScreen.visibleFrame`, excluding the Dock and menu bar on any edge).
 
-Columns = floor(W / 900) and rows = floor(H / 1000), capped at 8 × 4, so every zone stays large and the screen is divided evenly:
+One rule, no special cases: keep halving across and down while each zone stays at least 640 pt wide and 720 pt tall.
 
-- W ≥ 1200pt → at least 2 columns; otherwise 1.
-- Two or more rows need, in portrait, H ≥ 1200pt; in landscape, H ≥ 900pt and W ≥ 1800pt (laptop-class screens such as a MacBook Air stay one row).
-- Ultrawide (W/H ≥ 2.1 and W ≥ 2400pt): at least 4 columns; rows only from H ≥ 1300pt.
+- columns = the largest of 1, 2, 4, 8 with W / columns ≥ 640
+- rows = the largest of 1, 2, 4 with H / rows ≥ 720
 
-Examples: MacBook Air 2 × 1, 1080p/1440p-class 2 × 2, 4K at native size 4 × 2, 5K native 5 × 2, 6K native 6 × 3, 8K native 8 × 4, portrait 4K 1 × 2 (native 2 × 3), 3440 × 1440 ultrawide 4 × 2. Constants live in `GridPolicy`.
-
-The aim is to keep zones roughly at least 640pt wide and about 500pt tall so typical app windows fit. Mid-size screens get 2×2 rather than three narrow columns. Small landscape screens get full-height left/right halves. Below about 1200pt, even halves become too narrow, so a single zone fills the visible work area. Portrait screens split only with at least 1200pt of height; ultrawides use two rows only with at least 1300pt. These are sizing heuristics, not enforced minimum dimensions: the 1200pt width threshold permits 600pt halves, and unusual work-area aspect ratios or app size constraints may still produce smaller usable windows.
-
-Examples, all using visible points:
-
-- Large: a 3:2 4K-class display at **3008×1975 → 4×2 = 8 zones**; 3840×2135 also gets 4×2.
-- Ultrawide: 3440×1410 → 4×2; 2560×1050 → 4×1.
-- Mid-size: 1920×1055, 2560×1415, 16-inch MacBook Pro at 2056×1305, and 14-inch MacBook Pro at 1800×1137 → 2×2.
-- Small: a 13-inch MacBook Air at **1470×924 → 2×1 = 2 zones**; 1280×800, 1710×1074, 1512×950, and 1728×1085 also get 2×1.
-- Tiny: 1024×740 → 1×1. Portrait 800×1100 is also unsplit, while 800×1200 gets stacked halves.
-
-A display's nominal hardware resolution does not directly drive policy. All work areas exclude the Dock and menu bar, including a Dock placed on other edges.
+Examples: MacBook Air 13 (1470 × 956) and 15 (1710 × 1112) → 2 × 1; 1280 × 832 → 2 × 1; 1920 × 1080 → 2 × 1; 2560 × 1440 → 4 × 2; 3008 × 1692 and 3008 × 2005 → 4 × 2; 4K native 3840 × 2160 → 4 × 2; 5K, 6K and 8K native → 8 × 4; portrait 1080 × 1920 → 1 × 2, portrait 4K native → 2 × 4; ultrawide 2560 × 1080 → 4 × 1, 3440 × 1440 → 4 × 2, 5120 × 1440 → 8 × 2; narrower than 1280 pt → 1 column. Constants live in `GridPolicy`; `GridPhilosophyTests` holds the display table.
 
 `GridSpan` has nonempty, half-open column and row ranges; row 0 is the top. `GridGeometry` stores absolute x/y edge arrays. Each **internal** edge is independently rounded to the nearest physical pixel with the display's backing scale. The exact outer edges stay fixed to the visible frame. Adjacent cells share the same edges, their dimensions sum to the full work area, and errors do not accumulate. Outer edges provided at a fractional pixel are preserved rather than expanding/shrinking the work area. Spans use those same edges to calculate frames. `KradoDefaults.gap=0`; a nonzero gap insets the resulting span, not each cell inside a combined span.
 

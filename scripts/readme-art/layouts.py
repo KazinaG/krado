@@ -11,13 +11,13 @@ def F(p,s,w=None):
     return f
 TEXT={
  "en":dict(title="A grid that fits each screen", sub="krado picks the split from the screen's size. No setup.",
-   items=[("MacBook Air","2 × 1","Default size"),("4K","2 × 2","Default size"),("6K","3 × 2","Default size"),
-          ("4K","4 × 2","Native size"),("8K","8 × 4","Native size"),("Portrait 4K","2 × 3","Native size"),("Ultrawide","4 × 2","3440 × 1440")],
-   foot="Zones stay at least about 900 × 1000 pt where possible, never tiny. MacBooks are never split top and bottom.", font=(INTER,INTER)),
+   items=[("MacBook Air","2 × 1","Default size"),("Full HD","2 × 1","1920 × 1080"),("1440p","4 × 2","2560 × 1440"),
+          ("4K","4 × 2","Native size"),("8K","8 × 4","Native size"),("Portrait 4K","2 × 4","Native size"),("Ultrawide","4 × 2","3440 × 1440")],
+   foot="One rule: halve across and down while every zone stays at least 640 × 720 pt. MacBooks are never split top and bottom.", font=(INTER,INTER)),
  "ja":dict(title="画面に合わせたマス目", sub="画面の大きさから分け方を自動で決めます。設定は不要です。",
-   items=[("MacBook Air","2 × 1","標準の大きさ"),("4K","2 × 2","標準の大きさ"),("6K","3 × 2","標準の大きさ"),
-          ("4K","4 × 2","等倍"),("8K","8 × 4","等倍"),("縦置き 4K","2 × 3","等倍"),("ウルトラワイド","4 × 2","3440 × 1440")],
-   foot="画面が大きいほど均等に細かく分けますが、マスが小さくなりすぎることはありません。MacBook は上下に分けません。", font=(CJKB,CJK)),
+   items=[("MacBook Air","2 × 1","標準の大きさ"),("フル HD","2 × 1","1920 × 1080"),("1440p","4 × 2","2560 × 1440"),
+          ("4K","4 × 2","等倍"),("8K","8 × 4","等倍"),("縦置き 4K","2 × 4","等倍"),("ウルトラワイド","4 × 2","3440 × 1440")],
+   foot="決まりは1つ：どのマスも 640 × 720 pt 以上になる間、横と縦に半分ずつ分けます。MacBook は上下に分けません。", font=(CJKB,CJK)),
 }
 def rr(d,r,rad,fill,outline=None,width=0): d.rounded_rectangle([v*S for v in r],radius=rad*S,fill=fill,outline=outline,width=width*S)
 for lang,t in TEXT.items():
@@ -27,7 +27,7 @@ for lang,t in TEXT.items():
     bold,reg=t["font"]
     d.text((64*S,52*S),t["title"],font=F(bold,40,700),fill=(255,255,255))
     d.text((64*S,110*S),t["sub"],font=F(reg,19,450),fill=(186,200,218))
-    specs=[(2,1,(124,80)),(2,2,(132,76)),(3,2,(136,78)),(4,2,(132,76)),(8,4,(140,80)),(2,3,(84,148)),(4,2,(150,64))]
+    specs=[(2,1,(124,80)),(2,1,(132,74)),(4,2,(132,74)),(4,2,(132,74)),(8,4,(140,79)),(2,4,(84,148)),(4,2,(150,63))]
     slot=(W-128)/7; base=380
     for i,((c,r,(sw,sh)),(name,grid,ex)) in enumerate(zip(specs,t["items"])):
         cx=64+slot*i+slot/2

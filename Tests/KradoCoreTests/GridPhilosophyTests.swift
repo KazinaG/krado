@@ -2,43 +2,71 @@ import CoreGraphics
 import Testing
 @testable import KradoCore
 
-/// README promise: zones are never too small; a typical 4K display tops out at 4 columns;
-/// a MacBook Air's built-in screen is never split top/bottom (at its default size).
+/// Grid constraints, checked against one rule with no special cases:
+/// MacBook Air built-in is never split top/bottom; a 3:2 display at 3008 × 2005 is 4 × 2;
+/// typical-width 4K tops out at 4 columns; zones are never tiny or absurdly tall and thin.
+/// The rule reads the whole screen size, so the menu bar and Dock cannot flip the grid.
 struct GridPhilosophyTests {
+    struct Display: Sendable, CustomStringConvertible {
+        let name: String
+        let width: CGFloat
+        let height: CGFloat
+        let columns: Int
+        let rows: Int
+        var description: String { name }
+    }
+
+    static let displays: [Display] = [
+        Display(name: "MacBook Air 13", width: 1470, height: 956, columns: 2, rows: 1),
+        Display(name: "MacBook Air 13 larger text", width: 1280, height: 832, columns: 2, rows: 1),
+        Display(name: "MacBook Air 15", width: 1710, height: 1112, columns: 2, rows: 1),
+        Display(name: "4K default 1920", width: 1920, height: 1080, columns: 2, rows: 1),
+        Display(name: "2560 × 1440", width: 2560, height: 1440, columns: 4, rows: 2),
+        Display(name: "4K native", width: 3840, height: 2160, columns: 4, rows: 2),
+        Display(name: "5K native", width: 5120, height: 2880, columns: 8, rows: 4),
+        Display(name: "6K default", width: 3008, height: 1692, columns: 4, rows: 2),
+        Display(name: "6K native", width: 6016, height: 3384, columns: 8, rows: 4),
+        Display(name: "3:2 2256", width: 2256, height: 1504, columns: 2, rows: 2),
+        Display(name: "3:2 2560", width: 2560, height: 1707, columns: 4, rows: 2),
+        Display(name: "3:2 3008", width: 3008, height: 2005, columns: 4, rows: 2),
+        Display(name: "3:2 3840", width: 3840, height: 2560, columns: 4, rows: 2),
+        Display(name: "Portrait 4K", width: 1080, height: 1920, columns: 1, rows: 2),
+        Display(name: "Portrait 4K native", width: 2160, height: 3840, columns: 2, rows: 4),
+        Display(name: "Ultrawide 3440", width: 3440, height: 1440, columns: 4, rows: 2),
+        Display(name: "Ultrawide 5120", width: 5120, height: 2160, columns: 8, rows: 2),
+        Display(name: "8K", width: 7680, height: 4320, columns: 8, rows: 4),
+    ]
+
     private func layout(_ w: CGFloat, _ h: CGFloat) -> GridLayout {
         GridPolicy.layout(for: ScreenDescriptor(isBuiltin: false, visibleSize: CGSize(width: w, height: h), name: ""))
     }
 
-    @Test func macBookAirIsNotSplitTopAndBottom() {
-        #expect(layout(1470, 919).rows == 1)   // 13" default, menu bar subtracted
-        #expect(layout(1710, 1079).rows == 1)  // 15" default / 13" "More Space"
+    @Test("Display table", arguments: displays)
+    func table(display: Display) {
+        #expect(layout(display.width, display.height) == GridLayout(columns: display.columns, rows: display.rows))
+        // Built-in or external makes no difference: one rule for every screen.
+        #expect(GridPolicy.layout(for: ScreenDescriptor(isBuiltin: true, visibleSize: CGSize(width: display.width, height: display.height), name: "x"))
+            == GridLayout(columns: display.columns, rows: display.rows))
     }
 
-    @Test func fourKTopsOutAtFourColumnsTwoRows() {
-        #expect(layout(1920, 1050) == GridLayout(columns: 2, rows: 2))  // 4K default (looks like 1920×1080)
-        #expect(layout(2560, 1410) == GridLayout(columns: 2, rows: 2))
-        #expect(layout(3840, 2130) == GridLayout(columns: 4, rows: 2))  // 4K at native size
+    @Test func hardConstraints() {
+        #expect(layout(1470, 956).rows == 1)
+        #expect(layout(1280, 832).rows == 1)
+        #expect(layout(1710, 1112).rows == 1)
+        #expect(layout(1920, 1080).columns <= 4)
+        #expect(layout(2560, 1440).columns <= 4)
+        #expect(layout(3840, 2160).columns <= 4)
+        #expect(layout(3008, 2005) == GridLayout(columns: 4, rows: 2))
     }
 
-    @Test func largerScreensGetMoreEvenZones() {
-        #expect(layout(3008, 1667) == GridLayout(columns: 3, rows: 2))  // Pro Display XDR default
-        #expect(layout(5120, 2855) == GridLayout(columns: 5, rows: 2))  // 5K native
-        #expect(layout(6016, 3359) == GridLayout(columns: 6, rows: 3))  // 6K native
-        #expect(layout(7680, 4295) == GridLayout(columns: 8, rows: 4))  // 8K native
-        #expect(layout(1080, 1890) == GridLayout(columns: 1, rows: 2))  // portrait 4K default
-        #expect(layout(2160, 3810) == GridLayout(columns: 2, rows: 3))  // portrait 4K native
-        #expect(layout(3440, 1410) == GridLayout(columns: 4, rows: 2))  // ultrawide
-        #expect(layout(5120, 1410) == GridLayout(columns: 5, rows: 2))  // super ultrawide
-    }
-
-    @Test func zonesAreNeverTooSmall() {
-        for w in stride(from: CGFloat(400), through: 8000, by: 200) {
-            for h in stride(from: CGFloat(400), through: 8000, by: 200) {
+    @Test func zonesAreNeverTinyOrNeedleThin() {
+        for w in stride(from: CGFloat(800), through: 8000, by: 40) {
+            for h in stride(from: CGFloat(800), through: 8000, by: 40) {
                 let l = layout(w, h)
+                let cw = w / CGFloat(l.columns), ch = h / CGFloat(l.rows)
                 #expect(l.columns <= 8 && l.rows <= 4)
-                // Never too small: every zone stays at least 450 × 450 points.
-                #expect(w / CGFloat(l.columns) >= 450 || l.columns == 1)
-                #expect(h / CGFloat(l.rows) >= 450 || l.rows == 1)
+                #expect(cw >= GridPolicy.minimumCellWidth || l.columns == 1)
+                #expect(ch >= GridPolicy.minimumCellHeight || l.rows == 1)
             }
         }
     }

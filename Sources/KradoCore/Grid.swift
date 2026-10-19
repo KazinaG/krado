@@ -32,43 +32,26 @@ public struct ScreenDescriptor: Equatable, Sendable {
     }
 }
 
-/// Zones are as many as fit evenly while each stays comfortably large:
-/// columns = floor(W / 900), rows = floor(H / 1000), never more than 8 × 4.
-/// Any screen at least 1200pt wide gets 2 columns; 2 rows need 900pt height and, in landscape, 1800pt width
-/// (so a MacBook Air is 2 × 1, a 1080p-class screen 2 × 2, 4K at native size 4 × 2, 8K 8 × 4).
-/// Ultrawide screens keep 4 columns and add a second row only from 1300pt tall.
+/// Rule B — one law for every screen: keep halving the screen, across and down,
+/// while each zone stays at least 640 pt wide and 720 pt tall.
+/// columns = the largest of 1, 2, 4, 8 with W / columns ≥ 640; rows = the largest of 1, 2, 4 with H / rows ≥ 720.
+/// W × H is the whole screen (menu bar and Dock included), so showing or hiding them never changes the grid.
 public enum GridPolicy {
-    public static let minimumCellWidth: CGFloat = 900
-    public static let minimumCellHeight: CGFloat = 1000
-    public static let twoColumnMinimumWidth: CGFloat = 1200
-    /// Below this height a top/bottom split would make zones too short (< 450 pt).
-    public static let twoRowMinimumHeight: CGFloat = 900
-    public static let twoRowMinimumWidth: CGFloat = 1800
-    public static let portraitSplitMinimumHeight: CGFloat = 1200
-    public static let ultrawideMinimumAspectRatio: CGFloat = 2.1
-    public static let ultrawideMinimumWidth: CGFloat = 2400
-    public static let ultrawideTwoRowMinimumHeight: CGFloat = 1300
+    public static let minimumCellWidth: CGFloat = 640
+    public static let minimumCellHeight: CGFloat = 720
     public static let maximumColumns = 8
     public static let maximumRows = 4
 
+    /// `screen.visibleSize` carries the whole screen size here (see Overlay), not the visible frame.
     public static func layout(for screen: ScreenDescriptor) -> GridLayout {
         let width = screen.visibleSize.width
         let height = screen.visibleSize.height
         guard width > 0, height > 0 else { return GridLayout(columns: 1, rows: 1) }
-        let fitColumns = Int((width / minimumCellWidth).rounded(.down))
-        let fitRows = Int((height / minimumCellHeight).rounded(.down))
-        let ultrawide = width / height >= ultrawideMinimumAspectRatio && width >= ultrawideMinimumWidth
-        var columns = width >= twoColumnMinimumWidth ? max(2, fitColumns) : 1
-        // Laptop-class landscape screens (narrower than 1800pt) keep one row: halves would be too short to work in.
-        let canSplitRows = height > width
-            ? height >= portraitSplitMinimumHeight
-            : height >= twoRowMinimumHeight && width >= twoRowMinimumWidth
-        var rows = canSplitRows ? max(2, fitRows) : 1
-        if ultrawide {
-            columns = max(4, fitColumns)
-            rows = height >= ultrawideTwoRowMinimumHeight ? max(2, fitRows) : 1
-        }
-        return GridLayout(columns: min(columns, maximumColumns), rows: min(rows, maximumRows))
+        var columns = 1
+        while columns < maximumColumns && width / CGFloat(columns * 2) >= minimumCellWidth { columns *= 2 }
+        var rows = 1
+        while rows < maximumRows && height / CGFloat(rows * 2) >= minimumCellHeight { rows *= 2 }
+        return GridLayout(columns: columns, rows: rows)
     }
 }
 
