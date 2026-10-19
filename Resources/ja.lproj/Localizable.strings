@@ -57,3 +57,16 @@
 "Cancel" = "キャンセル";
 "krado could not finish uninstalling." = "アンインストールを最後まで終えられませんでした。";
 "In System Settings → Privacy & Security → Accessibility, select krado and click −. Then remove krado in General → Login Items & Extensions and move krado.app to the Trash." = "システム設定 → プライバシーとセキュリティ → アクセシビリティで krado を選んで − を押してください。続けて 一般 → ログイン項目と機能拡張 で krado を外し、krado.app をゴミ箱に入れてください。";
+
+"Status" = "ステータス";
+"Startup" = "起動";
+"Accessibility" = "アクセシビリティ";
+"Not allowed — click to set up" = "未許可 — クリックして設定";
+"Allowed" = "許可済み";
+"Window drags" = "ウインドウのドラッグ";
+"Ready to snap" = "スナップできます";
+"Unavailable — retrying" = "利用できません — 再試行中";
+"krado" = "krado";
+"On" = "オン";
+"Off" = "オフ";
+"Needs approval" = "承認待ち";

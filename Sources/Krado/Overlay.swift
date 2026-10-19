@@ -1,4 +1,5 @@
 import AppKit
+import QuartzCore
 import KradoCore
 
 @MainActor
@@ -10,51 +11,86 @@ private final class OverlayPanel: NSPanel {
 @MainActor
 private final class GridView: NSView {
     let geometry: GridGeometry
-    var target: GridSpan? { didSet { needsDisplay = true } }
+    private let tiles = CALayer()
+    private let highlight = CAShapeLayer()
+    var target: GridSpan? {
+        didSet {
+            guard target != oldValue else { return }
+            if let target { moveHighlight(to: localFrame(target).insetBy(dx: 5.5, dy: 5.5), duration: 0.12) }
+            else { highlight.removeAllAnimations(); highlight.opacity = 0 }
+        }
+    }
     override var isFlipped: Bool { true }
 
     init(geometry: GridGeometry) {
         self.geometry = geometry
         super.init(frame: CGRect(origin: .zero, size: geometry.workArea.size))
-        // Zones use the macOS accent color; redraw at once when the user changes it.
-        NotificationCenter.default.addObserver(
-            self, selector: #selector(systemColorsChanged),
-            name: NSColor.systemColorsDidChangeNotification, object: nil
-        )
+        wantsLayer = true
+        layer?.addSublayer(tiles)
+        layer?.addSublayer(highlight)
+        highlight.actions = ["opacity": NSNull(), "position": NSNull(), "bounds": NSNull(), "path": NSNull()]
+        highlight.opacity = 0
+        highlight.lineWidth = 3
+        rebuildTiles()
+        NotificationCenter.default.addObserver(self, selector: #selector(rebuildTiles),
+            name: NSColor.systemColorsDidChangeNotification, object: nil)
     }
-
-    @objc private func systemColorsChanged() { needsDisplay = true }
-
     required init?(coder: NSCoder) { nil }
 
+    @objc private func rebuildTiles() {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        tiles.sublayers?.forEach { $0.removeFromSuperlayer() }
+        for span in geometry.zones {
+            let tile = CAShapeLayer()
+            tile.path = Self.path(localFrame(span).insetBy(dx: 4, dy: 4))
+            tile.fillColor = NSColor.controlAccentColor.withAlphaComponent(0.10).cgColor
+            tile.strokeColor = NSColor.white.withAlphaComponent(0.5).cgColor
+            tile.lineWidth = 1
+            tiles.addSublayer(tile)
+        }
+        highlight.fillColor = NSColor.controlAccentColor.withAlphaComponent(0.30).cgColor
+        highlight.strokeColor = NSColor.controlAccentColor.withAlphaComponent(0.95).cgColor
+        CATransaction.commit()
+    }
     private func localFrame(_ span: GridSpan) -> CGRect {
         geometry.frame(for: span).offsetBy(dx: -geometry.workArea.minX, dy: -geometry.workArea.minY)
     }
-
-    override func draw(_ dirtyRect: NSRect) {
-        // Rounded, slightly inset tiles read like macOS's own window tiling previews.
-        // The inset is visual only; placed windows still fill their zones exactly.
-        for span in geometry.zones {
-            let path = Self.roundedPath(localFrame(span).insetBy(dx: 4, dy: 4))
-            NSColor.controlAccentColor.withAlphaComponent(0.10).setFill()
-            path.fill()
-            NSColor.white.withAlphaComponent(0.5).setStroke()
-            path.lineWidth = 1
-            path.stroke()
-        }
-        if let target {
-            let path = Self.roundedPath(localFrame(target).insetBy(dx: 5.5, dy: 5.5))
-            NSColor.controlAccentColor.withAlphaComponent(0.30).setFill()
-            path.fill()
-            NSColor.controlAccentColor.withAlphaComponent(0.95).setStroke()
-            path.lineWidth = 3
-            path.stroke()
-        }
+    private static func path(_ rect: CGRect) -> CGPath {
+        CGPath(roundedRect: rect, cornerWidth: min(10, rect.width / 4),
+               cornerHeight: min(10, rect.height / 4), transform: nil)
     }
-
-    private static func roundedPath(_ rect: CGRect) -> NSBezierPath {
-        let radius = min(10, rect.width / 4, rect.height / 4)
-        return NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
+    private func moveHighlight(to rect: CGRect, duration: TimeInterval) {
+        let reduced = MotionPreference.reduceMotion
+        let visible = highlight.opacity > 0
+        let presentation = highlight.presentation()
+        let oldPosition = presentation?.position ?? highlight.position
+        let oldBounds = presentation?.bounds ?? highlight.bounds
+        let oldPath = presentation?.path ?? highlight.path
+        let oldScale = presentation?.transform.m11 ?? 1
+        let oldOpacity: Float = visible ? (presentation?.opacity ?? highlight.opacity) : 0
+        highlight.removeAllAnimations()
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        highlight.bounds = CGRect(origin: .zero, size: rect.size)
+        highlight.position = CGPoint(x: rect.midX, y: rect.midY)
+        highlight.path = Self.path(highlight.bounds)
+        highlight.opacity = 1
+        CATransaction.commit()
+        guard !reduced, duration > 0 else { return }
+        func animate(_ key: String, _ from: Any?, _ to: Any?) {
+            let animation = CABasicAnimation(keyPath: key)
+            animation.fromValue = from
+            animation.toValue = to
+            animation.duration = duration
+            animation.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            highlight.add(animation, forKey: key)
+        }
+        animate("position", visible ? oldPosition : highlight.position, highlight.position)
+        animate("bounds", visible ? oldBounds : highlight.bounds, highlight.bounds)
+        animate("path", visible ? oldPath : highlight.path, highlight.path)
+        animate("opacity", oldOpacity, Float(1))
+        if !visible || oldScale != 1 { animate("transform.scale", visible ? oldScale : 0.96, CGFloat(1)) }
     }
 }
 
@@ -80,7 +116,7 @@ final class ScreenGrid {
         )
         geometry = GridGeometry(
             workArea: flipY(screen.visibleFrame, mainScreenHeight: mainScreenHeight),
-            layout: GridPolicy.layout(for: descriptor), scale: screen.backingScaleFactor
+            layout: Self.layout(for: descriptor), scale: screen.backingScaleFactor
         )
         screenFrameAX = flipY(screen.frame, mainScreenHeight: mainScreenHeight)
         gridView = GridView(geometry: geometry)
@@ -125,6 +161,18 @@ final class ScreenGrid {
         }
     }
 
+    /// CI lab builds only (-DKRADO_LAB_HOOKS): KRADO_LAB_GRID=CxR forces a layout, because hosted
+    /// runners have a 1024 × 768 screen where the real rule gives 1 × 1 and no cells to cross.
+    private static func layout(for descriptor: ScreenDescriptor) -> GridLayout {
+        #if KRADO_LAB_HOOKS
+        if let value = ProcessInfo.processInfo.environment["KRADO_LAB_GRID"] {
+            let parts = value.split(separator: "x").compactMap { Int($0) }
+            if parts.count == 2, parts[0] > 0, parts[1] > 0 { return GridLayout(columns: parts[0], rows: parts[1]) }
+        }
+        #endif
+        return GridPolicy.layout(for: descriptor)
+    }
+
     func close() {
         wantsVisible = false
         panel.close()
@@ -132,7 +180,7 @@ final class ScreenGrid {
 
     /// A short ease-out fade; instant when the user has Reduce Motion on.
     private func fade(to alpha: CGFloat, completion: (@MainActor @Sendable () -> Void)?) {
-        let duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : Self.fadeDuration
+        let duration = MotionPreference.reduceMotion ? 0 : Self.fadeDuration
         NSAnimationContext.runAnimationGroup({ context in
             context.duration = duration
             context.timingFunction = CAMediaTimingFunction(name: .easeOut)
@@ -146,8 +194,10 @@ final class ScreenGrid {
 @MainActor
 final class ScreenManager {
     private(set) var screens: [ScreenGrid] = []
+    private weak var active: ScreenGrid?
 
     func reload() {
+        active = nil
         screens.forEach { $0.close() }
         let available = NSScreen.screens
         let mainID = CGMainDisplayID()
@@ -168,10 +218,10 @@ final class ScreenManager {
         screens.first { $0.screenFrameAX.contains(point) }
     }
 
-    func hideAll() { screens.forEach { $0.hide() } }
+    func hideAll() { screens.forEach { $0.hide() }; active = nil }
 
     func show(_ screen: ScreenGrid, target: GridSpan?) {
-        for other in screens where other !== screen { other.hide() }
+        if active !== screen { active?.hide(); active = screen }
         screen.show(target: target)
     }
 

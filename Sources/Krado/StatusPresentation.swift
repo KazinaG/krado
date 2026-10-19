@@ -46,6 +46,18 @@ enum StatusPresentation {
         ])
     }
 
+    /// Standard attributed menu text preserves the system menu material.
+    static func statusTitle(_ title: String, detail: String) -> NSAttributedString {
+        let text = NSMutableAttributedString(string: title, attributes: [
+            .font: NSFont.menuFont(ofSize: 0), .foregroundColor: NSColor.labelColor,
+        ])
+        text.append(NSAttributedString(string: "\n" + detail, attributes: [
+            .font: NSFont.menuFont(ofSize: NSFont.smallSystemFontSize),
+            .foregroundColor: NSColor.secondaryLabelColor,
+        ]))
+        return text
+    }
+
     static func permissionTitle(for state: StatusState) -> String {
         state == .permissionNeeded ? "Permission needed" : "Accessibility allowed"
     }

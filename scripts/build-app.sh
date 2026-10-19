@@ -14,6 +14,17 @@ build_args=(build --disable-keychain -c release -debug-info-format none)
 if [[ "${KRADO_DISABLE_SANDBOX:-1}" == "1" ]]; then
     build_args+=(--disable-sandbox)
 fi
+# CI motion lab only: KRADO_LAB_HOOKS=1 lets KRADO_LAB_GRID force a grid on the small runner screen.
+if [[ "${KRADO_LAB_HOOKS:-0}" == "1" ]]; then
+    build_args+=(-Xswiftc -DKRADO_LAB_HOOKS)
+fi
+# Evidence only; never enable this for distributed builds.
+if [[ "${KRADO_LOGIN_SWITCH_PROBE:-0}" == "1" ]]; then
+    build_args+=(-Xswiftc -DKRADO_LOGIN_SWITCH_PROBE)
+fi
+if [[ "${KRADO_CI_HOOKS:-0}" == "1" ]]; then
+    build_args+=(-Xswiftc -DKRADO_CI_HOOKS)
+fi
 swift "${build_args[@]}"
 binary_dir="$(swift "${build_args[@]}" --show-bin-path)"
 

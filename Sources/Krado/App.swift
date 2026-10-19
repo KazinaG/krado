@@ -1,5 +1,8 @@
 import AppKit
 import ApplicationServices
+#if KRADO_CI_HOOKS
+import ServiceManagement
+#endif
 import KradoCore
 import Sparkle
 
@@ -22,7 +25,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let loginToggle = NSMenuItem(title: "", action: #selector(toggleLoginItem), keyEquivalent: "")
     private let loginHint = NSMenuItem(title: "", action: nil, keyEquivalent: "")
     private let loginError = NSMenuItem(title: "", action: nil, keyEquivalent: "")
-    private let displaySeparator = NSMenuItem.separator()
+    #if KRADO_LOGIN_SWITCH_PROBE
+    private let loginSwitch = LoginSwitchProbe()
+    #endif
     private var displayItems: [NSMenuItem] = []
     private var permissionTimer: Timer?
     private lazy var permissionGuide = PermissionGuide(
@@ -36,6 +41,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     )
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if ProcessInfo.processInfo.environment["KRADO_LAB_LOG"] == "1" {
+            FileHandle.standardOutput.write(Data("KRADO_LAB AXIsProcessTrusted=\(AXIsProcessTrusted())\n".utf8))
+        }
         NSApp.setActivationPolicy(.accessory)
         monitor = DragMonitor(screens: screens, report: { [weak self] error in
             self?.errorItem.title = error ?? ""
@@ -57,6 +65,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 startingUpdater: false, updaterDelegate: updaterDelegate, userDriverDelegate: nil
             )
         }
+        #if KRADO_CI_HOOKS
+        do {
+            switch ProcessInfo.processInfo.environment["KRADO_CI_LOGIN"] {
+            case "on": try SMAppService.mainApp.register()
+            case "off": try SMAppService.mainApp.unregister()
+            default: break
+            }
+        } catch { print("KRADO_CI login error: \(error)") }
+        printLoginEvidence()
+        // A runner signal requests readback after keyboard activation without changing state.
+        let evidenceTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let path = ProcessInfo.processInfo.environment["KRADO_CI_LOGIN_READBACK"],
+                      FileManager.default.fileExists(atPath: path) else { return }
+                try? FileManager.default.removeItem(atPath: path)
+                self?.printLoginEvidence()
+            }
+        }
+        RunLoop.main.add(evidenceTimer, forMode: .common)
+        #endif
         buildMenu()
         reloadScreens()
         refreshLoginState()
@@ -65,7 +93,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             name: NSApplication.didChangeScreenParametersNotification, object: nil
         )
         refreshPermission()
+        #if !KRADO_CI_HOOKS
         if !AXIsProcessTrusted() { permissionGuide.show() }
+        #endif
+        #if KRADO_CI_HOOKS
+        let evidence = "Accessibility trusted: \(AXIsProcessTrusted())\n"
+        FileHandle.standardOutput.write(Data(evidence.utf8))
+        if ProcessInfo.processInfo.environment["KRADO_CI_OPEN_MENU"] == "1" {
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .seconds(2))
+                self?.statusItem.button?.performClick(nil)
+            }
+        }
+        #endif
         permissionTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.refreshPermission() }
         }
@@ -77,39 +117,66 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let menu = NSMenu()
         menu.autoenablesItems = false
         menu.delegate = self
+        let statusHeader = NSMenuItem.sectionHeader(title: L10n.text("Status"))
+        menu.addItem(statusHeader)
         for item in [permissionItem, monitorItem, errorItem] { menu.addItem(item) }
         permissionItem.target = self
         // Enabled, actionless rows preserve palette colors instead of AppKit's disabled tint.
         monitorItem.isEnabled = true
         errorItem.isEnabled = false
         errorItem.isHidden = true
-        menu.addItem(displaySeparator)
         requestItem.title = L10n.text("Accessibility Setup…")
+        requestItem.image = symbol("hand.raised")
         requestItem.target = self
         menu.addItem(requestItem)
         menu.addItem(.separator())
+        let startupHeader = NSMenuItem.sectionHeader(title: L10n.text("Startup"))
+        menu.addItem(startupHeader)
         loginToggle.title = L10n.text("Launch at Login")
         loginToggle.target = self
+        #if KRADO_LOGIN_SWITCH_PROBE
+        // Probe only: deliberately uses a view to measure AppKit menu limitations.
+        let probeView = NSView(frame: NSRect(x: 0, y: 0, width: 300, height: 32))
+        let label = NSTextField(labelWithString: L10n.text("Launch at Login"))
+        label.frame = NSRect(x: 16, y: 7, width: 210, height: 20)
+        loginSwitch.frame = NSRect(x: 242, y: 4, width: 48, height: 24)
+        loginSwitch.target = self
+        loginSwitch.action = #selector(toggleLoginItem)
+        probeView.addSubview(label)
+        probeView.addSubview(loginSwitch)
+        loginToggle.view = probeView
+        #endif
         loginHint.isEnabled = false
         loginError.isEnabled = false
         for item in [loginToggle, loginHint, loginError] { menu.addItem(item) }
         menu.addItem(.separator())
-        addAction(L10n.text("Reload Displays"), #selector(reloadScreens), to: menu)
+        let appHeader = NSMenuItem.sectionHeader(title: L10n.text("krado"))
+        menu.addItem(appHeader)
+        let reloadItem = NSMenuItem(title: L10n.text("Reload Displays"), action: #selector(reloadScreens), keyEquivalent: "")
+        reloadItem.target = self
+        menu.addItem(reloadItem)
         updateItem.title = L10n.text("Check for Updates…")
+        updateItem.image = symbol("arrow.triangle.2.circlepath")
         updateItem.target = self
         refreshUpdateItem()
         menu.addItem(updateItem)
-        addAction(L10n.text("About krado"), #selector(showAbout), to: menu)
-        addAction(L10n.text("krado on GitHub…"), #selector(openGitHub), to: menu)
-        addAction(L10n.text("Uninstall krado…"), #selector(uninstall), to: menu)
+        addAction(L10n.text("About krado"), "info.circle", #selector(showAbout), to: menu)
+        addAction(L10n.text("krado on GitHub…"), "chevron.left.forwardslash.chevron.right", #selector(openGitHub), to: menu)
+        addAction(L10n.text("Uninstall krado…"), "trash", #selector(uninstall), to: menu)
         menu.addItem(.separator())
-        addAction(L10n.text("Quit krado"), #selector(quit), to: menu)
+        addAction(L10n.text("Quit krado"), "xmark.rectangle", #selector(quit), to: menu)
         statusItem.menu = menu
     }
 
-    private func addAction(_ title: String, _ action: Selector, to menu: NSMenu) {
+    private func symbol(_ name: String) -> NSImage? {
+        NSImage(systemSymbolName: name, accessibilityDescription: nil)
+    }
+
+    private func addAction(_ title: String, _ symbolName: String, _ action: Selector, to menu: NSMenu) {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
         item.target = self
+        item.image = symbol(symbolName)
+        if action == #selector(quit) { item.keyEquivalent = "q" }
         menu.addItem(item)
     }
 
@@ -121,7 +188,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func refreshPermission() {
         let trusted = AXIsProcessTrusted()
-        requestItem.isHidden = trusted
+        requestItem.isHidden = displayedPermissionGranted
         if trusted {
             _ = monitor.start()
             hotKeys.start()
@@ -136,6 +203,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// Starts Sparkle's scheduled checks once Accessibility is allowed and the welcome
     /// guide is closed, so the update alert never interrupts onboarding.
     private func startUpdaterIfOnboarded(guideOpen: Bool) {
+        #if !KRADO_CI_HOOKS
         guard let updaterController, UpdaterStartPolicy.shouldStartScheduledChecks(
             configured: true, alreadyStarted: updaterStarted,
             accessibilityGranted: AXIsProcessTrusted(), onboardingOpen: guideOpen
@@ -143,6 +211,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         updaterStarted = true
         updaterController.startUpdater()
         refreshUpdateItem()
+        #endif
     }
 
     private func refreshUpdateItem() {
@@ -153,16 +222,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
+    private var displayedPermissionGranted: Bool {
+        #if KRADO_CI_HOOKS
+        if ProcessInfo.processInfo.environment["KRADO_CI_STATE"] == "permissionNeeded" { return false }
+        #endif
+        return AXIsProcessTrusted()
+    }
+
     private func refreshStatus() {
-        let state = statusState(permissionGranted: AXIsProcessTrusted(), tapActive: monitor.isRunning)
+        let state = statusState(permissionGranted: displayedPermissionGranted, tapActive: monitor.isRunning)
         let appearance = statusAppearance(for: state)
         permissionItem.action = state == .permissionNeeded ? #selector(showPermissionGuide) : nil
         permissionItem.isEnabled = true
         configureStatusRow(permissionItem, symbol: appearance.permission,
-            title: StatusPresentation.permissionTitle(for: state),
+            title: "Accessibility",
+            detail: state == .permissionNeeded ? "Not allowed — click to set up" : "Allowed",
             description: StatusPresentation.permissionDescription(for: state))
         configureStatusRow(monitorItem, symbol: appearance.monitor,
-            title: StatusPresentation.monitorTitle(for: state),
+            title: "Window drags",
+            detail: state == .watching ? "Ready to snap" : (state == .tapError ? "Unavailable — retrying" : "Paused"),
             description: StatusPresentation.monitorDescription(for: state))
         let description = L10n.text(StatusPresentation.menuBarDescription(for: state))
         statusItem.button?.image = StatusPresentation.menuBarImage(for: state, description: description)
@@ -171,11 +249,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem.button?.setAccessibilityLabel(description)
     }
 
-    private func configureStatusRow(_ item: NSMenuItem, symbol: StatusSymbol, title: String, description: String) {
+    private func configureStatusRow(_ item: NSMenuItem, symbol: StatusSymbol, title: String, detail: String, description: String) {
         let title = L10n.text(title)
         let description = L10n.text(description)
         item.title = title
-        item.attributedTitle = StatusPresentation.rowTitle(title)
+        item.attributedTitle = StatusPresentation.statusTitle(title, detail: L10n.text(detail))
         item.image = StatusPresentation.image(for: symbol, description: description)
         item.toolTip = description
         item.setAccessibilityLabel(description)
@@ -184,9 +262,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func refreshLoginState() {
         let state = loginItem.state
         let installed = loginItem.isInstalled
-        // A plain checkbox: checked only when krado really launches at login.
-        loginToggle.state = state == .enabled ? .on : .off
-        loginToggle.isEnabled = LoginItemPolicy.toggleAction(state: state, installedInApplications: installed) != .moveToApplications
+        let row = LoginRowPresentation(state: state, installed: installed)
+        let title = L10n.text(row.title)
+        let value = L10n.text(row.stateText)
+        loginToggle.title = title
+        loginToggle.state = .off
+        loginToggle.isEnabled = row.enabled
+        #if !KRADO_LOGIN_SWITCH_PROBE
+        loginToggle.image = symbol("power.circle")
+        #endif
+        loginToggle.badge = row.badge.map { NSMenuItemBadge(string: L10n.text($0)) }
+        loginToggle.setAccessibilityLabel(title + "、" + value)
+        loginToggle.setAccessibilityValue(value)
+        #if KRADO_LOGIN_SWITCH_PROBE
+        loginToggle.badge = nil
+        loginToggle.state = .off
+        loginSwitch.state = state == .enabled ? .on : .off
+        loginSwitch.isEnabled = row.enabled
+        loginSwitch.setAccessibilityLabel(title + "、" + value)
+        loginSwitch.setAccessibilityValue(value)
+        #endif
+        #if KRADO_CI_HOOKS
+        #if KRADO_LOGIN_SWITCH_PROBE
+        print("KRADO_CI login probe value=\(value) badge=none detail=none")
+        #else
+        print("KRADO_CI login badge=\(row.badge.map { L10n.text($0) } ?? "none") state=\(loginToggle.state == .off ? "off" : "on") axLabel=\(loginToggle.accessibilityLabel() ?? "") axValue=\(loginToggle.accessibilityValue() ?? "")")
+        #endif
+        #endif
         switch LoginItemPolicy.hint(state: state, installedInApplications: installed) {
         case .allowInSettings:
             loginHint.title = L10n.text("Allow krado in System Settings → Login Items")
@@ -202,6 +304,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func checkForUpdates() {
+        #if !KRADO_CI_HOOKS
         guard let updaterController else { return }
         switch UpdaterStartPolicy.manualCheck(configured: true, alreadyStarted: updaterStarted) {
         case .unavailable: return
@@ -212,6 +315,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .check: break
         }
         updaterController.checkForUpdates(nil)
+        #endif
     }
 
     @objc private func showPermissionGuide() { permissionGuide.show() }
@@ -230,7 +334,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         refreshPermission()
     }
 
-    @objc private func toggleLoginItem() { loginItem.toggle(); refreshLoginState() }
+    #if KRADO_CI_HOOKS
+    private func printLoginEvidence() {
+        print("KRADO_CI login status raw=\(loginItem.status.rawValue) state=\(loginItem.state)")
+    }
+    #endif
+
+    @objc private func toggleLoginItem() {
+        loginItem.toggle()
+        refreshLoginState()
+        #if KRADO_CI_HOOKS
+        printLoginEvidence()
+        #endif
+    }
 
     @objc private func reloadScreens() {
         monitor.cancelDrag()
@@ -238,7 +354,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         screens.reload()
         guard let menu = statusItem.menu else { return }
         displayItems.forEach { menu.removeItem($0) }
-        displayItems = screens.screens.map { screen in
+        displayItems = DisplayRowsPolicy.showsRows(for: screens.screens) ? screens.screens.map { screen in
             let layout = screen.geometry.layout
             let title = layout.columns == 1 && layout.rows == 1
                 ? L10n.format("%@: 1 × 1 (no split)", screen.name)
@@ -249,8 +365,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             )
             item.isEnabled = false
             return item
-        }
-        let index = menu.index(of: displaySeparator)
+        } : []
+        let index = menu.index(of: requestItem)
         for (offset, item) in displayItems.enumerated() { menu.insertItem(item, at: index + offset) }
     }
 
@@ -297,3 +413,11 @@ final class UpdaterDelegate: NSObject, SPUUpdaterDelegate {
         UpdaterPolicy.testFeedURL(UserDefaults.standard.string(forKey: UpdaterPolicy.testFeedDefaultsKey))
     }
 }
+
+#if KRADO_LOGIN_SWITCH_PROBE
+/// Evidence probe only; never part of a distributed build.
+@MainActor
+private final class LoginSwitchProbe: NSSwitch {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+}
+#endif

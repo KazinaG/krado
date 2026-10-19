@@ -17,8 +17,10 @@ final class DragMonitor {
         let window: AXUIElement
         let initial: WindowSnapshot
         var hasDragged = false
+        var hasMoved = false
     }
 
+    private let glide = WindowGlide()
     private let screens: ScreenManager
     private let report: (String?) -> Void
     private let stateDidChange: () -> Void
@@ -87,7 +89,10 @@ final class DragMonitor {
         tap = nil
     }
 
-    func cancelDrag() {
+    func cancelDrag(keepingOverlay: Bool = false) {
+        if !keepingOverlay {
+            glide.finish()
+        }
         pollTimer?.invalidate()
         pollTimer = nil
         drag = nil
@@ -96,7 +101,7 @@ final class DragMonitor {
         snapSession.end()
         if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
         keyMonitor = nil
-        screens.hideAll()
+        if !keepingOverlay { screens.hideAll() }
     }
 
     fileprivate func handle(type: CGEventType, location: CGPoint) {
@@ -131,13 +136,12 @@ final class DragMonitor {
             sample()
             let finalTarget = target
             let dragged = drag?.hasDragged == true
-            cancelDrag()
+            cancelDrag(keepingOverlay: finalTarget != nil)
             if dragged { didMoveWindow() }
             if let finalTarget {
-                if !Accessibility.setFrame(finalTarget.frame, of: finalTarget.window) {
-                    report(L10n.text("⚠︎ Window placement failed. The app may restrict its window size or position."))
-                } else {
-                    report(nil)
+                glide.run(window: finalTarget.window, to: finalTarget.frame) { [weak self] success in
+                    self?.screens.hideAll()
+                    self?.report(success ? nil : L10n.text("⚠︎ Window placement failed. The app may restrict its window size or position."))
                 }
             }
         default:
@@ -174,9 +178,10 @@ final class DragMonitor {
         case .resized:
             // Once a resize is observed, never reclassify this gesture as a move.
             cancelDrag()
-        case .stationary:
-            screens.hideAll()
-        case .moving:
+        case .stationary where !drag.hasMoved:
+            return
+        case .stationary, .moving:
+            self.drag?.hasMoved = true
             guard !option else {
                 screens.hideAll()
                 return

@@ -1,4 +1,5 @@
 import AppKit
+import QuartzCore
 import ApplicationServices
 import KradoCore
 
@@ -71,6 +72,22 @@ enum Accessibility {
         let second = AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, sizeValue)
         let third = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, positionValue)
         return first == .success && second == .success && third == .success
+    }
+
+    static func writeSize(_ size: CGSize, of window: AXUIElement) -> (success: Bool, milliseconds: Double) {
+        var value = size
+        guard let ax = AXValueCreate(.cgSize, &value) else { return (false, 0) }
+        let began = CACurrentMediaTime()
+        let result = AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, ax)
+        return (result == .success, (CACurrentMediaTime() - began) * 1000)
+    }
+
+    static func writePosition(_ point: CGPoint, of window: AXUIElement) -> (success: Bool, milliseconds: Double) {
+        var value = point
+        guard let ax = AXValueCreate(.cgPoint, &value) else { return (false, 0) }
+        let began = CACurrentMediaTime()
+        let result = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, ax)
+        return (result == .success, (CACurrentMediaTime() - began) * 1000)
     }
 
     private static func attribute(_ element: AXUIElement, _ key: String) -> CFTypeRef? {

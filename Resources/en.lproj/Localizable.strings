@@ -57,3 +57,16 @@
 "Cancel" = "Cancel";
 "krado could not finish uninstalling." = "krado could not finish uninstalling.";
 "In System Settings → Privacy & Security → Accessibility, select krado and click −. Then remove krado in General → Login Items & Extensions and move krado.app to the Trash." = "In System Settings → Privacy & Security → Accessibility, select krado and click −. Then remove krado in General → Login Items & Extensions and move krado.app to the Trash.";
+
+"Status" = "Status";
+"Startup" = "Startup";
+"Accessibility" = "Accessibility";
+"Not allowed — click to set up" = "Not allowed — click to set up";
+"Allowed" = "Allowed";
+"Window drags" = "Window drags";
+"Ready to snap" = "Ready to snap";
+"Unavailable — retrying" = "Unavailable — retrying";
+"krado" = "krado";
+"On" = "On";
+"Off" = "Off";
+"Needs approval" = "Needs approval";

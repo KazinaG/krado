@@ -1,0 +1,56 @@
+name: Motion lab
+
+on:
+  push:
+    branches: [codex/next-version]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  motion:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-26, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Test and build
+        run: |
+          mkdir -p dist/lab dist/logs dist/video
+          swift test --disable-keychain 2>&1 | tee dist/logs/tests.log
+          KRADO_LAB_HOOKS=1 scripts/build-app.sh 2>&1 | tee dist/logs/build.log
+      - name: Compile measurement tool
+        run: swiftc -swift-version 6 scripts/motion-lab/MotionLab.swift -o dist/MotionLab
+      - name: Open applications and measure
+        run: |
+          open -a TextEdit 2>dist/logs/open-TextEdit.log || true
+          printf 'krado motion measurement\n' > /tmp/lab.txt
+          open -a TextEdit /tmp/lab.txt 2>>dist/logs/open-TextEdit.log || true
+          open ~ 2>dist/logs/open-Finder.log || true
+          open -a Safari https://example.com 2>dist/logs/open-Safari.log || true
+          open -a Terminal 2>dist/logs/open-Terminal.log || true
+          sleep 8
+          dist/MotionLab screen | tee dist/logs/screen.log || true
+          for entry in TextEdit:com.apple.TextEdit Finder:com.apple.finder Safari:com.apple.Safari Terminal:com.apple.Terminal; do
+            app="${entry%%:*}"
+            bundle="${entry#*:}"
+            if ! dist/MotionLab measure "$bundle" "dist/lab/measure-$app.json" >"dist/logs/measure-$app.log" 2>&1; then
+              printf '{"error":"MotionLab failed; see logs"}\n' > "dist/lab/measure-$app.json"
+            fi
+          done
+      - name: Capture drag and snap scenarios
+        run: scripts/motion-lab/capture.sh
+      - name: Upload measurements, captures, and logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: motion-lab-${{ matrix.os }}
+          if-no-files-found: warn
+          path: |
+            dist/lab
+            dist/video
+            dist/logs
