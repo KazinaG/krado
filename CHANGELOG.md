@@ -8,6 +8,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-19
+
 ### Changed
 
 - The grid now follows one rule with no special cases: krado keeps halving the screen, across and down, while every zone stays at least 640 pt wide and 720 pt tall (columns 1, 2, 4 or 8; rows 1, 2 or 4). It reads the whole screen size, so showing or hiding the Dock or menu bar no longer changes the grid. For example, 1920 × 1080 is now 2 × 1, 2560 × 1440 and 3008-pt-wide displays (including 6K at its default size) are now 4 × 2 instead of 2 × 2 or 3 × 2, and 6K at native size is 8 × 4.

@@ -10,7 +10,7 @@ Swift Package, macOS 14+, Swift 6, no package dependencies:
 | `Krado` | Menu-bar executable; AppKit panels/displays, listen-only CGEvent tap, AX lookup/read/write |
 | `KradoCoreTests` | Swift Testing; depends only on KradoCore; no GUI, event tap, or permission calls |
 
-`scripts/build-app.sh` builds release code with CLI SwiftPM, installs the executable as `dist/krado.app/Contents/MacOS/krado`, writes Info.plist, and signs with `KRADO_SIGN_IDENTITY` (the release certificate) or ad hoc when it is unset. Bundle ID: `io.github.kazinag.krado`; version: `0.1.0`; minimum macOS: `14.0`; `LSUIElement=true`. Signing failure warns and continues. No Apple Developer membership, Developer ID signing, notarization, external packages, or Xcode project is required. The script does not launch the bundle.
+`scripts/build-app.sh` builds release code with CLI SwiftPM, installs the executable as `dist/krado.app/Contents/MacOS/krado`, writes Info.plist, and signs with `KRADO_SIGN_IDENTITY` (the release certificate) or ad hoc when it is unset. Bundle ID: `io.github.kazinag.krado`; version: `0.1.1`; minimum macOS: `14.0`; `LSUIElement=true`. Signing failure warns and continues. No Apple Developer membership, Developer ID signing, notarization, external packages, or Xcode project is required. The script does not launch the bundle.
 
 Release bundling passes `-debug-info-format none`: no dSYM is needed for v0.1 distribution, and this avoids a `dsymutil` operation rejected by the host sandbox. Debug `swift build` retains debug information for development.
 

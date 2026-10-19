@@ -79,7 +79,11 @@ Sparkle's tools come from the checksum-pinned Sparkle SwiftPM artifact
    `scripts/check-changelog-headings.sh` and `swift test --disable-keychain`.
 3. Merge to `main`, then push the tag `v<version>` on that commit (maintainer
    approval required).
-4. Wait for the Release workflow. Download the draft's DMG and check it on a Mac.
+4. Wait for the Release workflow. Its `render` job opens the built DMG in Finder on
+   macOS 15 and 26, with default Finder settings and with Path Bar, Status Bar and
+   filename extensions on; look at the `render-<os>` screenshots (nothing cut off, no
+   scroll bar, labels on their bands). The draft is only created after it passes.
+   Download the draft's DMG and check it on a Mac.
 5. **Gatekeeper first launch (quarantined download).** The
    [Gatekeeper workflow](../.github/workflows/gatekeeper.yml) runs after every Release
    run on the DMG it built: it copies `krado.app` out of the image, adds a Safari-style
