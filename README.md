@@ -20,7 +20,7 @@ krado chooses the split from the screen's size, as set in **System Settings → 
 | --- | --- | --- |
 | MacBook | **2 × 1** | MacBook Air / Pro screens at their default size |
 | Typical monitor | **2 × 2** | 1920 × 1080, 2560 × 1440, or a 4K/5K display at its default size |
-| Large | **3 × 2** to **8 × 4** | High-resolution displays at native size: 4K → 4 × 2, 6K → 6 × 3, 8K → 8 × 4 |
+| Large | **4 × 2** to **8 × 4** | Large or high-resolution displays: 6K or a 28" 3:2 display at default size → 4 × 2, 4K at native size → 4 × 2, 8K → 8 × 4 |
 | Very small | **1 × 1** | Narrow or low-resolution screens |
 | Portrait | **1 × 2** or more | A monitor turned vertical (short portrait screens stay 1 × 1) |
 | Ultrawide | **4 × 1** or more | Very wide monitors, with two rows when tall enough |

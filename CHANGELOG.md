@@ -8,6 +8,10 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+### Fixed
+
+- Grid columns now come in even counts (2, 4, 6 or 8, or 1 on narrow screens; each zone at least about 720 pt wide), so 3008 pt-wide displays such as a 28" 3:2 monitor (BenQ RD280U) or a Pro Display XDR at default size get 4 × 2 again instead of 3 lopsided columns × 2. Rows and columns include a 100 pt allowance for the menu bar and Dock, so showing or hiding them never changes the grid. 5K and 5120-wide ultrawide at native size become 6 × 2 and 6K native 8 × 3.
+
 ## [0.1.0] - 2026-10-20
 
 ### Added
