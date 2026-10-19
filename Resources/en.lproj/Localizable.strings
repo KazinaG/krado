@@ -45,3 +45,8 @@
 "krado — Monitoring stopped" = "krado — Monitoring stopped";
 
 "Check for Updates…" = "Check for Updates…";
+"Optional: start krado automatically when you log in. You can change this later in the menu." = "Optional: start krado automatically when you log in. You can change this later in the menu.";
+"Launch krado at Login" = "Launch krado at Login";
+"Open Login Items Settings…" = "Open Login Items Settings…";
+"✓ krado will launch at login." = "✓ krado will launch at login.";
+"Done" = "Done";

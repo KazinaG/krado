@@ -45,3 +45,8 @@
 "krado — Monitoring stopped" = "krado — 監視を停止中";
 
 "Check for Updates…" = "アップデートを確認…";
+"Optional: start krado automatically when you log in. You can change this later in the menu." = "お好みで：ログインしたときに krado を自動で起動できます。あとからメニューで変えられます。";
+"Launch krado at Login" = "ログイン時に krado を起動";
+"Open Login Items Settings…" = "ログイン項目の設定を開く…";
+"✓ krado will launch at login." = "✓ ログイン時に krado が起動します。";
+"Done" = "完了";

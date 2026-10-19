@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let screens = ScreenManager()
     private let loginItem = LoginItemManager()
     private var updaterController: SPUStandardUpdaterController?
+    private let updaterDelegate = UpdaterDelegate()
     private let updateItem = NSMenuItem(title: "", action: #selector(checkForUpdates), keyEquivalent: "")
     private var monitor: DragMonitor!
     private var hotKeys: HotKeys!
@@ -22,7 +23,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let displaySeparator = NSMenuItem.separator()
     private var displayItems: [NSMenuItem] = []
     private var permissionTimer: Timer?
-    private lazy var permissionGuide = PermissionGuide { [weak self] in self?.refreshPermission() }
+    private lazy var permissionGuide = PermissionGuide(
+        permissionChanged: { [weak self] in self?.refreshPermission() },
+        loginOffer: { [weak self] in self?.loginItem.onboardingOffer ?? .alreadyOn },
+        enableLogin: { [weak self] in
+            self?.loginItem.enableFromOnboarding()
+            self?.refreshLoginState()
+        }
+    )
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -43,12 +51,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             feedURL: Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String
         ) {
             updaterController = SPUStandardUpdaterController(
-                startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil
+                startingUpdater: true, updaterDelegate: updaterDelegate, userDriverDelegate: nil
             )
         }
         buildMenu()
         reloadScreens()
-        loginItem.applyFirstRunDefault()
         refreshLoginState()
         NotificationCenter.default.addObserver(
             self, selector: #selector(reloadScreens),
@@ -229,5 +236,13 @@ struct KradoApp {
         let delegate = AppDelegate()
         application.delegate = delegate
         withExtendedLifetime(delegate) { application.run() }
+    }
+}
+
+/// Sparkle's documented feed hook. Normally returns nil (Info.plist's public feed); an
+/// opt-in test feed is honoured only for this repository's release assets.
+final class UpdaterDelegate: NSObject, SPUUpdaterDelegate {
+    func feedURLString(for updater: SPUUpdater) -> String? {
+        UpdaterPolicy.testFeedURL(UserDefaults.standard.string(forKey: UpdaterPolicy.testFeedDefaultsKey))
     }
 }

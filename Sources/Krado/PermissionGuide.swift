@@ -1,4 +1,5 @@
 import AppKit
+import KradoCore
 @preconcurrency import ApplicationServices
 
 @MainActor
@@ -8,11 +9,23 @@ final class PermissionGuide: NSObject, NSWindowDelegate {
     private var closeTimer: Timer?
     private var didRequestPrompt = false
     private let permissionChanged: () -> Void
+    private let loginOffer: () -> LoginOnboardingOffer
+    private let enableLogin: () -> Void
     private var statusLabel: NSTextField?
     private var settingsButton: NSButton?
+    private var loginButton: NSButton?
+    private var loginLabel: NSTextField?
+    private var doneButton: NSButton?
 
-    init(permissionChanged: @escaping () -> Void) {
+    /// The guide is also the onboarding: it offers Launch at Login (off by default) as one click.
+    init(
+        permissionChanged: @escaping () -> Void,
+        loginOffer: @escaping () -> LoginOnboardingOffer,
+        enableLogin: @escaping () -> Void
+    ) {
         self.permissionChanged = permissionChanged
+        self.loginOffer = loginOffer
+        self.enableLogin = enableLogin
     }
 
     func show() {
@@ -21,6 +34,8 @@ final class PermissionGuide: NSObject, NSWindowDelegate {
         if window == nil { buildWindow() }
         statusLabel?.stringValue = L10n.text("Waiting for Accessibility permission…")
         settingsButton?.isEnabled = true
+        doneButton?.isHidden = true
+        refreshLoginOffer()
         window?.center()
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -60,6 +75,21 @@ final class PermissionGuide: NSObject, NSWindowDelegate {
         status.textColor = .secondaryLabelColor
         stack.addArrangedSubview(status)
         statusLabel = status
+        stack.addArrangedSubview(label("Optional: start krado automatically when you log in. You can change this later in the menu.", bold: false))
+        let login = NSButton(title: L10n.text("Launch krado at Login"), target: self, action: #selector(turnOnLogin))
+        login.bezelStyle = .rounded
+        stack.addArrangedSubview(login)
+        loginButton = login
+        let loginNote = label("")
+        loginNote.textColor = .secondaryLabelColor
+        stack.addArrangedSubview(loginNote)
+        loginLabel = loginNote
+        let done = NSButton(title: L10n.text("Done"), target: self, action: #selector(closeGuide))
+        done.bezelStyle = .rounded
+        done.keyEquivalent = "\r"
+        done.isHidden = true
+        stack.addArrangedSubview(done)
+        doneButton = done
         let content = NSView()
         content.addSubview(stack)
         NSLayoutConstraint.activate([
@@ -86,6 +116,26 @@ final class PermissionGuide: NSObject, NSWindowDelegate {
         }
     }
 
+    @objc private func turnOnLogin() {
+        enableLogin()
+        refreshLoginOffer()
+    }
+
+    @objc private func closeGuide() { window?.close() }
+
+    private func refreshLoginOffer() {
+        let offer = loginOffer()
+        loginButton?.isHidden = offer == .alreadyOn || offer == .moveToApplications
+        loginButton?.title = L10n.text(offer == .openSettings ? "Open Login Items Settings…" : "Launch krado at Login")
+        switch offer {
+        case .alreadyOn: loginLabel?.stringValue = L10n.text("✓ krado will launch at login.")
+        case .openSettings: loginLabel?.stringValue = L10n.text("Allow krado in System Settings → Login Items")
+        case .moveToApplications: loginLabel?.stringValue = L10n.text("Move krado to Applications to launch at login")
+        case .turnOn: loginLabel?.stringValue = ""
+        }
+        loginLabel?.isHidden = loginLabel?.stringValue.isEmpty ?? true
+    }
+
     private func startPolling() {
         pollTimer?.invalidate()
         pollTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
@@ -96,8 +146,14 @@ final class PermissionGuide: NSObject, NSWindowDelegate {
                 self.settingsButton?.isEnabled = false
                 self.pollTimer?.invalidate()
                 self.pollTimer = nil
-                self.closeTimer = Timer.scheduledTimer(withTimeInterval: 1.2, repeats: false) { [weak self] _ in
-                    MainActor.assumeIsolated { self?.window?.close() }
+                self.refreshLoginOffer()
+                if self.loginOffer() == .turnOn {
+                    // Keep the guide open so the optional Launch at Login button stays reachable.
+                    self.doneButton?.isHidden = false
+                } else {
+                    self.closeTimer = Timer.scheduledTimer(withTimeInterval: 1.2, repeats: false) { [weak self] _ in
+                        MainActor.assumeIsolated { self?.window?.close() }
+                    }
                 }
             }
         }

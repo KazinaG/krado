@@ -3,7 +3,7 @@ import Testing
 
 @Suite("Login item installation policy")
 struct LoginItemPolicyTests {
-    @Test("Only stable Applications paths can receive the first-run default", arguments: [
+    @Test("Only stable Applications paths count as installed", arguments: [
         LoginPathCase(path: "/Applications/krado.app", eligible: true),
         LoginPathCase(path: "/Applications/Utilities/krado.app", eligible: true),
         LoginPathCase(path: "/Users/test/Applications/krado.app", eligible: true),
@@ -19,26 +19,40 @@ struct LoginItemPolicyTests {
     ])
     func eligibility(test: LoginPathCase) {
         #expect(LoginItemPolicy.isInstalledInApplications(bundlePath: test.path, homeDirectory: "/Users/test") == test.eligible)
-        #expect(LoginItemPolicy.shouldAutoRegister(
-            bundlePath: test.path, homeDirectory: "/Users/test", didApplyDefaultLoginItem: false
-        ) == test.eligible)
-        #expect(!LoginItemPolicy.shouldAutoRegister(
-            bundlePath: test.path, homeDirectory: "/Users/test", didApplyDefaultLoginItem: true
-        ))
     }
 
-    @Test("Moving to Applications preserves the unapplied default")
-    func movedInstallation() {
-        #expect(!LoginItemPolicy.shouldAutoRegister(
-            bundlePath: "/Users/test/Downloads/krado.app", homeDirectory: "/Users/test", didApplyDefaultLoginItem: false
-        ))
-        #expect(LoginItemPolicy.shouldAutoRegister(
-            bundlePath: "/Applications/krado.app", homeDirectory: "/Users/test", didApplyDefaultLoginItem: false
-        ))
+    @Test("Onboarding offers one-click Launch at Login only when it can be turned on", arguments: [
+        OnboardingCase(state: .disabled, installed: true, offer: .turnOn),
+        OnboardingCase(state: .unavailable, installed: true, offer: .turnOn),
+        OnboardingCase(state: .disabled, installed: false, offer: .moveToApplications),
+        OnboardingCase(state: .unavailable, installed: false, offer: .moveToApplications),
+        OnboardingCase(state: .needsApproval, installed: true, offer: .openSettings),
+        OnboardingCase(state: .needsApproval, installed: false, offer: .openSettings),
+        OnboardingCase(state: .enabled, installed: true, offer: .alreadyOn),
+        OnboardingCase(state: .enabled, installed: false, offer: .alreadyOn),
+    ])
+    func onboardingOffer(test: OnboardingCase) {
+        #expect(LoginItemPolicy.onboardingOffer(state: test.state, installedInApplications: test.installed) == test.offer)
+    }
+
+    @Test("The onboarding button and the menu checkbox register the same way")
+    func onboardingMatchesMenu() {
+        for state in [LoginItemState.disabled, .unavailable] {
+            let offer = LoginItemPolicy.onboardingOffer(state: state, installedInApplications: true)
+            let action = LoginItemPolicy.toggleAction(state: state, installedInApplications: true)
+            #expect(offer == .turnOn)
+            #expect(action == .register)
+        }
     }
 }
 
 struct LoginPathCase: Sendable {
     let path: String
     let eligible: Bool
+}
+
+struct OnboardingCase: Sendable {
+    let state: LoginItemState
+    let installed: Bool
+    let offer: LoginOnboardingOffer
 }
