@@ -25,7 +25,7 @@ krado chooses the split from the screen's size, as set in **System Settings → 
 | Portrait | **1 × 2** or more | A monitor turned vertical (short portrait screens stay 1 × 1) |
 | Ultrawide | **4 × 1** or more | Very wide monitors, with two rows when tall enough |
 
-![Grids for large, medium, small, very small and portrait screens](docs/assets/layouts.png)
+![Grids for a MacBook Air, 4K, 6K, 4K and 8K at native size, a portrait 4K and an ultrawide screen](docs/assets/layouts.png)
 
 ## Use it
 

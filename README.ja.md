@@ -25,7 +25,7 @@ Microsoft PowerToys の FancyZones に着想を得ています。krado はマス
 | 縦置き | <strong>1 × 2</strong> 以上 | 縦向きにしたモニター（高さが足りない縦置きは 1 × 1） |
 | ウルトラワイド | <strong>4 × 1</strong> 以上 | とても横長のモニター。高さが十分なら2段 |
 
-![大きい画面・中くらい・小さい画面・とても小さい画面・縦置きのマス目](docs/assets/layouts.ja.png)
+![MacBook Air・4K・6K・等倍の 4K と 8K・縦置き 4K・ウルトラワイドのマス目](docs/assets/layouts.ja.png)
 
 ## 使い方
 
