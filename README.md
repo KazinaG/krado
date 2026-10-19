@@ -4,11 +4,15 @@
 
 English | [日本語](README.ja.md) · [Changelog](CHANGELOG.md)
 
-**Drag a window. Drop it on the grid.** krado is a small menu-bar app that tiles windows on macOS. There is nothing to set up: it picks a grid that fits each screen.
+**Drag a window. Drop it on the grid.** krado is a small menu-bar app that tiles windows on macOS. There is nothing to set up: it picks a grid that fits each screen, from a MacBook to large and portrait monitors.
+
+Free and open source (MIT License).
 
 ![Dragging a window onto the grid](docs/assets/demo/drag-snap.gif)
 
 ## A grid that fits each screen
+
+Inspired by Microsoft PowerToys FancyZones, krado builds the grid for you, and never makes zones too small for the screen. A typical 4K display tops out at 4 columns, and a MacBook Air's built-in screen is never split top and bottom, because each half would be too short to work in.
 
 krado chooses the split from the screen's size, as set in **System Settings → Displays**. Every screen, built-in or external, follows the same rules.
 
