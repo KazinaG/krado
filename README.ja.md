@@ -20,7 +20,7 @@ Microsoft PowerToys の FancyZones に着想を得ています。krado はマス
 | --- | --- | --- |
 | MacBook | <strong>2 × 1</strong> | 標準の大きさで使っている MacBook Air / Pro の画面 |
 | 一般的なモニター | <strong>2 × 2</strong> | 1920 × 1080、2560 × 1440、標準の大きさで使う 4K・5K |
-| 大きい画面 | <strong>4 × 2</strong>〜<strong>8 × 4</strong> | 大きい画面や高解像度ディスプレイ：標準の大きさの 6K・28インチ 3:2 → 4 × 2、等倍の 4K → 4 × 2、8K → 8 × 4 |
+| 大きい画面 | <strong>3 × 2</strong>〜<strong>8 × 4</strong> | 等倍で使う高解像度ディスプレイ：4K → 4 × 2、6K → 6 × 3、8K → 8 × 4 |
 | とても小さい | <strong>1 × 1</strong> | 幅の狭い画面や低解像度の画面 |
 | 縦置き | <strong>1 × 2</strong> 以上 | 縦向きにしたモニター（高さが足りない縦置きは 1 × 1） |
 | ウルトラワイド | <strong>4 × 1</strong> 以上 | とても横長のモニター。高さが十分なら2段 |

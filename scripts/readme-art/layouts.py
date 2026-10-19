@@ -11,11 +11,11 @@ def F(p,s,w=None):
     return f
 TEXT={
  "en":dict(title="A grid that fits each screen", sub="krado picks the split from the screen's size. No setup.",
-   items=[("MacBook Air","2 × 1","Default size"),("4K","2 × 2","Default size"),("6K","4 × 2","Default size"),
+   items=[("MacBook Air","2 × 1","Default size"),("4K","2 × 2","Default size"),("6K","3 × 2","Default size"),
           ("4K","4 × 2","Native size"),("8K","8 × 4","Native size"),("Portrait 4K","2 × 3","Native size"),("Ultrawide","4 × 2","3440 × 1440")],
-   foot="Columns come in even counts (2, 4, 6, 8), never tiny or lopsided. MacBooks are never split top and bottom.", font=(INTER,INTER)),
+   foot="Zones stay at least about 900 × 1000 pt where possible, never tiny. MacBooks are never split top and bottom.", font=(INTER,INTER)),
  "ja":dict(title="画面に合わせたマス目", sub="画面の大きさから分け方を自動で決めます。設定は不要です。",
-   items=[("MacBook Air","2 × 1","標準の大きさ"),("4K","2 × 2","標準の大きさ"),("6K","4 × 2","標準の大きさ"),
+   items=[("MacBook Air","2 × 1","標準の大きさ"),("4K","2 × 2","標準の大きさ"),("6K","3 × 2","標準の大きさ"),
           ("4K","4 × 2","等倍"),("8K","8 × 4","等倍"),("縦置き 4K","2 × 3","等倍"),("ウルトラワイド","4 × 2","3440 × 1440")],
    foot="画面が大きいほど均等に細かく分けますが、マスが小さくなりすぎることはありません。MacBook は上下に分けません。", font=(CJKB,CJK)),
 }
@@ -27,7 +27,7 @@ for lang,t in TEXT.items():
     bold,reg=t["font"]
     d.text((64*S,52*S),t["title"],font=F(bold,40,700),fill=(255,255,255))
     d.text((64*S,110*S),t["sub"],font=F(reg,19,450),fill=(186,200,218))
-    specs=[(2,1,(124,80)),(2,2,(132,76)),(4,2,(136,78)),(4,2,(132,76)),(8,4,(140,80)),(2,3,(84,148)),(4,2,(150,64))]
+    specs=[(2,1,(124,80)),(2,2,(132,76)),(3,2,(136,78)),(4,2,(132,76)),(8,4,(140,80)),(2,3,(84,148)),(4,2,(150,64))]
     slot=(W-128)/7; base=380
     for i,((c,r,(sw,sh)),(name,grid,ex)) in enumerate(zip(specs,t["items"])):
         cx=64+slot*i+slot/2
