@@ -1,12 +1,28 @@
 {
-  "window": {"width": 660, "height": 432},
+  "model": "Round 7 B (Kazina, 2026-10-19 23:34): modelled on the Ghostty / ChatGPT DMGs shot in Finder at 2x (160-pt icons, a small arrow centred between them at icon height, the composition optically centred, generous air); two square cards spaced like Arc's frame",
+  "window": {"width": 660, "height": 430},
   "titlebar": 32,
   "bleed": 16,
-  "bars_reserve": 56,
-  "scroll_margin": 36,
-  "icon_size": 128,
+  "icon_size": 160,
   "text_size": 13,
-  "app": [172, 226],
-  "applications": [488, 226],
-  "label_band": [62, 106]
+  "app": [164, 229],
+  "applications": [496, 229],
+  "card": {"size": 224, "top": 139, "radius": 20},
+  "word_ink_top": 46,
+  "word_size": 34,
+  "subtitle_size": 13,
+  "word_ink_to_baseline": 25,
+  "subtitle_below_word": 32,
+  "aura_radius": 190,
+  "arrow": {
+    "dx": [-37.5, 36.5],
+    "dasharray": "1 8",
+    "width": 2.6,
+    "chevron": [9, 8],
+    "from": "#7579ff",
+    "to": "#0d967b",
+    "source": "0.1.0's dotted arrow (74 pt, dasharray 1 8, 2.6 pt, round caps, chevron 9 x 8); #b3b5ff -> #66f2d6 kept in hue and saturation, lightness 85 -> 73 % and 67 -> 32 % for 3:1 on the light background"
+  },
+  "bars_note": "430 pt tall (not 420) so that with Finder's Path Bar and Status Bar both on, macOS 26 shows no scroll bar and the cards are not cut off; everything sits 4 pt lower so the centring stays the same.",
+  "label_note": "Finder draws a 160-pt icon's label down to about icon centre + 106 pt (measured on macOS 15 and 26 at 2x). The icon centre sits 90 pt below the card top so the space above the icon art and below the label averages out over macOS 15 and 26."
 }

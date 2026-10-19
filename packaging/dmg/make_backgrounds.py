@@ -6,6 +6,11 @@ release runner needs no SVG renderer or fonts):
     python3 packaging/dmg/make_backgrounds.py
     python3 packaging/dmg/make_backgrounds.py --check   # geometry only (CI)
 Geometry is shared with packaging/dmg/settings.py via layout.json.
+
+Design (round 7 B): modelled on real DMGs shot in Finder at 2x (Ghostty, ChatGPT; Arc
+for the cards). Wordmark and caption on top, two square cards with 160-pt icons, and
+0.1.0's dotted arrow centred between the cards at icon height. The whole composition
+sits about 2.5 % above the centre of Finder's content area (optical centre).
 """
 import json
 import pathlib
@@ -16,90 +21,61 @@ L = json.loads((HERE / "layout.json").read_text())
 W, H = L["window"]["width"], L["window"]["height"]
 (AX, AY), (BX, BY) = L["app"], L["applications"]
 ICON = L["icon_size"]
-# Finder draws the label (and the user's "Show all filename extensions") wherever its
-# macOS version puts it, and View > Show Path Bar / Show Status Bar are global Finder
-# preferences that .DS_Store cannot switch off. So: no tight chips, a wide band
-# under each icon instead, and nothing drawn in the bottom BARS_RESERVE pt.
-BAND_TOP, BAND_BOTTOM = AY + L["label_band"][0], AY + L["label_band"][1]
-CARD_BOTTOM = BAND_BOTTOM
-BARS_RESERVE, SCROLL_MARGIN = L["bars_reserve"], L["scroll_margin"]
+CARD = L["card"]
+A = L["arrow"]
+MID = (AX + BX) / 2
+X0, X1 = MID + A["dx"][0], MID + A["dx"][1]
 # The PNG is taller than the window content so a slightly shorter title bar on another
-# macOS version shows more of the same gradient, never an empty strip.
+# macOS version (28 pt on macOS 15) shows more of the same gradient, never an empty strip.
 HI = H + L["bleed"]
-
-
-def check_geometry():
-    # Label measured on macOS 26 (v0.1.0 report): icon centre + 77 ... + 90 pt.
-    label_bottom = AY + 90
-    assert BAND_TOP <= AY + 77 - 8 and BAND_BOTTOM >= label_bottom + 12, "label band too tight"
-    # With both bars on, the visible content is H - BARS_RESERVE. Finder shows a scroll
-    # bar once the items (plus about 36 pt) reach past it.
-    assert label_bottom + SCROLL_MARGIN <= H - BARS_RESERVE, "items reach under the bars"
-    assert CARD_BOTTOM <= H - BARS_RESERVE - 8, "art reaches under the bars"
-
 FONT = "Inter Tight, Inter, Helvetica Neue, sans-serif"
 
 
-def card(cid, x, top, w, rx, body, band_fill, band_opacity, stroke):
-    # A card whose bottom part is a light label band, clipped to the card's rounded
-    # corners. With a background picture Finder always draws icon labels in black
-    # (Light and Dark mode alike), and .DS_Store cannot change that; the band is as
-    # wide as the card and about 3 label heights tall, so the label stays on it
-    # wherever Finder puts it.
-    h = CARD_BOTTOM - top
-    band = ""
-    if band_fill:
-        band = (f'<clipPath id="{cid}"><rect x="{x}" y="{top}" width="{w}" height="{h}" rx="{rx}"/></clipPath>'
-                f'<rect x="{x}" y="{BAND_TOP}" width="{w}" height="{CARD_BOTTOM - BAND_TOP}" fill="{band_fill}" '
-                f'fill-opacity="{band_opacity}" clip-path="url(#{cid})"/>')
-    return (f'<rect x="{x}" y="{top}" width="{w}" height="{h}" rx="{rx}" {body}/>{band}'
-            f'<rect x="{x}" y="{top}" width="{w}" height="{h}" rx="{rx}" fill="none" {stroke}/>')
+def check_geometry():
+    half, size, top = ICON / 2, CARD["size"], CARD["top"]
+    assert AY == BY and AX + BX == W, "icons level and centred about W/2"
+    assert X1 - X0 == 74, "0.1.0's arrow length"
+    # Arrow ink: the round cap adds width/2 on the left, the chevron tip sits 1 pt past
+    # the line end plus width/2.
+    ink0, ink1 = X0 - A["width"] / 2, X1 + 1 + A["width"] / 2
+    left_gap, right_gap = ink0 - (AX + size / 2), (BX - size / 2) - ink1
+    assert left_gap >= 8 and right_gap >= 8, "arrow clear of the cards"
+    assert left_gap == right_gap, "arrow ink centred between the cards"
+    assert size - ICON == 64, "32-pt side padding around the icon"
+    # Label measured in Finder at 2x (macOS 15 and 26): down to about icon centre + 106.
+    label_bottom = AY + half + 26
+    assert top + 8 <= AY - half and label_bottom + 12 <= top + size, "icon and label inside the card"
+    sub_bottom = L["word_ink_top"] + L["word_ink_to_baseline"] + L["subtitle_below_word"] + 2
+    assert top - sub_bottom >= 28, "air between the caption and the cards"
+    # Optical centre: the composition (wordmark top .. card bottom) sits 1.5-3.5 % above
+    # the centre of the content area.
+    above, below = L["word_ink_top"], H - (top + size)
+    assert 0.015 * H <= (below - above) / 2 <= 0.035 * H, (above, below)
+    assert label_bottom + 36 <= H, "no scroll bar in Finder's default look"
 
 
 def style_b():
-    # krado's own overlay as the motif: the window is split into two zones like a
-    # 2 x 1 grid; the app rests in one, Applications glows as the snap target.
-    m, g, top = 22, 14, 120
-    zw = (W - 2 * m - g) / 2
-    zl, zr = m, m + zw + g
-    x0, x1 = zl + zw - 34, zr + 26
-    dots = "".join(
-        f'<circle cx="{x}" cy="{y}" r="1" fill="#ffffff" fill-opacity="0.07"/>'
-        for x in range(18, W, 24) for y in range(18, HI, 24))
-    return f"""<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{HI}" viewBox="0 0 {W} {HI}">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#1b1d4a"/><stop offset="0.55" stop-color="#14294d"/><stop offset="1" stop-color="#0a3b46"/>
-    </linearGradient>
-    <radialGradient id="glow" cx="{BX}" cy="{BY}" r="230" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#66f2d6" stop-opacity="0.34"/><stop offset="1" stop-color="#66f2d6" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="glowL" cx="{AX}" cy="{AY}" r="200" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#8183f5" stop-opacity="0.24"/><stop offset="1" stop-color="#8183f5" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.12"/><stop offset="1" stop-color="#ffffff" stop-opacity="0.04"/>
-    </linearGradient>
-    <linearGradient id="dash" x1="{x0}" y1="0" x2="{x1}" y2="0" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#b3b5ff"/><stop offset="1" stop-color="#66f2d6"/>
-    </linearGradient>
-  </defs>
-  <rect width="{W}" height="{HI}" fill="url(#bg)"/>
-  {dots}
-  <rect width="{W}" height="{HI}" fill="url(#glowL)"/>
-  <rect width="{W}" height="{HI}" fill="url(#glow)"/>
-  {card("cl", zl, top, zw, 20, 'fill="url(#glass)"', "#d7deec", 0.92, 'stroke="#ffffff" stroke-opacity="0.18"')}
-  {card("cr", zr, top, zw, 20, 'fill="#66f2d6" fill-opacity="0.13"', "#c2f5e9", 0.95,
-        'stroke="#66f2d6" stroke-opacity="0.9" stroke-width="2"')}
-  <text x="{W/2}" y="68" text-anchor="middle" font-family="{FONT}" font-size="34" font-weight="700"
-        letter-spacing="-0.6" fill="#f3f6ff">krado</text>
-  <text x="{W/2}" y="94" text-anchor="middle" font-family="{FONT}" font-size="13" font-weight="500"
-        letter-spacing="0.2" fill="#a4b4d4">Drop it into place</text>
-  <path d="M {x0} {AY} L {x1} {AY}" fill="none" stroke="url(#dash)" stroke-width="2.6" stroke-linecap="round"
-        stroke-dasharray="1 8"/>
-  <path d="M {x1 - 9} {AY - 8} L {x1 + 1} {AY} L {x1 - 9} {AY + 8}" fill="none" stroke="#66f2d6"
-        stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>"""
+    defs = f'''<linearGradient id="bg" x2="0" y2="1"><stop stop-color="#fbfbfe"/><stop offset="1" stop-color="#e9edf6"/></linearGradient>
+    <linearGradient id="word"><stop stop-color="#3f4296"/><stop offset="1" stop-color="#136f7d"/></linearGradient>
+    <linearGradient id="dash" x1="{X0}" y1="0" x2="{X1}" y2="0" gradientUnits="userSpaceOnUse"><stop stop-color="{A["from"]}"/><stop offset="1" stop-color="{A["to"]}"/></linearGradient>'''
+    art = f'<rect width="{W}" height="{HI}" fill="url(#bg)"/>'
+    for i, ((x, cy), hue, opacity) in enumerate(zip((L["app"], L["applications"]), ("#6d6fd8", "#1fb5a8"), (.16, .14))):
+        defs += f'<radialGradient id="a{i}" cx="{x}" cy="{cy}" r="{L["aura_radius"]}" gradientUnits="userSpaceOnUse"><stop stop-color="{hue}" stop-opacity="{opacity}"/><stop offset="1" stop-color="{hue}" stop-opacity="0"/></radialGradient>'
+        art += f'<rect width="{W}" height="{HI}" fill="url(#a{i})"/>'
+    for i, x in enumerate((AX, BX)):
+        shape = f'x="{x - CARD["size"]/2}" y="{CARD["top"]}" width="{CARD["size"]}" height="{CARD["size"]}" rx="{CARD["radius"]}"'
+        art += f'<rect {shape} fill="#ffffff" fill-opacity="0.55"/>'
+        if i:
+            art += f'<rect {shape} fill="#1fb5a8" fill-opacity="0.08"/>'
+        stroke, opacity, sw = ("#1fb5a8", .9, 2) if i else ("#c6cfdf", 1, 1)
+        art += f'<rect {shape} fill="none" stroke="{stroke}" stroke-opacity="{opacity}" stroke-width="{sw}"/>'
+    base = L["word_ink_top"] + L["word_ink_to_baseline"]
+    cw, chh = A["chevron"]
+    art += f'''<text x="{W/2}" y="{base}" text-anchor="middle" font-family="{FONT}" font-size="{L['word_size']}" font-weight="700" letter-spacing="-0.6" fill="url(#word)">krado</text>
+    <text x="{W/2}" y="{base + L['subtitle_below_word']}" text-anchor="middle" font-family="{FONT}" font-size="{L['subtitle_size']}" fill="#6b7290">Drag krado to Applications</text>
+    <path d="M {X0} {AY} L {X1} {AY}" fill="none" stroke="url(#dash)" stroke-width="{A['width']}" stroke-linecap="round" stroke-dasharray="{A['dasharray']}"/>
+    <path d="M {X1 - cw} {AY - chh} L {X1 + 1} {AY} L {X1 - cw} {AY + chh}" fill="none" stroke="{A['to']}" stroke-width="{A['width']}" stroke-linecap="round" stroke-linejoin="round"/>'''
+    return f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{HI}" viewBox="0 0 {W} {HI}"><defs>{defs}</defs>{art}</svg>'
 
 
 def main():
@@ -108,14 +84,14 @@ def main():
         print("DMG geometry OK")
         return
     import cairosvg
-    for name, svg in (("B", style_b()),):
-        out = HERE / name
-        out.mkdir(exist_ok=True)
-        (out / "background.svg").write_text(svg)
-        cairosvg.svg2png(bytestring=svg.encode(), write_to=str(out / "background.png"), output_width=W, output_height=HI)
-        cairosvg.svg2png(bytestring=svg.encode(), write_to=str(out / "background@2x.png"),
-                         output_width=W * 2, output_height=HI * 2)
-        print(f"{name}: {out}/background.png, background@2x.png ({W}x{HI} pt, window content {W}x{H})")
+    svg = style_b()
+    out = HERE / "B"
+    out.mkdir(exist_ok=True)
+    (out / "background.svg").write_text(svg)
+    for scale, suffix in ((1, ""), (2, "@2x")):
+        cairosvg.svg2png(bytestring=svg.encode(), write_to=str(out / f"background{suffix}.png"),
+                         output_width=W * scale, output_height=HI * scale)
+    print(f"B: {out}/background.png, background@2x.png ({W}x{HI} pt, window content {W}x{H})")
 
 
 if __name__ == "__main__":

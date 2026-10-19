@@ -19,11 +19,11 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - The rows listing each display and its grid now appear only when two or more displays are connected. Reload Displays stays in the menu.
 - When you drop a window on a zone, the window now glides into place instead of jumping (it moves instantly when Reduce Motion is on, or when an app's window cannot follow smoothly). While you drag, the highlight slides from zone to zone.
 - The grid now follows one rule with no special cases: krado keeps halving the screen, across and down, while every zone stays at least 640 pt wide and 720 pt tall (columns 1, 2, 4 or 8; rows 1, 2 or 4). It reads the whole screen size, so showing or hiding the Dock or menu bar no longer changes the grid. For example, 1920 × 1080 is now 2 × 1, 2560 × 1440 and 3008-pt-wide displays (including 6K at its default size) are now 4 × 2 instead of 2 × 2 or 3 × 2, and 6K at native size is 8 × 4.
-- Installer window: _(to be written when the DMG design is decided)_
+- Installer window: a new light design. krado and Applications keep their square cards, now with larger 160 pt icons, joined by a dotted arrow like 0.1.0's that sits centred between the cards; the whole layout is optically centred in the window.
 
 ### Fixed
 
-- The install window that opens with the DMG is no longer cut off at the bottom and no longer shows a scroll bar when Finder's Path Bar or Status Bar is turned on, and the "krado" and "Applications" labels now sit cleanly on their light bands (also with filename extensions shown).
+- The install window that opens with the DMG is no longer cut off at the bottom and no longer shows a scroll bar when Finder's Path Bar or Status Bar is turned on, and the "krado" and "Applications" labels now sit inside their cards (also with filename extensions shown).
 
 ## [0.1.0] - 2026-10-20
 

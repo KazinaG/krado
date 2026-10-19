@@ -1,0 +1,105 @@
+name: DMG shoot (krado + reference DMGs, HiDPI)
+
+# By hand only. Builds krado's DMG (ad hoc) and opens it in Finder on macos-15 and
+# macos-26: at the runner's own 1x display, then on a 2x (HiDPI) virtual display next to
+# well-known apps' DMGs (packaging/dmg/shoot/refs.tsv, downloaded from their official
+# sites into RUNNER_TEMP and deleted after the shot; only screenshots and text are kept).
+on:
+  workflow_dispatch:
+    inputs:
+      compare_ref:
+        description: Also build and render the DMG of this commit (optional)
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  dmg:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install dmgbuild (pinned, hash-checked, build machine only)
+        run: |
+          python3 -m venv .build/dmgbuild-venv
+          .build/dmgbuild-venv/bin/pip install --quiet --disable-pip-version-check \
+            --require-hashes --no-deps -r packaging/dmg/requirements.txt
+      - name: Check geometry
+        run: python3 packaging/dmg/make_backgrounds.py --check
+      - name: Build krado DMG (ad hoc)
+        run: OUTPUT_DIR=dist/shootdmg DMG_NAME=krado.dmg scripts/make-dmg.sh
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        if: inputs.compare_ref != ''
+        with:
+          ref: ${{ inputs.compare_ref }}
+          path: compare
+      - name: Build the comparison DMG (ad hoc)
+        if: inputs.compare_ref != ''
+        run: |
+          cd compare
+          DMGBUILD="$GITHUB_WORKSPACE/.build/dmgbuild-venv/bin/dmgbuild" OUTPUT_DIR="$GITHUB_WORKSPACE/dist/shootdmg" \
+            DMG_NAME=krado-compare.dmg scripts/make-dmg.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: dmg-shoot
+          path: dist/shootdmg/*.dmg
+          if-no-files-found: error
+          retention-days: 3
+
+  shoot:
+    needs: dmg
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-26]
+    runs-on: ${{ matrix.os }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: dmg-shoot
+          path: dist/shootdmg
+      - name: Install ds_store reader (pinned, hash-checked)
+        run: |
+          python3 -m venv .build/dmgbuild-venv
+          .build/dmgbuild-venv/bin/pip install --quiet --disable-pip-version-check \
+            --require-hashes --no-deps -r packaging/dmg/requirements.txt
+      - name: krado at 1x first (the runner's own 1x display)
+        run: |
+          printf 'krado-1x\tfile:%s\n' "$PWD/dist/shootdmg/krado.dmg" > "$RUNNER_TEMP/list1x.tsv"
+          packaging/dmg/shoot/shoot.sh dist/shoot "$RUNNER_TEMP/list1x.tsv"
+      - name: HiDPI virtual display (2x) as main display
+        run: |
+          mkdir -p dist/shoot
+          clang -fobjc-arc -framework Foundation -framework CoreGraphics \
+            packaging/dmg/shoot/hidpi-display.m -o "$RUNNER_TEMP/hidpi-display"
+          nohup "$RUNNER_TEMP/hidpi-display" > dist/shoot/hidpi.txt 2>&1 &
+          sleep 8
+          cat dist/shoot/hidpi.txt
+          system_profiler SPDisplaysDataType | grep -E 'Resolution|Retina|Main|UI Looks|Display Type' | tee -a dist/shoot/hidpi.txt || true
+          defaults delete -g AppleInterfaceStyle 2>/dev/null || true
+      - name: Shoot references and krado in Finder (default look)
+        run: |
+          { cat packaging/dmg/shoot/refs.tsv
+            printf 'krado\tfile:%s\n' "$PWD/dist/shootdmg/krado.dmg"
+          } > "$RUNNER_TEMP/list.tsv"
+          packaging/dmg/shoot/shoot.sh dist/shoot "$RUNNER_TEMP/list.tsv"
+          cat dist/shoot/log.txt
+          ls -la dist/shoot
+      - name: krado at 2x, default look and with Path Bar, Status Bar and extensions on
+        run: |
+          packaging/dmg/render/render-dmg.sh dist/shootdmg/krado.dmg dist/shoot krado-render
+          if [ -f dist/shootdmg/krado-compare.dmg ]; then
+            packaging/dmg/render/render-dmg.sh dist/shootdmg/krado-compare.dmg dist/shoot compare-render
+          fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: shoot-${{ matrix.os }}
+          path: |
+            dist/shoot/*.png
+            dist/shoot/*.txt
+          if-no-files-found: error
+          retention-days: 3

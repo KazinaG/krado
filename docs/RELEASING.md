@@ -82,7 +82,7 @@ Sparkle's tools come from the checksum-pinned Sparkle SwiftPM artifact
 4. Wait for the Release workflow. Its `render` job opens the built DMG in Finder on
    macOS 15 and 26, with default Finder settings and with Path Bar, Status Bar and
    filename extensions on; look at the `render-<os>` screenshots (nothing cut off, no
-   scroll bar, labels on their bands). The draft is only created after it passes.
+   scroll bar, labels inside their cards). The draft is only created after it passes.
    Download the draft's DMG and check it on a Mac.
 5. **Gatekeeper first launch (quarantined download).** The
    [Gatekeeper workflow](../.github/workflows/gatekeeper.yml) runs after every Release
