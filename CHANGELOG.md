@@ -8,24 +8,14 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
-### Changed
-
-- The DMG opens in a designed window: krado's zones on a dark background, the app in one cell and Applications glowing as the mint snap target, with Retina artwork, a volume icon, and hidden toolbar and sidebar. The layout is written by dmgbuild in CI (no Finder automation).
-
-### Fixed
-
-- Larger screens are divided evenly by a minimum zone size (about 900 × 1000 pt), up to 8 × 4: 4K at native size stays 4 × 2, 6K gets 6 × 3, 8K gets 8 × 4. MacBook screens stay 2 × 1.
-- Wide but short screens (under 900 pt tall) are no longer split top and bottom, so no zone is shorter than 450 pt.
-- The "new version available" alert no longer appears during first-run setup: scheduled update checks start only after Accessibility is allowed and the welcome guide is closed. Check for Updates… always works.
-- The macOS Accessibility alert is raised at most once (not again after a relaunch or update) and no longer opens together with System Settings, which could leave it on screen after krado was turned on. Later clicks on Open System Settings only open the settings pane.
-
 ## [0.1.0] - 2026-10-20
 
 ### Added
 
 - Menu-bar window tiling for macOS with drag-to-snap zone overlays and boundary/intersection spanning.
-- Automatic split tiers: portrait 1 × 1 or 1 × 2, ultrawide 4 × 1 or 4 × 2, and landscape 1 × 1, 2 × 1, 2 × 2, or 4 × 2 based on visible work area.
+- An automatic, evenly divided grid sized by a minimum zone size (about 900 × 1000 pt), up to 8 × 4: MacBook screens stay 2 × 1, 4K at native size gets 4 × 2, 6K 6 × 3 and 8K 8 × 4; portrait screens use 1 × 1 or 1 × 2 and ultrawide screens 4 × 1 or 4 × 2. Wide but short screens (under 900 pt tall) are never split top and bottom, so no zone is shorter than 450 pt.
 - Multiple-display support, Retina pixel alignment, Dock/menu-bar work-area handling, and automatic display refresh.
+- Zone overlays in the macOS accent color, redrawn immediately when the accent color changes.
 - Shift+drag to span visited cells, Option+drag to bypass snapping, and Esc during a drag to cancel snapping for that drag (the window stays where it is released).
 - Ctrl+Cmd+Arrow to move the focused window between zones and adjacent displays; Ctrl+Cmd+Shift+Arrow to extend its span, with the opposite arrow shrinking it back toward the zone where growing started (never below that zone).
 - Accessibility setup guidance, permission/monitoring status, placement error feedback, and recovery checks.
@@ -46,3 +36,10 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - README presentation includes language switching and Japanese cover/layout images.
 - Installation documentation describes future DMG downloads, macOS first-launch approval, and signed-update availability.
 - App packaging embeds Sparkle and verifies bundle signatures, framework linkage, and the executable's framework search path. Release builds are signed with a stable self-signed certificate ("krado Self-Signed", imported into a temporary CI keychain) so Accessibility permission survives updates; local builds without it fall back to ad-hoc signing.
+- The DMG opens in a designed window: krado's zones on a dark background, the app in one cell and Applications glowing as the mint snap target, with Retina artwork, a volume icon, and hidden toolbar and sidebar. The layout is written by dmgbuild in CI (no Finder automation).
+
+### Fixed
+
+- The "new version available" alert no longer appears during first-run setup: scheduled update checks start only after Accessibility is allowed and the welcome guide is closed. Check for Updates… always works.
+- The macOS Accessibility alert is raised at most once (not again after a relaunch or update) and no longer opens together with System Settings, which could leave it on screen after krado was turned on. Later clicks on Open System Settings only open the settings pane.
+- README fixes: Japanese bold text renders on GitHub, the usage tables have headers, and the difference between Option and Esc during a drag is explained.
