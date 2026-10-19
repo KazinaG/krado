@@ -16,7 +16,14 @@ private final class GridView: NSView {
     init(geometry: GridGeometry) {
         self.geometry = geometry
         super.init(frame: CGRect(origin: .zero, size: geometry.workArea.size))
+        // Zones use the macOS accent color; redraw at once when the user changes it.
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(systemColorsChanged),
+            name: NSColor.systemColorsDidChangeNotification, object: nil
+        )
     }
+
+    @objc private func systemColorsChanged() { needsDisplay = true }
 
     required init?(coder: NSCoder) { nil }
 
