@@ -132,7 +132,7 @@ if !layoutsOnly {
         text("krado", x: 230, y: 396, size: 76, weight: .bold)
         text(japanese ? "ウィンドウをドラッグして、" : "Drag a window.", x: 76, y: 300, size: japanese ? 40 : 42, weight: .semibold)
         text(japanese ? "マス目に置くだけ。" : "Drop it on the grid.", x: 76, y: 246, size: japanese ? 40 : 42, weight: .semibold)
-        text(japanese ? "macOS のための、無料・オープンソースのウィンドウ整列アプリ" : "Window tiling for macOS — free & open source", x: 78, y: 194, size: japanese ? 18 : 22, fill: muted)
+        text(japanese ? "macOS のためのウィンドウ整列アプリ" : "Window tiling for macOS", x: 78, y: 194, size: japanese ? 18 : 22, fill: muted)
         text(japanese ? "macOS 14 以降" : "macOS 14+", x: 78, y: 79, size: 17, weight: .medium, fill: muted)
         let display = CGRect(x: 765, y: 204, width: 443, height: 298)
         context.setShadow(offset: CGSize(width: 0, height: -16), blur: 35, color: color(0, 0, 0, 0.25))

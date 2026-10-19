@@ -5,7 +5,7 @@ import Testing
 
 @Suite("Display policy and coordinates")
 struct PolicyAndCoordinatesTests {
-    @Test("Owner display examples and zone counts", arguments: [
+    @Test("Example display sizes and zone counts", arguments: [
         PolicyCase(width: 3440, height: 1410, columns: 4, rows: 2),
         PolicyCase(width: 2560, height: 1050, columns: 4, rows: 1),
         PolicyCase(width: 3008, height: 1975, columns: 4, rows: 2),
