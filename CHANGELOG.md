@@ -8,11 +8,14 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+### Changed
+
+- The DMG opens in a designed window: krado's zones on a dark background, the app in one cell and Applications glowing as the mint snap target, with Retina artwork, a volume icon, and hidden toolbar and sidebar. The layout is written by dmgbuild in CI (no Finder automation).
+
 ### Fixed
 
 - Larger screens are divided evenly by a minimum zone size (about 900 × 1000 pt), up to 8 × 4: 4K at native size stays 4 × 2, 6K gets 6 × 3, 8K gets 8 × 4. MacBook screens stay 2 × 1.
 - Wide but short screens (under 900 pt tall) are no longer split top and bottom, so no zone is shorter than 450 pt.
-
 - The "new version available" alert no longer appears during first-run setup: scheduled update checks start only after Accessibility is allowed and the welcome guide is closed. Check for Updates… always works.
 - The macOS Accessibility alert is raised at most once (not again after a relaunch or update) and no longer opens together with System Settings, which could leave it on screen after krado was turned on. Later clicks on Open System Settings only open the settings pane.
 

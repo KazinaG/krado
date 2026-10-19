@@ -13,6 +13,7 @@ on:
       - .github/workflows/release.yml
       - scripts/build-app.sh
       - scripts/make-dmg.sh
+      - packaging/dmg/**
       - scripts/changelog-section.sh
       - scripts/ci-signing-keychain.sh
       - Package.swift
@@ -64,6 +65,17 @@ jobs:
         # build-app.sh signs with KRADO_SIGN_IDENTITY and fails unless the designated
         # requirement is certificate-based (not a cdhash) and has no Team ID.
         run: OUTPUT_DIR="$RELEASE_DIR" scripts/make-dmg.sh
+
+      - name: Check DMG window layout
+        run: |
+          dmg=$(ls "$RELEASE_DIR"/krado-*.dmg | head -1)
+          mnt=$(mktemp -d)
+          hdiutil attach "$dmg" -nobrowse -readonly -mountpoint "$mnt" > /dev/null
+          trap 'hdiutil detach "$mnt" > /dev/null' EXIT
+          test -f "$mnt/.DS_Store" && test -f "$mnt/.background.tiff" && test -f "$mnt/.VolumeIcon.icns"
+          test -L "$mnt/Applications"
+          tiffutil -info "$mnt/.background.tiff" | grep -q 'Resolution: 144, 144'
+          codesign --verify --deep --strict "$mnt/krado.app"
 
       - name: Show signature
         run: |
