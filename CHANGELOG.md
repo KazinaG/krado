@@ -18,6 +18,7 @@ No version has been released; all work so far is unreleased.
 - Ctrl+Cmd+Arrow to move the focused window between zones and adjacent displays; Ctrl+Cmd+Shift+Arrow to extend its span, with the opposite arrow shrinking it back toward the zone where growing started (never below that zone).
 - Accessibility setup guidance, permission/monitoring status, placement error feedback, and recovery checks.
 - A single Launch at Login checkbox in the menu (SMAppService), off by default; the welcome guide offers a one-click button to turn it on, with a one-line hint only when macOS needs approval or krado is outside Applications.
+- An Uninstall krado… menu item: after confirmation it unregisters the login item, resets krado's own Accessibility entry with `tccutil` (current user, no sudo), removes its preferences, caches and HTTP storage, moves the app to the Trash, and quits; if any step fails it explains the manual steps and opens Accessibility settings.
 - English and Japanese localization, illustrated READMEs, an app icon, and MIT licensing.
 - Pure-logic tests and design/manual-check documentation; feedback and issue templates with a contribution policy.
 - A DMG packaging script with an Applications shortcut and an optional output directory.

@@ -80,6 +80,12 @@ launchd job that is removed when the update finishes; it installs no permanent a
 
 ### Clean uninstall
 
+**Uninstall krado…** in the menu does steps 1–4 below in that order (login item →
+`tccutil reset Accessibility io.github.kazinag.krado` → `removePersistentDomain` →
+caches/HTTPStorages → Trash) and quits; when a step fails (e.g. running from the DMG
+or App Translocation) it keeps the app, explains the manual steps, and opens
+Accessibility settings. Manual equivalent:
+
 1. In krado's menu, turn **Launch at Login** off (if on), then **Quit krado**.
 2. System Settings → Privacy & Security → Accessibility: select **krado**, click **−**.
 3. System Settings → General → Login Items: remove **krado** if it is still listed.

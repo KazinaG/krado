@@ -48,6 +48,12 @@ Requires macOS 14 or later.
 
 Releases are signed with the same certificate every time, so updates keep the Accessibility permission. If macOS still asks again, remove the old **krado** entry in **System Settings → Privacy & Security → Accessibility** and turn on the new one.
 
+## Uninstall
+
+Choose **Uninstall krado…** in krado's menu. It turns off Launch at Login, removes krado's Accessibility permission, settings and caches, moves the app to the Trash, and quits.
+
+If that is not possible (for example when krado runs from the disk image), remove **krado** in **System Settings → General → Login Items & Extensions** and in **Privacy & Security → Accessibility** (select it and click **−**), then move krado to the Trash.
+
 ## Privacy
 
 krado only watches mouse drags, the Esc key while you drag, and its own shortcuts, and moves windows through Accessibility. It does not read what you type or look at your screen. Nothing leaves your Mac except update checks, which fetch the update feed from GitHub.

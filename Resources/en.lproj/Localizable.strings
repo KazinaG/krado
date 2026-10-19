@@ -50,3 +50,10 @@
 "Open Login Items Settings…" = "Open Login Items Settings…";
 "✓ krado will launch at login." = "✓ krado will launch at login.";
 "Done" = "Done";
+"Uninstall krado…" = "Uninstall krado…";
+"Uninstall krado?" = "Uninstall krado?";
+"krado will turn off Launch at Login, remove its Accessibility permission, settings and caches, move itself to the Trash, and quit." = "krado will turn off Launch at Login, remove its Accessibility permission, settings and caches, move itself to the Trash, and quit.";
+"Uninstall" = "Uninstall";
+"Cancel" = "Cancel";
+"krado could not finish uninstalling." = "krado could not finish uninstalling.";
+"In System Settings → Privacy & Security → Accessibility, select krado and click −. Then remove krado in General → Login Items & Extensions and move krado.app to the Trash." = "In System Settings → Privacy & Security → Accessibility, select krado and click −. Then remove krado in General → Login Items & Extensions and move krado.app to the Trash.";

@@ -98,6 +98,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(updateItem)
         addAction(L10n.text("About krado"), #selector(showAbout), to: menu)
         addAction(L10n.text("krado on GitHub…"), #selector(openGitHub), to: menu)
+        addAction(L10n.text("Uninstall krado…"), #selector(uninstall), to: menu)
         menu.addItem(.separator())
         addAction(L10n.text("Quit krado"), #selector(quit), to: menu)
         statusItem.menu = menu
@@ -179,6 +180,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func checkForUpdates() { updaterController?.checkForUpdates(nil) }
 
     @objc private func showPermissionGuide() { permissionGuide.show() }
+    @objc private func uninstall() {
+        // Stop watching first so nothing reacts while permission and settings go away.
+        permissionTimer?.invalidate()
+        monitor.stop()
+        hotKeys.stop()
+        Uninstaller.confirmAndRun()
+        if permissionTimer?.isValid != true {
+            permissionTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
+                MainActor.assumeIsolated { self?.refreshPermission() }
+            }
+            if let permissionTimer { RunLoop.main.add(permissionTimer, forMode: .common) }
+        }
+        refreshPermission()
+    }
+
     @objc private func toggleLoginItem() { loginItem.toggle(); refreshLoginState() }
 
     @objc private func reloadScreens() {
