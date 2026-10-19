@@ -7,6 +7,9 @@ Change a decision only by adding a new, dated entry.
 
 | Time | Area | Decision |
 |---|---|---|
+| 22:10 | Menu | The rows that list each display and its grid appear only when two or more displays are connected. |
+| 22:08 | Menu | Keep the Reload Displays item. |
+| 22:07 | Menu | Launch at Login: power icon and an On / Off label at the right end of the row, without a checkmark. The label alone shows the state. |
 | 20:01 | Process | In an A/B comparison, A and B both meet every requirement and wish. They differ only on points that are still open. |
 | 20:00 | Install window (DMG) | Light direction "A": keep the background gradient, no name band, app icon and name visually centred, keep the straight arrow (only the curved arrow was rejected). |
 | 19:53–19:57 | Install window (DMG) | No label band. Keep the square-card grid look of the 0.1.0 window. |
