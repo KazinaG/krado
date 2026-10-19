@@ -40,6 +40,8 @@ public enum GridPolicy {
     public static let largeDisplayMinimumWidth: CGFloat = 2800
     public static let midSizeDisplayMinimumWidth: CGFloat = 1800
     public static let twoColumnMinimumWidth: CGFloat = 1200
+    /// Below this height a top/bottom split would make zones too short (< 450 pt).
+    public static let twoRowMinimumHeight: CGFloat = 900
 
     public static func layout(for screen: ScreenDescriptor) -> GridLayout {
         let width = screen.visibleSize.width
@@ -51,8 +53,9 @@ public enum GridPolicy {
         if ultrawide && width >= ultrawideMinimumWidth {
             return GridLayout(columns: 4, rows: height >= ultrawideTwoRowMinimumHeight ? 2 : 1)
         }
-        if width >= largeDisplayMinimumWidth { return GridLayout(columns: 4, rows: 2) }
-        if width >= midSizeDisplayMinimumWidth { return GridLayout(columns: 2, rows: 2) }
+        let rows = height >= twoRowMinimumHeight ? 2 : 1
+        if width >= largeDisplayMinimumWidth { return GridLayout(columns: 4, rows: rows) }
+        if width >= midSizeDisplayMinimumWidth { return GridLayout(columns: 2, rows: rows) }
         return GridLayout(columns: width >= twoColumnMinimumWidth ? 2 : 1, rows: 1)
     }
 }

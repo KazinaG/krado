@@ -38,6 +38,10 @@ struct PolicyAndCoordinatesTests {
         PolicyCase(width: 2400, height: 1000, columns: 4, rows: 1),
         PolicyCase(width: 2400.01, height: 1000, columns: 4, rows: 1),
         PolicyCase(width: 1000, height: 400, columns: 1, rows: 1),
+        // Wide but short screens keep one row so zones never get too short.
+        PolicyCase(width: 2200, height: 899.99, columns: 2, rows: 1),
+        PolicyCase(width: 2200, height: 900, columns: 2, rows: 2),
+        PolicyCase(width: 2900, height: 899.99, columns: 4, rows: 1),
         // Isolate the aspect-ratio boundary while satisfying the width threshold.
         PolicyCase(width: 2519.99, height: 1200, columns: 2, rows: 2),
         PolicyCase(width: 2520, height: 1200, columns: 4, rows: 1),

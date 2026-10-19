@@ -10,6 +10,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Fixed
 
+- Wide but short screens (under 900 pt tall) are no longer split top and bottom, so no zone is shorter than 450 pt.
+
 - The "new version available" alert no longer appears during first-run setup: scheduled update checks start only after Accessibility is allowed and the welcome guide is closed. Check for Updates… always works.
 - The macOS Accessibility alert is raised at most once (not again after a relaunch or update) and no longer opens together with System Settings, which could leave it on screen after krado was turned on. Later clicks on Open System Settings only open the settings pane.
 

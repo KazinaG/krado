@@ -31,11 +31,11 @@ krado chooses the split from the screen's size, as set in **System Settings → 
 
 Drag any window by its title bar. A grid appears on the screen under the pointer; release to drop the window into the highlighted zone. Near a line between zones, the highlight covers both sides.
 
-| | |
+| How | See it |
 | --- | --- |
 | **Shift + drag** — sweep across zones to cover all of them. | ![Shift + drag spans several zones](docs/assets/demo/shift-drag.gif) |
-| **Option + drag** — ignore the grid and drop the window anywhere. | ![Option + drag ignores the grid](docs/assets/demo/option-drag.gif) |
-| **Esc while dragging** — cancel snapping for this drag; the window stays where you release it. | ![Esc cancels snapping](docs/assets/demo/esc-cancel.gif) |
+| **Hold Option while dragging** — the grid hides while Option is held and comes back when you let go of Option, so you can decide at any moment. | ![Option + drag ignores the grid](docs/assets/demo/option-drag.gif) |
+| **Press Esc once while dragging** — the grid is gone for the rest of this drag, even after you let go of the key. Handy when you change your mind halfway. | ![Esc cancels snapping](docs/assets/demo/esc-cancel.gif) |
 | **Keyboard** — **⌃⌘ + arrow** moves the active window one zone (and onto the next screen at the edge). **⌃⌘⇧ + arrow** grows it; the opposite arrow shrinks it back. | ![Move, grow and shrink with the keyboard](docs/assets/demo/keyboard.gif) |
 
 The menu-bar icon shows whether krado is working. Its menu has **Launch at Login** (off until you turn it on; the welcome window offers it as one click) and **Check for Updates…**. krado checks for updates automatically and always asks before installing one.

@@ -22,12 +22,12 @@ Policy input is `ScreenDescriptor(isBuiltin, visibleSize, name)`; both name and 
 | --- | --- | --- |
 | 1 | Portrait: H > W | H ≥ 1200pt → 1 × 2; otherwise 1 × 1 |
 | 2 | Ultrawide: W/H ≥ 2.1 **and** W ≥ 2400pt | H ≥ 1300pt → 4 × 2; otherwise 4 × 1 |
-| 3 | W ≥ 2800pt (large / 4K-class) | 4 × 2 |
-| 4 | W ≥ 1800pt (mid-size) | 2 × 2 |
+| 3 | W ≥ 2800pt (large / 4K-class) | H ≥ 900pt → 4 × 2; otherwise 4 × 1 |
+| 4 | W ≥ 1800pt (mid-size) | H ≥ 900pt → 2 × 2; otherwise 2 × 1 |
 | 5 | W ≥ 1200pt (MacBook Air 13-class) | 2 × 1 |
 | 6 | Otherwise | 1 × 1 (no split) |
 
-Named constants in `GridPolicy` are `portraitSplitMinimumHeight` (1200), `ultrawideMinimumAspectRatio` (2.1), `ultrawideMinimumWidth` (2400), `ultrawideTwoRowMinimumHeight` (1300), `largeDisplayMinimumWidth` (2800), `midSizeDisplayMinimumWidth` (1800), and `twoColumnMinimumWidth` (1200). Portrait takes precedence even on very large screens; equality H = W is not portrait. Ultrawide requires both its aspect ratio and width thresholds, and precedes the general large-screen rule: 2800×1000pt gets 4×1, not 4×2.
+Named constants in `GridPolicy` are `portraitSplitMinimumHeight` (1200), `ultrawideMinimumAspectRatio` (2.1), `ultrawideMinimumWidth` (2400), `ultrawideTwoRowMinimumHeight` (1300), `largeDisplayMinimumWidth` (2800), `midSizeDisplayMinimumWidth` (1800), `twoColumnMinimumWidth` (1200), and `twoRowMinimumHeight` (900, so no zone is shorter than 450pt). Portrait takes precedence even on very large screens; equality H = W is not portrait. Ultrawide requires both its aspect ratio and width thresholds, and precedes the general large-screen rule: 2800×1000pt gets 4×1, not 4×2.
 
 The aim is to keep zones roughly at least 640pt wide and about 500pt tall so typical app windows fit. Mid-size screens get 2×2 rather than three narrow columns. Small landscape screens get full-height left/right halves. Below about 1200pt, even halves become too narrow, so a single zone fills the visible work area. Portrait screens split only with at least 1200pt of height; ultrawides use two rows only with at least 1300pt. These are sizing heuristics, not enforced minimum dimensions: the 1200pt width threshold permits 600pt halves, and unusual work-area aspect ratios or app size constraints may still produce smaller usable windows.
 
