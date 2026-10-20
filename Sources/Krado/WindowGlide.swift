@@ -12,6 +12,7 @@ final class WindowGlide: NSObject {
     private var destination = CGRect.zero
     private var mode: MotionSpec.Mode = .full
     private var refreshRate = 60
+    private var workArea = CGRect.zero
     private var anchor = CGPoint(x: 0.5, y: 0.5)
     private var began: CFTimeInterval = 0
     private var completion: ((Bool) -> Void)?
@@ -36,7 +37,8 @@ final class WindowGlide: NSObject {
         let mainHeight = NSScreen.screens.first {
             ($0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value == CGMainDisplayID()
         }?.frame.height ?? display.frame.height
-        anchor = MotionSpec.anchor(for: frame, in: flipY(display.visibleFrame, mainScreenHeight: mainHeight))
+        workArea = flipY(display.visibleFrame, mainScreenHeight: mainHeight)
+        anchor = MotionSpec.anchor(for: frame, in: workArea)
         began = CACurrentMediaTime()
         let link = display.displayLink(target: self, selector: #selector(step(_:)))
         self.link = link
@@ -69,20 +71,36 @@ final class WindowGlide: NSObject {
         guard CACurrentMediaTime() - began < MotionSpec.duration else { finish(); return }
         var current = CGRect(origin: actual.position, size: actual.size)
         if mode == .full && MotionSpec.writes(from: current, to: requested).size {
-            let result = Accessibility.writeSize(requested.size, of: window)
-            guard result.success, result.milliseconds <= MotionSpec.abortWriteMilliseconds,
-                  let readback = Accessibility.snapshot(of: window) else {
-                finish(); return
+            let bridge = MotionSpec.bridgeSize(from: current, to: requested)
+            // Shrink first, move the smaller rectangle, then grow. In particular,
+            // never enlarge a bottom/right anchored window at its old origin.
+            let sizes = [bridge, requested.size]
+            var writeMilliseconds = 0.0
+            for (index, size) in sizes.enumerated() {
+                guard CACurrentMediaTime() - began < MotionSpec.duration else { finish(); return }
+                if index == 1 && current.origin != requested.origin {
+                    let move = Accessibility.writePosition(requested.origin, of: window)
+                    guard move.success, move.milliseconds <= MotionSpec.abortWriteMilliseconds else {
+                        finish(); return
+                    }
+                }
+                if size == current.size { continue }
+                let result = Accessibility.writeSize(size, of: window)
+                guard result.success, result.milliseconds <= MotionSpec.abortWriteMilliseconds,
+                      let readback = Accessibility.snapshot(of: window) else {
+                    finish(); return
+                }
+                writeMilliseconds += result.milliseconds
+                current = CGRect(origin: readback.position, size: readback.size)
             }
-            mode = MotionSpec.nextMode(current: mode, writeMilliseconds: result.milliseconds,
-                                       requested: requested.size, actual: readback.size, refreshRate: refreshRate)
+            mode = MotionSpec.nextMode(current: mode, writeMilliseconds: writeMilliseconds,
+                                       requested: requested.size, actual: current.size, refreshRate: refreshRate)
             guard mode != .abort else { finish(); return }
-            current = CGRect(origin: readback.position, size: readback.size)
         }
         // AX calls consume the same wall-clock budget as display callbacks.
         guard CACurrentMediaTime() - began < MotionSpec.duration else { finish(); return }
         // Keep the zone's edge/centre on the interpolated path even if size is clamped.
-        let position = MotionSpec.anchoredPosition(for: requested, actualSize: current.size, anchor: anchor)
+        let position = MotionSpec.anchoredPosition(for: requested, actualSize: current.size, anchor: anchor, in: workArea)
         if current.origin != position {
             let result = Accessibility.writePosition(position, of: window)
             if !result.success || result.milliseconds > MotionSpec.abortWriteMilliseconds { finish(); return }

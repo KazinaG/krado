@@ -50,6 +50,28 @@ public enum MotionSpec {
         CGPoint(x: (requested.minX + (requested.width - actualSize.width) * anchor.x).rounded(),
                 y: (requested.minY + (requested.height - actualSize.height) * anchor.y).rounded())
     }
+    /// Preserve the selected edge when an app clamps its size, but keep a fitting
+    /// window inside the destination display's visible frame.
+    public static func anchoredPosition(for requested: CGRect, actualSize: CGSize,
+                                        anchor: CGPoint, in workArea: CGRect) -> CGPoint {
+        let point = anchoredPosition(for: requested, actualSize: actualSize, anchor: anchor)
+        guard workArea.contains(requested) else { return point }
+        return CGPoint(x: min(max(point.x, workArea.minX), max(workArea.minX, workArea.maxX - actualSize.width)),
+                       y: min(max(point.y, workArea.minY), max(workArea.minY, workArea.maxY - actualSize.height)))
+    }
+
+    /// AX size and position are separate writes. Shrink each axis before moving,
+    /// then grow at the new origin, so neither intermediate rectangle adds overflow.
+    /// The bridge also handles one axis growing while the other shrinks.
+    public static func bridgeSize(from actual: CGRect, to requested: CGRect) -> CGSize {
+        CGSize(width: min(actual.width, requested.width),
+               height: min(actual.height, requested.height))
+    }
+
+    public static func positionFirst(from actual: CGRect, to requested: CGRect) -> Bool {
+        bridgeSize(from: actual, to: requested) == actual.size
+    }
+
     public static func writes(from actual: CGRect, to requested: CGRect) -> (position: Bool, size: Bool) {
         (actual.origin != requested.origin, actual.size != requested.size)
     }

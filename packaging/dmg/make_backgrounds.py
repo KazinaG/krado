@@ -14,6 +14,7 @@ sits about 2.5 % above the centre of Finder's content area (optical centre).
 """
 import json
 import pathlib
+import runpy
 import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -52,6 +53,22 @@ def check_geometry():
     above, below = L["word_ink_top"], H - (top + size)
     assert 0.015 * H <= (below - above) / 2 <= 0.035 * H, (above, below)
     assert label_bottom + 36 <= H, "no scroll bar in Finder's default look"
+    for reserve in (0, L["bars_reserve"]):
+        assert top + size + 1 + 12 <= H - reserve, "card stroke has bottom air with either bar state"
+    settings = runpy.run_path(str(HERE / "settings.py"), init_globals={"defines": {
+        "app": "/Applications/krado.app", "style": "B", "dmgdir": str(HERE), "volume_icon": "unused.icns"}})
+    assert settings["icon_locations"] == {"krado.app": (AX, AY), "Applications": (BX, BY)}
+    for x in (AX, BX):
+        left = x - size / 2
+        for scale in (1, 2):
+            assert (left + size / 2) * scale == x * scale, "card and Finder label share an exact centre"
+            assert left * scale == round(left * scale), "no fractional pixel shift"
+    # Conservative one-em-per-character label envelope, including extensions.
+    for label in ("krado.app", "Applications"):
+        label_width = len(label) * L["text_size"]
+        assert (size - label_width) / 2 >= 32, "centred filename has equal side padding"
+    assert settings["window_rect"][1] == (W, H + L["titlebar"])
+    assert HI == H + L["bleed"], "bleed adds height only"
 
 
 def style_b():

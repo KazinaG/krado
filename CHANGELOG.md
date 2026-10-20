@@ -23,6 +23,9 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Fixed
 
+- Every menu action now has a light/dark-aware symbol, including Reload Displays.
+- Window growth moves before enlarging to avoid an edge-clamping jolt; shrinking and the final placement use the same safe write order.
+
 - The install window that opens with the DMG is no longer cut off at the bottom and no longer shows a scroll bar when Finder's Path Bar or Status Bar is turned on, and the "krado" and "Applications" labels now sit inside their cards (also with filename extensions shown).
 
 ## [0.1.0] - 2026-10-20
