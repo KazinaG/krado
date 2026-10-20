@@ -166,7 +166,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         addAction(L10n.text("Uninstall krado…"), "trash", #selector(uninstall), to: menu)
         menu.addItem(.separator())
         addAction(L10n.text("Quit krado"), "xmark.rectangle", #selector(quit), to: menu)
+        Self.keepImagesVisible(in: menu)
         statusItem.menu = menu
+    }
+
+    /// macOS 27 hides SF Symbol menu-item images by default for apps linked on the
+    /// macOS 26 SDK or later (AppKit release notes; NSMenuItem.preferredImageVisibility,
+    /// NSMenuItemImageVisibilityVisible = 1). krado's menu relies on its icons, so ask
+    /// for them to stay visible. Set by key so the code also builds with older SDKs;
+    /// macOS 14–26 do not have the property and are unaffected.
+    static func keepImagesVisible(in menu: NSMenu) {
+        let selector = NSSelectorFromString("setPreferredImageVisibility:")
+        for item in menu.items {
+            if item.image != nil, item.responds(to: selector) {
+                item.setValue(1, forKey: "preferredImageVisibility")
+            }
+            if let submenu = item.submenu { keepImagesVisible(in: submenu) }
+        }
     }
 
     private func symbol(_ name: String) -> NSImage? {
@@ -187,6 +203,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         refreshPermission()
         refreshUpdateItem()
         refreshLoginState()
+        Self.keepImagesVisible(in: menu)
     }
 
     private func refreshPermission() {

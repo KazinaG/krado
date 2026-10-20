@@ -8,9 +8,9 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
-## [0.1.3] - Unreleased
+## [0.1.4] - Unreleased
 
-0.1.1 and 0.1.2 were not published. Their changes are included in 0.1.3.
+0.1.1, 0.1.2 and 0.1.3 were not published. Their changes are included in 0.1.4.
 
 ### Changed
 
@@ -23,6 +23,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Fixed
 
+- On macOS 27 the menu icons are shown again (macOS 27 hides menu icons unless an app asks to keep them).
 - The install window that opens with the DMG is no longer cut off at the bottom and no longer shows a scroll bar when Finder's Path Bar or Status Bar is turned on, and the "krado" and "Applications" labels now sit inside their cards (also with filename extensions shown).
 - Enlarging a window by dropping it on more zones (for example from one zone to four) no longer jolts near the screen edge: krado moves the window before growing it, and shrinks it before moving.
 
