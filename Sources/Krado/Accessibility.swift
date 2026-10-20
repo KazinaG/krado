@@ -62,16 +62,17 @@ enum Accessibility {
         return WindowSnapshot(position: position, size: size)
     }
 
-    /// Reapply position after size because some apps move the origin while resizing.
+    /// Use the same shrink–move–grow order as the glide, including the final snap.
     static func setFrame(_ frame: CGRect, of window: AXUIElement) -> Bool {
-        var origin = frame.origin
-        var size = frame.size
-        guard let positionValue = AXValueCreate(.cgPoint, &origin),
-              let sizeValue = AXValueCreate(.cgSize, &size) else { return false }
-        let first = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, positionValue)
-        let second = AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, sizeValue)
-        let third = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, positionValue)
-        return first == .success && second == .success && third == .success
+        guard let actual = snapshot(of: window) else { return false }
+        let current = CGRect(origin: actual.position, size: actual.size)
+        let bridge = MotionSpec.bridgeSize(from: current, to: frame)
+        if bridge != current.size && !writeSize(bridge, of: window).success { return false }
+        if !writePosition(frame.origin, of: window).success { return false }
+        if bridge != frame.size && !writeSize(frame.size, of: window).success { return false }
+        // Some apps move their origin during a resize; avoid a redundant final write.
+        guard let readback = snapshot(of: window) else { return false }
+        return readback.position == frame.origin || writePosition(frame.origin, of: window).success
     }
 
     static func writeSize(_ size: CGSize, of window: AXUIElement) -> (success: Bool, milliseconds: Double) {

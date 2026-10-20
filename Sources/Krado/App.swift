@@ -126,7 +126,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         errorItem.isEnabled = false
         errorItem.isHidden = true
         requestItem.title = L10n.text("Accessibility Setup…")
-        requestItem.image = symbol("hand.raised")
+        requestItem.image = symbol("questionmark.circle")
         requestItem.target = self
         menu.addItem(requestItem)
         menu.addItem(.separator())
@@ -153,10 +153,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let appHeader = NSMenuItem.sectionHeader(title: L10n.text("krado"))
         menu.addItem(appHeader)
         let reloadItem = NSMenuItem(title: L10n.text("Reload Displays"), action: #selector(reloadScreens), keyEquivalent: "")
+        reloadItem.image = symbol("arrow.clockwise")
         reloadItem.target = self
         menu.addItem(reloadItem)
         updateItem.title = L10n.text("Check for Updates…")
-        updateItem.image = symbol("arrow.triangle.2.circlepath")
+        updateItem.image = symbol("arrow.down.circle")
         updateItem.target = self
         refreshUpdateItem()
         menu.addItem(updateItem)
@@ -169,7 +170,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func symbol(_ name: String) -> NSImage? {
-        NSImage(systemSymbolName: name, accessibilityDescription: nil)
+        let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)
+        image?.isTemplate = true
+        return image
     }
 
     private func addAction(_ title: String, _ symbolName: String, _ action: Selector, to menu: NSMenu) {
@@ -254,7 +257,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let description = L10n.text(description)
         item.title = title
         item.attributedTitle = StatusPresentation.statusTitle(title, detail: L10n.text(detail))
-        item.image = StatusPresentation.image(for: symbol, description: description)
+        if item.action != nil {
+            let image = NSImage(systemSymbolName: symbol.name, accessibilityDescription: description)
+            image?.isTemplate = true
+            item.image = image
+        } else {
+            item.image = StatusPresentation.image(for: symbol, description: description)
+        }
         item.toolTip = description
         item.setAccessibilityLabel(description)
     }
