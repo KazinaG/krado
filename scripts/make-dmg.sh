@@ -22,7 +22,7 @@ if [ "$style" = plain ]; then
     # Preserve the app's framework symlinks and signatures.
     ditto "$bundle" "$staging/krado.app"
     ln -s /Applications "$staging/Applications"
-    hdiutil create -volname krado -srcfolder "$staging" -ov -format UDZO "$dmg"
+    hdiutil create -volname "krado $version" -srcfolder "$staging" -ov -format UDZO "$dmg"
 else
     dmgdir="$repo_root/packaging/dmg"
     dmgbuild_bin="${DMGBUILD:-}"
@@ -39,7 +39,7 @@ else
     "$dmgbuild_bin" -s "$dmgdir/settings.py" \
         -D app="$bundle" -D style="$style" -D dmgdir="$dmgdir" \
         -D volume_icon="$repo_root/Resources/AppIcon.icns" \
-        krado "$dmg"
+        "krado $version" "$dmg"
 fi
 # The app inside must keep its signature (ditto preserves it in both paths).
 echo "Built $dmg (style $style, not mounted)."

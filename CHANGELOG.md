@@ -8,12 +8,13 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
-## [0.1.4] - Unreleased
+## [0.1.5] - Unreleased
 
-0.1.1, 0.1.2 and 0.1.3 were not published. Their changes are included in 0.1.4.
+0.1.1 to 0.1.4 were not published. Their changes are included in 0.1.5.
 
 ### Changed
 
+- Window motion is calmer: moving a window into a zone takes 0.26 s and enlarging it takes 0.34 s (both were 0.2 s).
 - The menu is easier to scan: it is split into sections with headings (Status, Startup and krado), with Quit krado on its own at the bottom. Status shows two rows with colored symbols: whether Accessibility is allowed and whether window drags can snap. Every menu action has an icon that follows light and dark mode (including Reload Displays), and Quit krado has the shortcut ⌘Q.
 - Launch at Login shows its state as a word at the right end of the row (On, Off or Needs approval) instead of a checkmark. Choosing it switches it on or off right away; VoiceOver reads the state too.
 - The rows listing each display and its grid now appear only when two or more displays are connected. Reload Displays stays in the menu.
@@ -23,6 +24,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Fixed
 
+- The install window now always shows its own background, even when a disk image from another krado version is still open. The disk is named after its version (for example "krado 0.1.5"), because Finder looked up the background by disk name and could show an older version's picture, which made the cards look cut off and the labels misplaced.
 - On macOS 27 the menu icons are shown again (macOS 27 hides menu icons unless an app asks to keep them).
 - The install window that opens with the DMG is no longer cut off at the bottom and no longer shows a scroll bar when Finder's Path Bar or Status Bar is turned on, and the "krado" and "Applications" labels now sit inside their cards (also with filename extensions shown).
 - Enlarging a window by dropping it on more zones (for example from one zone to four) no longer jolts near the screen edge: krado moves the window before growing it, and shrinks it before moving.

@@ -15,6 +15,7 @@ final class WindowGlide: NSObject {
     private var workArea = CGRect.zero
     private var anchor = CGPoint(x: 0.5, y: 0.5)
     private var began: CFTimeInterval = 0
+    private var duration: TimeInterval = MotionSpec.duration
     private var completion: ((Bool) -> Void)?
 
     func run(window: AXUIElement, to frame: CGRect, completion: @escaping (Bool) -> Void) {
@@ -27,6 +28,7 @@ final class WindowGlide: NSObject {
         self.window = window
         start = CGRect(origin: snapshot.position, size: snapshot.size)
         destination = frame
+        duration = MotionSpec.duration(from: start, to: frame)
         self.completion = completion
         mode = .full
         let display = NSScreen.screens.first { screen in
@@ -58,7 +60,7 @@ final class WindowGlide: NSObject {
 
     @objc private func step(_ sender: CADisplayLink) {
         guard let window else { return }
-        let progress = (CACurrentMediaTime() - began) / MotionSpec.duration
+        let progress = (CACurrentMediaTime() - began) / duration
         if MotionPreference.reduceMotion { finish(); return }
         guard progress < 1 else { finish(); return }
         let requested = MotionSpec.frame(from: start, to: destination, progress: progress)
@@ -68,7 +70,7 @@ final class WindowGlide: NSObject {
         }
         #endif
         guard let actual = Accessibility.snapshot(of: window) else { finish(); return }
-        guard CACurrentMediaTime() - began < MotionSpec.duration else { finish(); return }
+        guard CACurrentMediaTime() - began < duration else { finish(); return }
         var current = CGRect(origin: actual.position, size: actual.size)
         if mode == .full && MotionSpec.writes(from: current, to: requested).size {
             let bridge = MotionSpec.bridgeSize(from: current, to: requested)
@@ -77,7 +79,7 @@ final class WindowGlide: NSObject {
             let sizes = [bridge, requested.size]
             var writeMilliseconds = 0.0
             for (index, size) in sizes.enumerated() {
-                guard CACurrentMediaTime() - began < MotionSpec.duration else { finish(); return }
+                guard CACurrentMediaTime() - began < duration else { finish(); return }
                 if index == 1 && current.origin != requested.origin {
                     let move = Accessibility.writePosition(requested.origin, of: window)
                     guard move.success, move.milliseconds <= MotionSpec.abortWriteMilliseconds else {
@@ -98,13 +100,13 @@ final class WindowGlide: NSObject {
             guard mode != .abort else { finish(); return }
         }
         // AX calls consume the same wall-clock budget as display callbacks.
-        guard CACurrentMediaTime() - began < MotionSpec.duration else { finish(); return }
+        guard CACurrentMediaTime() - began < duration else { finish(); return }
         // Keep the zone's edge/centre on the interpolated path even if size is clamped.
         let position = MotionSpec.anchoredPosition(for: requested, actualSize: current.size, anchor: anchor, in: workArea)
         if current.origin != position {
             let result = Accessibility.writePosition(position, of: window)
             if !result.success || result.milliseconds > MotionSpec.abortWriteMilliseconds { finish(); return }
         }
-        if CACurrentMediaTime() - began >= MotionSpec.duration { finish() }
+        if CACurrentMediaTime() - began >= duration { finish() }
     }
 }
