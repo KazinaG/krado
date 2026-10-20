@@ -25,7 +25,17 @@ ICON = L["icon_size"]
 CARD = L["card"]
 A = L["arrow"]
 MID = (AX + BX) / 2
-X0, X1 = MID + A["dx"][0], MID + A["dx"][1]
+# Arrow variants (0.1.6 A/B, Kazina 2026-10-20 19:51):
+#   "card":  0.1.0's 74-pt arrow, centred between the cards, at the cards' vertical middle.
+#   "icons": the arrow ignores the cards and runs from just right of the krado icon art to
+#            just left of the Applications icon art, at icon height.
+ARROW_MODE = A.get("mode", "icon")
+ART_HALF = ICON / 2 - ICON * 0.1  # macOS icon art leaves ~10 % transparent margin per side
+if ARROW_MODE == "icons":
+    X0, X1 = AX + ART_HALF + A["icon_gap"], BX - ART_HALF - A["icon_gap"] - 1
+else:
+    X0, X1 = MID + A["dx"][0], MID + A["dx"][1]
+ARROW_Y = L["card"]["top"] + L["card"]["size"] / 2 if ARROW_MODE == "card" else AY
 # The PNG is taller than the window content so a slightly shorter title bar on another
 # macOS version (28 pt on macOS 15) shows more of the same gradient, never an empty strip.
 HI = H + L["bleed"]
@@ -35,13 +45,15 @@ FONT = "Inter Tight, Inter, Helvetica Neue, sans-serif"
 def check_geometry():
     half, size, top = ICON / 2, CARD["size"], CARD["top"]
     assert AY == BY and AX + BX == W, "icons level and centred about W/2"
-    assert X1 - X0 == 74, "0.1.0's arrow length"
+    if ARROW_MODE != "icons":
+        assert X1 - X0 == 74, "0.1.0's arrow length"
     # Arrow ink: the round cap adds width/2 on the left, the chevron tip sits 1 pt past
     # the line end plus width/2.
     ink0, ink1 = X0 - A["width"] / 2, X1 + 1 + A["width"] / 2
     left_gap, right_gap = ink0 - (AX + size / 2), (BX - size / 2) - ink1
-    assert left_gap >= 8 and right_gap >= 8, "arrow clear of the cards"
-    assert left_gap == right_gap, "arrow ink centred between the cards"
+    if ARROW_MODE != "icons":
+        assert left_gap >= 8 and right_gap >= 8, "arrow clear of the cards"
+    assert abs(left_gap - right_gap) < 1e-9, "arrow ink centred between the icons/cards"
     assert size - ICON == 64, "32-pt side padding around the icon"
     # Label measured in Finder at 2x (macOS 15 and 26): down to about icon centre + 106.
     label_bottom = AY + half + 26
@@ -90,8 +102,8 @@ def style_b():
     cw, chh = A["chevron"]
     art += f'''<text x="{W/2}" y="{base}" text-anchor="middle" font-family="{FONT}" font-size="{L['word_size']}" font-weight="700" letter-spacing="-0.6" fill="url(#word)">krado</text>
     <text x="{W/2}" y="{base + L['subtitle_below_word']}" text-anchor="middle" font-family="{FONT}" font-size="{L['subtitle_size']}" fill="#6b7290">Drag krado to Applications</text>
-    <path d="M {X0} {AY} L {X1} {AY}" fill="none" stroke="url(#dash)" stroke-width="{A['width']}" stroke-linecap="round" stroke-dasharray="{A['dasharray']}"/>
-    <path d="M {X1 - cw} {AY - chh} L {X1 + 1} {AY} L {X1 - cw} {AY + chh}" fill="none" stroke="{A['to']}" stroke-width="{A['width']}" stroke-linecap="round" stroke-linejoin="round"/>'''
+    <path d="M {X0} {ARROW_Y} L {X1} {ARROW_Y}" fill="none" stroke="url(#dash)" stroke-width="{A['width']}" stroke-linecap="round" stroke-dasharray="{A['dasharray']}"/>
+    <path d="M {X1 - cw} {ARROW_Y - chh} L {X1 + 1} {ARROW_Y} L {X1 - cw} {ARROW_Y + chh}" fill="none" stroke="{A['to']}" stroke-width="{A['width']}" stroke-linecap="round" stroke-linejoin="round"/>'''
     return f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{HI}" viewBox="0 0 {W} {HI}"><defs>{defs}</defs>{art}</svg>'
 
 
