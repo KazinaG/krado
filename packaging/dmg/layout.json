@@ -41,7 +41,7 @@
     "from": "#7579ff",
     "to": "#0d967b",
     "source": "0.1.0's dotted arrow (74 pt, dasharray 1 8, 2.6 pt, round caps, chevron 9 x 8); #b3b5ff -> #66f2d6 kept in hue and saturation, lightness 85 -> 73 % and 67 -> 32 % for 3:1 on the light background",
-    "mode": "card",
+    "mode": "icons",
     "icon_gap": 10,
     "mode_note": "0.1.6 A/B (Kazina 2026-10-20 19:51): A = 'card' (arrow at the cards' vertical middle); B = 'icons' (arrow from icon art to icon art, ignoring the cards). 'icon' = 0.1.5 (arrow at icon height)."
   },
