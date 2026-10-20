@@ -33,6 +33,12 @@ for cfg in default bars; do
     [ -n "$id" ] || { echo "::error::$name ($cfg): no Finder window opened."; exit 1; }
     screencapture -x -o -l "$id" "$out/$name-$cfg.png"
     test -s "$out/$name-$cfg.png"
+    if [ "$cfg" = bars ]; then
+        # Selection state (CI runner only): Finder's grey selection box behind krado.app.
+        perl -e 'alarm 20; exec @ARGV' osascript -e "tell application \"Finder\" to select (item \"krado.app\" of disk \"$(basename "$mnt")\")" || true
+        sleep 2
+        screencapture -x -o -l "$id" "$out/$name-$cfg-selected.png" || true
+    fi
     height=$("$lister" | awk -v i="$id" '$1==i{print $5; exit}')
     if [ -n "$expected" ] && [ "$height" != "$expected" ]; then
         echo "::error::$name ($cfg): Finder window is $height pt tall, expected $expected pt."; exit 1
