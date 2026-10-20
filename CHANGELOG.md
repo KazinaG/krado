@@ -8,6 +8,10 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+### Changed
+
+- Installer window: use the selected B design in a 700×450-pt window, with 248-pt square cards, smaller 144-pt icons, a gradient wordmark and a mint destination card without corner guides. The centred dotted arrow grows smoothly into its rounded head, and the background starts at pure white.
+
 ## [0.1.5] - Unreleased
 
 0.1.1 to 0.1.4 were not published. Their changes are included in 0.1.5.
