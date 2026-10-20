@@ -13,8 +13,8 @@ final class MotionSpecTests: XCTestCase {
         XCTAssertEqual(MotionSpec.frame(from: a, to: b, progress: 0.5).origin.x, 75)
     }
     func testDisplayBudget() {
-        XCTAssertEqual(MotionSpec.frameCount(refreshRate: 60), 12)
-        XCTAssertEqual(MotionSpec.frameCount(refreshRate: 120), 24)
+        XCTAssertEqual(MotionSpec.frameCount(refreshRate: 60, duration: 0.20), 12)
+        XCTAssertEqual(MotionSpec.frameCount(refreshRate: 120, duration: 0.20), 24)
         XCTAssertEqual(MotionSpec.frameCount(refreshRate: 0), 1)
         XCTAssertEqual(MotionSpec.frameInterval(refreshRate: 60), 1 / 60.0)
     }
@@ -75,5 +75,14 @@ final class MotionSpecTests: XCTestCase {
         XCTAssertFalse(MotionSpec.writes(from: a, to: a).size)
         XCTAssertTrue(MotionSpec.writes(from: a, to: a.offsetBy(dx: 1, dy: 0)).position)
         XCTAssertFalse(MotionSpec.writes(from: a, to: a.offsetBy(dx: 1, dy: 0)).size)
+    }
+
+    func testGrowIsSlowerThanMove() {
+        let cell = CGRect(x: 0, y: 0, width: 640, height: 720)
+        XCTAssertEqual(MotionSpec.duration(from: cell, to: cell.offsetBy(dx: 640, dy: 0)), MotionSpec.moveDuration)
+        XCTAssertEqual(MotionSpec.duration(from: cell, to: CGRect(x: 0, y: 0, width: 1280, height: 1440)), MotionSpec.growDuration)
+        XCTAssertEqual(MotionSpec.duration(from: CGRect(x: 0, y: 0, width: 1280, height: 1440), to: cell), MotionSpec.moveDuration)
+        XCTAssertGreaterThan(MotionSpec.moveDuration, 0.20)
+        XCTAssertGreaterThan(MotionSpec.growDuration, MotionSpec.moveDuration)
     }
 }

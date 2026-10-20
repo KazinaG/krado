@@ -2,7 +2,17 @@ import Foundation
 import CoreGraphics
 
 public enum MotionSpec {
-    public static let duration: TimeInterval = 0.20
+    /// Longest glide; also the default for callers that do not pass a duration.
+    /// 0.1.5 (Kazina, 2026-10-20 19:13): snapping felt a little fast and growing a
+    /// window too fast, so moves take 0.26 s and enlargements 0.34 s (were 0.20 s).
+    public static let moveDuration: TimeInterval = 0.26
+    public static let growDuration: TimeInterval = 0.34
+    public static let duration: TimeInterval = growDuration
+
+    /// Enlargements (either side gets bigger) use the slower growDuration.
+    public static func duration(from: CGRect, to: CGRect) -> TimeInterval {
+        (to.width > from.width + 0.5 || to.height > from.height + 0.5) ? growDuration : moveDuration
+    }
     public static let abortWriteMilliseconds: Double = 80
 
     public enum Mode: Equatable, Sendable {
