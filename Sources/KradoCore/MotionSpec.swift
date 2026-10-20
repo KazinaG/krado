@@ -31,8 +31,11 @@ public enum MotionSpec {
     public static func frame(from: CGRect, to: CGRect, progress: Double) -> CGRect {
         let t = CGFloat(ease(progress))
         func mix(_ a: CGFloat, _ b: CGFloat) -> CGFloat { (a + (b - a) * t).rounded() }
-        return CGRect(x: mix(from.minX, to.minX), y: mix(from.minY, to.minY),
-                      width: mix(from.width, to.width), height: mix(from.height, to.height))
+        // Interpolate and round the edges (not origin + size) so every edge moves
+        // monotonically and never passes the target by a rounding point.
+        let minX = mix(from.minX, to.minX), maxX = mix(from.maxX, to.maxX)
+        let minY = mix(from.minY, to.minY), maxY = mix(from.maxY, to.maxY)
+        return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
     }
     public static func frameCount(refreshRate: Int, duration: TimeInterval = MotionSpec.duration) -> Int {
         max(1, Int(ceil(Double(max(1, refreshRate)) * max(0, duration))))
