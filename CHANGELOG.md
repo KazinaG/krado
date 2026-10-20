@@ -8,6 +8,16 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [0.1.3] - Unreleased
+
+### Changed
+
+- Every menu action now has an icon that follows light and dark mode, including Reload Displays. Accessibility Setup and Check for Updates have clearer icons.
+
+### Fixed
+
+- Enlarging a window by dropping it on more zones (for example from one zone to four) no longer jolts near the screen edge: krado moves the window before growing it, and shrinks it before moving.
+
 ## [0.1.2] - Unreleased
 
 0.1.1 was not published. Its changes are included in 0.1.2.
@@ -22,9 +32,6 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Installer window: a new light design. krado and Applications keep their square cards, now with larger 160 pt icons, joined by a dotted arrow like 0.1.0's that sits centred between the cards; the whole layout is optically centred in the window.
 
 ### Fixed
-
-- Every menu action now has a light/dark-aware symbol, including Reload Displays.
-- Window growth moves before enlarging to avoid an edge-clamping jolt; shrinking and the final placement use the same safe write order.
 
 - The install window that opens with the DMG is no longer cut off at the bottom and no longer shows a scroll bar when Finder's Path Bar or Status Bar is turned on, and the "krado" and "Applications" labels now sit inside their cards (also with filename extensions shown).
 
