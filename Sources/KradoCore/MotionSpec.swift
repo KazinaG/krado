@@ -5,8 +5,8 @@ public enum MotionSpec {
     /// Longest glide; also the default for callers that do not pass a duration.
     /// 0.1.5 (Kazina, 2026-10-20 19:13): snapping felt a little fast and growing a
     /// window too fast, so moves take 0.26 s and enlargements 0.34 s (were 0.20 s).
-    public static let moveDuration: TimeInterval = 0.26
-    public static let growDuration: TimeInterval = 0.34
+    public static let moveDuration: TimeInterval = 0.28
+    public static let growDuration: TimeInterval = 0.38
     public static let duration: TimeInterval = growDuration
 
     /// Enlargements (either side gets bigger) use the slower growDuration.
@@ -22,8 +22,14 @@ public enum MotionSpec {
         let t = min(1, max(0, progress))
         return 1 - pow(1 - t, 3)
     }
+    /// The glide curve. 0.1.6 test B (Kazina 2026-10-20 19:53: 0.1.5's ease-out cubic
+    /// felt flat): ease-out quint (quick start, long soft settle; no overshoot so the window never leaves its zone).
+    public static func ease(_ progress: Double) -> Double {
+        let t = min(1, max(0, progress))
+        return 1 - pow(1 - t, 5)
+    }
     public static func frame(from: CGRect, to: CGRect, progress: Double) -> CGRect {
-        let t = CGFloat(easeOut(progress))
+        let t = CGFloat(ease(progress))
         func mix(_ a: CGFloat, _ b: CGFloat) -> CGFloat { (a + (b - a) * t).rounded() }
         return CGRect(x: mix(from.minX, to.minX), y: mix(from.minY, to.minY),
                       width: mix(from.width, to.width), height: mix(from.height, to.height))

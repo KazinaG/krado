@@ -1,24 +1,24 @@
 {
   "model": "Round 7 B (Kazina, 2026-10-19 23:34): modelled on the Ghostty / ChatGPT DMGs shot in Finder at 2x (160-pt icons, a small arrow centred between them at icon height, the composition optically centred, generous air); two square cards spaced like Arc's frame",
   "window": {
-    "width": 660,
-    "height": 430
+    "width": 700,
+    "height": 450
   },
   "titlebar": 32,
   "bleed": 16,
   "icon_size": 160,
   "text_size": 13,
   "app": [
-    164,
-    229
+    172,
+    249
   ],
   "applications": [
-    496,
-    229
+    528,
+    249
   ],
   "card": {
-    "size": 224,
-    "top": 139,
+    "size": 248,
+    "top": 134,
     "radius": 20
   },
   "word_ink_top": 46,
@@ -47,5 +47,6 @@
   },
   "bars_note": "430 pt tall (not 420) so that with Finder's Path Bar and Status Bar both on, macOS 26 shows no scroll bar and the cards are not cut off; everything sits 4 pt lower so the centring stays the same. Explicitly reserve 52 pt for Path Bar + Status Bar: card stroke bottom 364 leaves 14 pt within the 378-pt bars-on content area, and 66 pt with bars off. Keep the decided 430-pt window and all round 7 B positions.",
   "label_note": "Finder draws a 160-pt icon's label down to about icon centre + 106 pt (measured on macOS 15 and 26 at 2x). The icon centre sits 90 pt below the card top so the space above the icon art and below the label averages out over macOS 15 and 26. Card centres are derived directly from the integer Finder icon_locations x values (164 and 496), at both 1x and 2x; bleed extends only the bottom, never shifts x. The 224-pt card gives 32 pt per side around the 160-pt icon; a centred krado.app label has the same horizontal padding on both sides.",
-  "bars_reserve": 52
+  "bars_reserve": 52,
+  "selection_note": "0.1.6 (Kazina 2026-10-20 19:53): Finder's selection box (icon + about 8 pt each side, 176 pt) touched the card top. Cards are 248 pt square so the selection box and the label sit inside with about 27 pt of even margin on every side; the window is 700 x 450 so the cards keep 15 pt clear of the arrow and the bar reserve still holds."
 }
