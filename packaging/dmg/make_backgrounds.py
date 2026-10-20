@@ -54,7 +54,11 @@ def check_geometry():
     if ARROW_MODE != "icons":
         assert left_gap >= 8 and right_gap >= 8, "arrow clear of the cards"
     assert abs(left_gap - right_gap) < 1e-9, "arrow ink centred between the icons/cards"
-    assert size - ICON == 64, "32-pt side padding around the icon"
+    # Finder's selection box is about icon + 8 pt per side; keep even air around it and
+    # the label inside the card (Kazina 2026-10-20 19:53).
+    sel_top, label_bottom_ = AY - half - 8, AY + half + 26
+    m_top, m_bottom, m_side = sel_top - top, top + size - label_bottom_, (size - ICON - 16) / 2
+    assert min(m_top, m_bottom, m_side) >= 20 and max(m_top, m_bottom, m_side) - min(m_top, m_bottom, m_side) <= 12, (m_top, m_bottom, m_side)
     # Label measured in Finder at 2x (macOS 15 and 26): down to about icon centre + 106.
     label_bottom = AY + half + 26
     assert top + 8 <= AY - half and label_bottom + 12 <= top + size, "icon and label inside the card"

@@ -10,7 +10,7 @@ final class MotionSpecTests: XCTestCase {
         let b = CGRect(x: 100, y: 80, width: 600, height: 400)
         XCTAssertEqual(MotionSpec.frame(from: a, to: b, progress: 0), a)
         XCTAssertEqual(MotionSpec.frame(from: a, to: b, progress: 1), b)
-        XCTAssertEqual(MotionSpec.frame(from: a, to: b, progress: 0.5).origin.x, 75)
+        XCTAssertEqual(MotionSpec.frame(from: a, to: b, progress: 0.5).origin.x, CGFloat((-100 + 200 * MotionSpec.ease(0.5)).rounded()))
     }
     func testDisplayBudget() {
         XCTAssertEqual(MotionSpec.frameCount(refreshRate: 60, duration: 0.20), 12)
@@ -84,5 +84,12 @@ final class MotionSpecTests: XCTestCase {
         XCTAssertEqual(MotionSpec.duration(from: CGRect(x: 0, y: 0, width: 1280, height: 1440), to: cell), MotionSpec.moveDuration)
         XCTAssertGreaterThan(MotionSpec.moveDuration, 0.20)
         XCTAssertGreaterThan(MotionSpec.growDuration, MotionSpec.moveDuration)
+    }
+
+    func testEaseIsMonotonicAndEndsAtOne() {
+        XCTAssertEqual(MotionSpec.ease(0), 0, accuracy: 1e-9)
+        XCTAssertEqual(MotionSpec.ease(1), 1, accuracy: 1e-9)
+        var last = 0.0
+        for i in 1...100 { let v = MotionSpec.ease(Double(i) / 100); XCTAssertGreaterThanOrEqual(v, last); XCTAssertLessThanOrEqual(v, 1); last = v }
     }
 }

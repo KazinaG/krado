@@ -22,8 +22,14 @@ public enum MotionSpec {
         let t = min(1, max(0, progress))
         return 1 - pow(1 - t, 3)
     }
+    /// The glide curve. 0.1.6 test A (Kazina 2026-10-20 19:53: 0.1.5's ease-out cubic
+    /// felt flat): ease-in-out cubic (slow start, slow settle).
+    public static func ease(_ progress: Double) -> Double {
+        let t = min(1, max(0, progress))
+        return t < 0.5 ? 4 * t * t * t : 1 - pow(-2 * t + 2, 3) / 2
+    }
     public static func frame(from: CGRect, to: CGRect, progress: Double) -> CGRect {
-        let t = CGFloat(easeOut(progress))
+        let t = CGFloat(ease(progress))
         func mix(_ a: CGFloat, _ b: CGFloat) -> CGFloat { (a + (b - a) * t).rounded() }
         return CGRect(x: mix(from.minX, to.minX), y: mix(from.minY, to.minY),
                       width: mix(from.width, to.width), height: mix(from.height, to.height))
