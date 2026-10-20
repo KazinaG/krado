@@ -10,17 +10,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [0.1.3] - Unreleased
 
-### Changed
-
-- Every menu action now has an icon that follows light and dark mode, including Reload Displays. Accessibility Setup and Check for Updates have clearer icons.
-
-### Fixed
-
-- Enlarging a window by dropping it on more zones (for example from one zone to four) no longer jolts near the screen edge: krado moves the window before growing it, and shrinks it before moving.
-
-## [0.1.2] - Unreleased
-
-0.1.1 was not published. Its changes are included in 0.1.2.
+0.1.1 and 0.1.2 were not published. Their changes are included in 0.1.3.
 
 ### Changed
 
@@ -30,10 +20,12 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - When you drop a window on a zone, the window now glides into place instead of jumping (it moves instantly when Reduce Motion is on, or when an app's window cannot follow smoothly). While you drag, the highlight slides from zone to zone.
 - The grid now follows one rule with no special cases: krado keeps halving the screen, across and down, while every zone stays at least 640 pt wide and 720 pt tall (columns 1, 2, 4 or 8; rows 1, 2 or 4). It reads the whole screen size, so showing or hiding the Dock or menu bar no longer changes the grid. For example, 1920 × 1080 is now 2 × 1, 2560 × 1440 and 3008-pt-wide displays (including 6K at its default size) are now 4 × 2 instead of 2 × 2 or 3 × 2, and 6K at native size is 8 × 4.
 - Installer window: a new light design. krado and Applications keep their square cards, now with larger 160 pt icons, joined by a dotted arrow like 0.1.0's that sits centred between the cards; the whole layout is optically centred in the window.
+- Every menu action now has an icon that follows light and dark mode, including Reload Displays. Accessibility Setup and Check for Updates have clearer icons.
 
 ### Fixed
 
 - The install window that opens with the DMG is no longer cut off at the bottom and no longer shows a scroll bar when Finder's Path Bar or Status Bar is turned on, and the "krado" and "Applications" labels now sit inside their cards (also with filename extensions shown).
+- Enlarging a window by dropping it on more zones (for example from one zone to four) no longer jolts near the screen edge: krado moves the window before growing it, and shrinks it before moving.
 
 ## [0.1.0] - 2026-10-20
 
