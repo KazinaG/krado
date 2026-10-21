@@ -6,6 +6,13 @@ of a published release. [CHANGELOG.md](../CHANGELOG.md) is the source of truth; 
 Distribution is a DMG attached to a GitHub Release plus a Sparkle 2 appcast. There
 is no Homebrew tap.
 
+Local preparation for the next version is tracked in [NEXT_RELEASE.md](NEXT_RELEASE.md).
+The build default is 0.1.6, but the release scope and dated notes are not final.
+The active preparation branch is based on GitHub main and changes only DMG assets
+and tools, version metadata and documentation. Earlier study branches retain motion trial A;
+do not merge those wholesale. Do not tag or package a final candidate until the
+scope and verification gates in that checklist are resolved.
+
 ## Update feed
 
 `SUFeedURL` is `https://github.com/KazinaG/krado/releases/latest/download/appcast.xml`.
