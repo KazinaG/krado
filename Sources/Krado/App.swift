@@ -157,11 +157,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         reloadItem.target = self
         menu.addItem(reloadItem)
         updateItem.title = L10n.text("Check for Updates…")
-        updateItem.image = symbol("arrow.down.circle")
+        updateItem.image = symbol("arrow.down")
         updateItem.target = self
         refreshUpdateItem()
         menu.addItem(updateItem)
-        addAction(L10n.text("About krado"), "info.circle", #selector(showAbout), to: menu)
+        addAction(L10n.text("About krado"), "info", #selector(showAbout), to: menu)
         addAction(L10n.text("krado on GitHub…"), "chevron.left.forwardslash.chevron.right", #selector(openGitHub), to: menu)
         addAction(L10n.text("Uninstall krado…"), "trash", #selector(uninstall), to: menu)
         menu.addItem(.separator())
@@ -186,9 +186,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func symbol(_ name: String) -> NSImage? {
-        let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)
-        image?.isTemplate = true
-        return image
+        MenuActionSymbol.image(named: name)
     }
 
     private func addAction(_ title: String, _ symbolName: String, _ action: Selector, to menu: NSMenu) {
@@ -295,7 +293,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         loginToggle.state = .off
         loginToggle.isEnabled = row.enabled
         #if !KRADO_LOGIN_SWITCH_PROBE
-        loginToggle.image = symbol("power.circle")
+        loginToggle.image = symbol("power")
         #endif
         loginToggle.badge = row.badge.map { NSMenuItemBadge(string: L10n.text($0)) }
         loginToggle.setAccessibilityLabel(title + "、" + value)
