@@ -115,6 +115,8 @@ final class LoginRowView: NSView {
 
     override func layout() {
         super.layout()
+        let switchSize = toggle.fittingSize
+        toggle.frame = NSRect(x: bounds.maxX - 17 - switchSize.width, y: (bounds.height - switchSize.height) / 2, width: switchSize.width, height: switchSize.height)
         let size = Self.iconSize
         icon.frame = NSRect(x: Self.iconX, y: (bounds.height - size) / 2, width: size, height: size)
     }
@@ -133,7 +135,8 @@ final class LoginRowView: NSView {
         let titleSize = (title as NSString).size(withAttributes: attributes)
         (title as NSString).draw(at: NSPoint(x: Self.titleX, y: (bounds.height - titleSize.height) / 2), withAttributes: attributes)
 
-        if let badge {
+        // Preview: the switch replaces the badge.
+        if false, let badge {
             let badgeColor: NSColor = !enabled ? .disabledControlTextColor : highlighted ? .selectedMenuItemTextColor : .labelColor
             let attributes: [NSAttributedString.Key: Any] = [.font: badgeFont, .foregroundColor: badgeColor]
             let size = (badge as NSString).size(withAttributes: attributes)
