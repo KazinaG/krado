@@ -8,9 +8,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
-## [0.1.5] - Unreleased
-
-0.1.1 to 0.1.4 were not published. Their changes are included in 0.1.5.
+Planned as 0.2.0. 0.1.1 to 0.1.5 were not published; their changes are included here.
 
 ### Changed
 
@@ -24,7 +22,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Fixed
 
-- The install window now always shows its own background, even when a disk image from another krado version is still open. The disk is named after its version (for example "krado 0.1.5"), because Finder looked up the background by disk name and could show an older version's picture, which made the cards look cut off and the labels misplaced.
+- The install window now always shows its own background, even when a disk image from another krado version is still open. The disk is named after its version (for example "krado 0.2.0"), because Finder looked up the background by disk name and could show an older version's picture, which made the cards look cut off and the labels misplaced.
 - On macOS 27 the menu icons are shown again (macOS 27 hides menu icons unless an app asks to keep them).
 - The install window that opens with the DMG is no longer cut off at the bottom and no longer shows a scroll bar when Finder's Path Bar or Status Bar is turned on, and the "krado" and "Applications" labels now sit inside their cards (also with filename extensions shown).
 - Enlarging a window by dropping it on more zones (for example from one zone to four) no longer jolts near the screen edge: krado moves the window before growing it, and shrinks it before moving.
