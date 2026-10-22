@@ -33,7 +33,7 @@ final class LoginRowView: NSView {
     }
 
     private var badgeFont: NSFont {
-        NSFont.systemFont(ofSize: NSFont.smallSystemFontSize, weight: .semibold)
+        NSFont.systemFont(ofSize: NSFont.smallSystemFontSize, weight: .bold)
     }
 
     init(activate: @escaping () -> Void) {
@@ -121,12 +121,12 @@ final class LoginRowView: NSView {
         (title as NSString).draw(at: NSPoint(x: Self.titleX, y: (bounds.height - titleSize.height) / 2), withAttributes: attributes)
 
         if let badge {
-            let badgeColor: NSColor = !enabled ? .disabledControlTextColor : highlighted ? .selectedMenuItemTextColor : .secondaryLabelColor
+            let badgeColor: NSColor = !enabled ? .disabledControlTextColor : highlighted ? .selectedMenuItemTextColor : .labelColor
             let attributes: [NSAttributedString.Key: Any] = [.font: badgeFont, .foregroundColor: badgeColor]
             let size = (badge as NSString).size(withAttributes: attributes)
             let capsule = NSRect(x: bounds.maxX - 17 - size.width - 14,
                 y: (bounds.height - 16) / 2, width: size.width + 14, height: 16)
-            NSColor.quaternaryLabelColor.setFill()
+            NSColor.labelColor.withAlphaComponent(0.1).setFill()
             NSBezierPath(roundedRect: capsule, xRadius: 8, yRadius: 8).fill()
             (badge as NSString).draw(at: NSPoint(x: capsule.minX + 7, y: (bounds.height - size.height) / 2), withAttributes: attributes)
         }
