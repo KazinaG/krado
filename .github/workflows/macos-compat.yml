@@ -1,0 +1,26 @@
+name: macOS compatibility
+
+# Weekly build + test on the newest macOS runner images, to catch OS/toolchain breakage early.
+on:
+  schedule:
+    - cron: "0 0 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, macos-26]
+    runs-on: ${{ matrix.os }}
+    env:
+      CLANG_MODULE_CACHE_PATH: ${{ github.workspace }}/.build/module-cache
+      SWIFT_MODULECACHE_PATH: ${{ github.workspace }}/.build/module-cache
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - run: sw_vers && swift --version
+      - run: swift test --disable-keychain
+      - run: swift build --disable-keychain
