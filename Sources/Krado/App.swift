@@ -277,10 +277,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             image?.isTemplate = true
             item.image = image
         } else {
-            // Preview: macOS 26 clamps symbol pointSize in menus, so scale the drawn size (15pt ≈ 11pt ink → ≈15pt).
-            let image = StatusPresentation.image(for: symbol, description: description)
-            image?.size = NSSize(width: (image?.size.width ?? 0) * 1.35, height: (image?.size.height ?? 0) * 1.35)
-            item.image = image
+            // Preview: macOS 26 clamps symbol pointSize in menus, so scale the drawn size (15pt ≈ 11pt ink → ≈15pt); NSImage.size alone is ignored.
+            // Redraw into a plain bitmap-backed image so the menu keeps the enlarged size.
+            if let base = StatusPresentation.image(for: symbol, description: description) {
+                let size = NSSize(width: base.size.width * 1.35, height: base.size.height * 1.35)
+                let image = NSImage(size: size, flipped: false) { rect in
+                    base.draw(in: rect)
+                    return true
+                }
+                image.isTemplate = false
+                image.accessibilityDescription = description
+                item.image = image
+            } else {
+                item.image = nil
+            }
         }
         item.toolTip = description
         item.setAccessibilityLabel(description)
