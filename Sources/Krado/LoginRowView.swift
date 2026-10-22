@@ -16,10 +16,15 @@ final class LoginRowView: NSView {
 
     private static var iconSize: CGFloat {
         if #available(macOS 26, *) { return 14 }
-        return 17
+        return 16
     }
 
     // Measured against native rows in CI menu-shots (1x): glyph and title x match.
+    private static var nativeWidth: CGFloat {
+        if #available(macOS 26, *) { return 260 }
+        return 259
+    }
+
     private static var iconX: CGFloat { 18 }
 
     private static var titleX: CGFloat {
@@ -33,7 +38,8 @@ final class LoginRowView: NSView {
 
     init(activate: @escaping () -> Void) {
         self.activate = activate
-        super.init(frame: NSRect(x: 0, y: 0, width: 0, height: Self.rowHeight))
+        // The menu sizes itself from this initial width; 260/259 match the native row with a badge (CI menu-shots).
+        super.init(frame: NSRect(x: 0, y: 0, width: Self.nativeWidth, height: Self.rowHeight))
         autoresizingMask = [.width]
         icon.image = MenuActionSymbol.image(named: "power")
         icon.imageScaling = .scaleProportionallyUpOrDown
@@ -57,7 +63,7 @@ final class LoginRowView: NSView {
         // Start the title at the native image-column boundary. Let the menu
         // stretch this content-sized row to accommodate its other items.
         let width = Self.titleX + titleWidth + (badge == nil ? 0 : 16 + badgeWidth) + 49
-        setFrameSize(NSSize(width: ceil(width), height: Self.rowHeight))
+        setFrameSize(NSSize(width: max(Self.nativeWidth, ceil(width)), height: Self.rowHeight))
         needsLayout = true
         needsDisplay = true
     }
