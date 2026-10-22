@@ -277,7 +277,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             image?.isTemplate = true
             item.image = image
         } else {
-            item.image = StatusPresentation.image(for: symbol, description: description)
+            // macOS 26 shrinks symbol images in menus (≈11pt); a redrawn image keeps its size (≈14.5pt on 15 and 26).
+            // Redraw into a plain bitmap-backed image so the menu keeps the enlarged size.
+            if let base = StatusPresentation.image(for: symbol, description: description) {
+                let size = NSSize(width: base.size.width * 0.97, height: base.size.height * 0.97)
+                let image = NSImage(size: size, flipped: false) { rect in
+                    base.draw(in: rect)
+                    return true
+                }
+                image.isTemplate = false
+                image.accessibilityDescription = description
+                item.image = image
+            } else {
+                item.image = nil
+            }
         }
         item.toolTip = description
         item.setAccessibilityLabel(description)
