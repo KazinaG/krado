@@ -9,12 +9,26 @@ final class LoginRowView: NSView {
     private var enabled = true
     private var hovered = false
 
+    private static var rowHeight: CGFloat {
+        if #available(macOS 26, *) { return 24 }
+        return 22
+    }
+
+    private static var iconSize: CGFloat {
+        if #available(macOS 26, *) { return 11 }
+        return 13
+    }
+
+    private var badgeFont: NSFont {
+        NSFont.systemFont(ofSize: NSFont.smallSystemFontSize, weight: .semibold)
+    }
+
     init(activate: @escaping () -> Void) {
         self.activate = activate
-        super.init(frame: NSRect(x: 0, y: 0, width: 280, height: 22))
+        super.init(frame: NSRect(x: 0, y: 0, width: 0, height: Self.rowHeight))
         autoresizingMask = [.width]
         icon.image = MenuActionSymbol.image(named: "power")
-        icon.imageScaling = .scaleNone
+        icon.imageScaling = .scaleProportionallyUpOrDown
         icon.setAccessibilityElement(false)
         addSubview(icon)
         // The enclosing menu item supplies the action and accessibility metadata.
@@ -29,8 +43,14 @@ final class LoginRowView: NSView {
         self.enabled = enabled
         let font = NSFont.menuFont(ofSize: 0)
         let titleWidth = (title as NSString).size(withAttributes: [.font: font]).width
-        let badgeWidth = ((badge ?? "") as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: 11)]).width
-        setFrameSize(NSSize(width: max(frame.width, 54 + titleWidth + 24 + badgeWidth + 24), height: frame.height))
+        let badgeWidth = badge.map {
+            ($0 as NSString).size(withAttributes: [.font: badgeFont]).width + 14
+        } ?? 0
+        // Start the title at the native image-column boundary. Let the menu
+        // stretch this content-sized row to accommodate its other items.
+        let width = 44 + titleWidth + (badge == nil ? 0 : 16 + badgeWidth) + 14
+        setFrameSize(NSSize(width: ceil(width), height: Self.rowHeight))
+        needsLayout = true
         needsDisplay = true
     }
 
@@ -66,6 +86,12 @@ final class LoginRowView: NSView {
         activate()
     }
 
+    override func layout() {
+        super.layout()
+        let size = Self.iconSize
+        icon.frame = NSRect(x: 19, y: (bounds.height - size) / 2, width: size, height: size)
+    }
+
     override func draw(_ dirtyRect: NSRect) {
         let highlighted = enabled && (enclosingMenuItem?.isHighlighted == true || hovered)
         if highlighted {
@@ -74,22 +100,21 @@ final class LoginRowView: NSView {
         }
         let foreground: NSColor = !enabled ? .disabledControlTextColor : highlighted ? .selectedMenuItemTextColor : .labelColor
         icon.contentTintColor = foreground
-        icon.frame = NSRect(x: 12, y: 0, width: 18, height: bounds.height)
 
         let font = NSFont.menuFont(ofSize: 0)
         let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: foreground]
         let titleSize = (title as NSString).size(withAttributes: attributes)
-        (title as NSString).draw(at: NSPoint(x: 36, y: (bounds.height - titleSize.height) / 2), withAttributes: attributes)
+        (title as NSString).draw(at: NSPoint(x: 44, y: (bounds.height - titleSize.height) / 2), withAttributes: attributes)
 
         if let badge {
             let badgeColor: NSColor = !enabled ? .disabledControlTextColor : highlighted ? .selectedMenuItemTextColor : .secondaryLabelColor
-            let attributes: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: badgeColor]
+            let attributes: [NSAttributedString.Key: Any] = [.font: badgeFont, .foregroundColor: badgeColor]
             let size = (badge as NSString).size(withAttributes: attributes)
-            let capsule = NSRect(x: bounds.maxX - 16 - size.width - 12,
-                y: (bounds.height - 16) / 2, width: size.width + 12, height: 16)
-            badgeColor.withAlphaComponent(enabled ? 0.12 : 0.06).setFill()
+            let capsule = NSRect(x: bounds.maxX - 14 - size.width - 14,
+                y: (bounds.height - 16) / 2, width: size.width + 14, height: 16)
+            NSColor.quaternaryLabelColor.setFill()
             NSBezierPath(roundedRect: capsule, xRadius: 8, yRadius: 8).fill()
-            (badge as NSString).draw(at: NSPoint(x: capsule.minX + 6, y: (bounds.height - size.height) / 2), withAttributes: attributes)
+            (badge as NSString).draw(at: NSPoint(x: capsule.minX + 7, y: (bounds.height - size.height) / 2), withAttributes: attributes)
         }
     }
 }
