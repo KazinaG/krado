@@ -1,8 +1,10 @@
-import XCTest
+import Testing
 @testable import KradoCore
 
-final class LoginRowPresentationTests: XCTestCase {
-    func testAllStatesAndInstallationPaths() {
+@Suite("Login row presentation")
+struct LoginRowPresentationTests {
+    @Test("All states and installation paths")
+    func allStatesAndInstallationPaths() {
         let cases: [(LoginItemState, String)] = [
             (.enabled, "On"),
             (.disabled, "Off"),
@@ -12,10 +14,10 @@ final class LoginRowPresentationTests: XCTestCase {
         for (state, text) in cases {
             for installed in [true, false] {
                 let row = LoginRowPresentation(state: state, installed: installed)
-                XCTAssertEqual(row.title, "Launch at Login")
-                XCTAssertEqual(row.stateText, text)
-                XCTAssertEqual(row.badge, row.stateText)
-                XCTAssertEqual(row.enabled, installed || state == .enabled || state == .needsApproval)
+                #expect(row.title == "Launch at Login")
+                #expect(row.stateText == text)
+                #expect(row.badge == row.stateText)
+                #expect(row.enabled == (installed || state == .enabled || state == .needsApproval))
             }
         }
     }
