@@ -286,9 +286,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         } else {
             // macOS 26 shrinks symbol images in menus (≈11pt); a redrawn image keeps its size (≈13pt on 15 and 26).
             if let base = StatusPresentation.image(for: symbol, description: description) {
-                let size = NSSize(width: base.size.width * 0.91, height: base.size.height * 0.91)
-                let image = NSImage(size: size, flipped: false) { rect in
-                    base.draw(in: rect)
+                let side = StatusIconCanvas.side(baseWidth: base.size.width, baseHeight: base.size.height, factor: 0.91)
+                let size = NSSize(width: side, height: side)
+                let target = StatusIconCanvas.drawRect(side: side, baseWidth: base.size.width, baseHeight: base.size.height)
+                let image = NSImage(size: size, flipped: false) { _ in
+                    base.draw(in: target)
                     return true
                 }
                 image.isTemplate = false
