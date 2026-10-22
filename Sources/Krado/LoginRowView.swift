@@ -15,8 +15,16 @@ final class LoginRowView: NSView {
     }
 
     private static var iconSize: CGFloat {
-        if #available(macOS 26, *) { return 11 }
-        return 13
+        if #available(macOS 26, *) { return 13 }
+        return 17
+    }
+
+    // Measured against native rows in CI menu-shots (1x): glyph and title x match.
+    private static var iconX: CGFloat { 18 }
+
+    private static var titleX: CGFloat {
+        if #available(macOS 26, *) { return 39 }
+        return 42
     }
 
     private var badgeFont: NSFont {
@@ -48,7 +56,7 @@ final class LoginRowView: NSView {
         } ?? 0
         // Start the title at the native image-column boundary. Let the menu
         // stretch this content-sized row to accommodate its other items.
-        let width = 44 + titleWidth + (badge == nil ? 0 : 16 + badgeWidth) + 14
+        let width = Self.titleX + titleWidth + (badge == nil ? 0 : 16 + badgeWidth) + 31
         setFrameSize(NSSize(width: ceil(width), height: Self.rowHeight))
         needsLayout = true
         needsDisplay = true
@@ -89,7 +97,7 @@ final class LoginRowView: NSView {
     override func layout() {
         super.layout()
         let size = Self.iconSize
-        icon.frame = NSRect(x: 19, y: (bounds.height - size) / 2, width: size, height: size)
+        icon.frame = NSRect(x: Self.iconX, y: (bounds.height - size) / 2, width: size, height: size)
     }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -104,13 +112,13 @@ final class LoginRowView: NSView {
         let font = NSFont.menuFont(ofSize: 0)
         let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: foreground]
         let titleSize = (title as NSString).size(withAttributes: attributes)
-        (title as NSString).draw(at: NSPoint(x: 44, y: (bounds.height - titleSize.height) / 2), withAttributes: attributes)
+        (title as NSString).draw(at: NSPoint(x: Self.titleX, y: (bounds.height - titleSize.height) / 2), withAttributes: attributes)
 
         if let badge {
             let badgeColor: NSColor = !enabled ? .disabledControlTextColor : highlighted ? .selectedMenuItemTextColor : .secondaryLabelColor
             let attributes: [NSAttributedString.Key: Any] = [.font: badgeFont, .foregroundColor: badgeColor]
             let size = (badge as NSString).size(withAttributes: attributes)
-            let capsule = NSRect(x: bounds.maxX - 14 - size.width - 14,
+            let capsule = NSRect(x: bounds.maxX - 17 - size.width - 14,
                 y: (bounds.height - 16) / 2, width: size.width + 14, height: 16)
             NSColor.quaternaryLabelColor.setFill()
             NSBezierPath(roundedRect: capsule, xRadius: 8, yRadius: 8).fill()
