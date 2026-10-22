@@ -277,7 +277,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             image?.isTemplate = true
             item.image = image
         } else {
-            item.image = StatusPresentation.image(for: symbol, description: description)
+            item.image = StatusPresentation.image(for: symbol, pointSize: 20, description: description)
         }
         item.toolTip = description
         item.setAccessibilityLabel(description)
