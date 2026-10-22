@@ -15,7 +15,7 @@ final class LoginRowView: NSView {
     }
 
     private static var iconSize: CGFloat {
-        if #available(macOS 26, *) { return 13 }
+        if #available(macOS 26, *) { return 14 }
         return 17
     }
 
@@ -56,7 +56,7 @@ final class LoginRowView: NSView {
         } ?? 0
         // Start the title at the native image-column boundary. Let the menu
         // stretch this content-sized row to accommodate its other items.
-        let width = Self.titleX + titleWidth + (badge == nil ? 0 : 16 + badgeWidth) + 31
+        let width = Self.titleX + titleWidth + (badge == nil ? 0 : 16 + badgeWidth) + 49
         setFrameSize(NSSize(width: ceil(width), height: Self.rowHeight))
         needsLayout = true
         needsDisplay = true
