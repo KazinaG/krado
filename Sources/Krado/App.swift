@@ -10,6 +10,16 @@ import Sparkle
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let screens = ScreenManager()
     private let loginItem = LoginItemManager()
+    #if KRADO_CI_HOOKS
+    // Isolated from ServiceManagement: only the real row action flips this state.
+    private var ciLoginEnabled: Bool? = {
+        switch ProcessInfo.processInfo.environment["KRADO_CI_LOGIN_FAKE"] {
+        case "on": return true
+        case "off": return false
+        default: return nil
+        }
+    }()
+    #endif
     private var updaterController: SPUStandardUpdaterController?
     /// Sparkle is created stopped; scheduled checks begin only after onboarding.
     private var updaterStarted = false
@@ -310,8 +320,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func refreshLoginState() {
+        #if KRADO_CI_HOOKS
+        let state: LoginItemState = ciLoginEnabled.map { $0 ? .enabled : .disabled } ?? loginItem.state
+        let installed = ciLoginEnabled != nil || loginItem.isInstalled
+        #else
         let state = loginItem.state
         let installed = loginItem.isInstalled
+        #endif
         let row = LoginRowPresentation(state: state, installed: installed)
         let title = L10n.text(row.title)
         let value = L10n.text(row.stateText)
@@ -392,7 +407,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     #endif
 
     @objc private func toggleLoginItem() {
+        #if KRADO_CI_HOOKS
+        if let enabled = ciLoginEnabled {
+            ciLoginEnabled = !enabled
+            print("KRADO_CI real login row click: fake state=\(!enabled)")
+        } else {
+            loginItem.toggle()
+        }
+        #else
         loginItem.toggle()
+        #endif
         refreshLoginState()
         #if KRADO_CI_HOOKS
         printLoginEvidence()

@@ -108,6 +108,21 @@ final class LoginRowView: NSView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
+        #if KRADO_CI_HOOKS
+        if let path = ProcessInfo.processInfo.environment["KRADO_CI_LOGIN_GEOMETRY"], let window {
+            let rect = window.convertToScreen(convert(bounds, to: nil))
+            let screenTop = NSScreen.screens[0].frame.maxY
+            let evidence: [String: Any] = [
+                "x": rect.minX, "y": screenTop - rect.maxY,
+                "width": rect.width, "height": rect.height,
+                "label": badge ?? "", "nativeBadge": enclosingMenuItem?.badge != nil
+            ]
+            if let data = try? JSONSerialization.data(withJSONObject: evidence, options: [.sortedKeys]) {
+                try? data.write(to: URL(fileURLWithPath: path), options: .atomic)
+            }
+            print("KRADO_CI draw login label=\(badge ?? "none") frame=\(frame) dirty=\(dirtyRect)")
+        }
+        #endif
         let highlighted = enabled && (enclosingMenuItem?.isHighlighted == true || hovered)
         if highlighted {
             NSColor.selectedContentBackgroundColor.setFill()
