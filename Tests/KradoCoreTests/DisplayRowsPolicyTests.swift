@@ -17,4 +17,8 @@ struct DisplayRowsPolicyTests {
     @Test func threeScreens() {
         #expect(DisplayRowsPolicy.showsRows(for: ["Display 1", "Display 2", "Display 3"]))
     }
+
+    @Test func displayRowSymbol() {
+        #expect(DisplayRowsPolicy.symbolName == "display")
+    }
 }
