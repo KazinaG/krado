@@ -134,7 +134,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(startupHeader)
         loginToggle.title = L10n.text("Launch at Login")
         loginToggle.target = self
-        loginToggle.view = LoginRowView { [weak self] in self?.toggleLoginItem() }
+        if LoginRowPresentation.keepsMenuOpenOnToggle {
+            loginToggle.view = LoginRowView { [weak self] in self?.toggleLoginItem() }
+        }
         #if KRADO_LOGIN_SWITCH_PROBE
         // Probe only: deliberately uses a view to measure AppKit menu limitations.
         let probeView = NSView(frame: NSRect(x: 0, y: 0, width: 300, height: 32))

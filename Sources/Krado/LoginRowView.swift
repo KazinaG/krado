@@ -1,4 +1,5 @@
 import AppKit
+import KradoCore
 
 @MainActor
 final class LoginRowView: NSView {
@@ -33,7 +34,7 @@ final class LoginRowView: NSView {
     }
 
     private var badgeFont: NSFont {
-        NSFont.systemFont(ofSize: NSFont.smallSystemFontSize, weight: .bold)
+        NSFont.systemFont(ofSize: LoginBadgeMetrics.fontSize, weight: LoginBadgeMetrics.isBold ? .bold : .medium)
     }
 
     init(activate: @escaping () -> Void) {
@@ -58,7 +59,7 @@ final class LoginRowView: NSView {
         let font = NSFont.menuFont(ofSize: 0)
         let titleWidth = (title as NSString).size(withAttributes: [.font: font]).width
         let badgeWidth = badge.map {
-            ($0 as NSString).size(withAttributes: [.font: badgeFont]).width + 14
+            LoginBadgeMetrics.capsuleWidth(textWidth: ($0 as NSString).size(withAttributes: [.font: badgeFont]).width)
         } ?? 0
         // Start the title at the native image-column boundary. Let the menu
         // stretch this content-sized row to accommodate its other items.
@@ -124,11 +125,14 @@ final class LoginRowView: NSView {
             let badgeColor: NSColor = !enabled ? .disabledControlTextColor : highlighted ? .selectedMenuItemTextColor : .labelColor
             let attributes: [NSAttributedString.Key: Any] = [.font: badgeFont, .foregroundColor: badgeColor]
             let size = (badge as NSString).size(withAttributes: attributes)
-            let capsule = NSRect(x: bounds.maxX - 17 - size.width - 14,
-                y: (bounds.height - 16) / 2, width: size.width + 14, height: 16)
+            let width = LoginBadgeMetrics.capsuleWidth(textWidth: size.width)
+            let height = LoginBadgeMetrics.height
+            let capsule = NSRect(x: (bounds.maxX - 17 - width).rounded(),
+                y: ((bounds.height - height) / 2).rounded(), width: width, height: height)
             NSColor.labelColor.withAlphaComponent(0.1).setFill()
-            NSBezierPath(roundedRect: capsule, xRadius: 8, yRadius: 8).fill()
-            (badge as NSString).draw(at: NSPoint(x: capsule.minX + 7, y: (bounds.height - size.height) / 2), withAttributes: attributes)
+            NSBezierPath(roundedRect: capsule, xRadius: height / 2, yRadius: height / 2).fill()
+            let x = LoginBadgeMetrics.textX(capsuleMinX: capsule.minX, capsuleWidth: width, textWidth: size.width)
+            (badge as NSString).draw(at: NSPoint(x: x, y: capsule.minY + (height - size.height) / 2), withAttributes: attributes)
         }
     }
 }
