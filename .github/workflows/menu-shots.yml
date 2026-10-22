@@ -2,7 +2,7 @@ name: Menu screenshots
 
 on:
   push:
-    branches: [codex/next-version]
+    branches: [codex/next-version, trial/en-shots]
   workflow_dispatch:
 
 permissions:
@@ -14,14 +14,15 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-26, macos-15]
+        lang: [ja, en]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Capture Japanese menus
-        run: bash scripts/menu-shots.sh '${{ matrix.os }}'
+      - name: Capture menus (${{ matrix.lang }})
+        run: bash scripts/menu-shots.sh '${{ matrix.os }}' '${{ matrix.lang }}'
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
-          name: menu-shots-${{ matrix.os }}
+          name: menu-shots-${{ matrix.os }}-${{ matrix.lang }}
           path: menu-shots/
           if-no-files-found: error

@@ -2,6 +2,13 @@
 # Only run on disposable macOS CI runners; never launches through LaunchServices.
 set -euo pipefail
 os="$1"
+# Menu language: ja (default) or en. Files carry the language so both sets can sit side by side.
+lang="${2:-ja}"
+case "$lang" in
+    ja) locale=ja_JP ;;
+    en) locale=en_US ;;
+    *) echo "error: unknown language $lang" >&2; exit 2 ;;
+esac
 mkdir -p menu-shots
 app_pid=""
 cleanup() {
@@ -50,12 +57,12 @@ shot() {
 }
 capture_login() {
     local variant="$1" login="$2" suffix="${3:-}"
-    local stem="menu-shots/menu-$variant-login$login-$os$suffix"
+    local stem="menu-shots/menu-$lang-$variant-login$login-$os$suffix"
     local readback="$RUNNER_TEMP/krado-login-readback"
     rm -f "$readback"
     : > "$stem-launch.txt"
     NSUnbufferedIO=YES KRADO_CI_LOGIN="$login" KRADO_CI_LOGIN_READBACK="$readback" KRADO_CI_OPEN_MENU=1 \
-        /Applications/krado.app/Contents/MacOS/krado -AppleLanguages '(ja)' -AppleLocale ja_JP \
+        /Applications/krado.app/Contents/MacOS/krado -AppleLanguages "($lang)" -AppleLocale "$locale" \
         >>"$stem-launch.txt" 2>&1 &
     app_pid=$!
     sleep 5
