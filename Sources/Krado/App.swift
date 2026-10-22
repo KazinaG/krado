@@ -387,6 +387,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 title: title,
                 action: nil, keyEquivalent: ""
             )
+            item.image = self.symbol(DisplayRowsPolicy.symbolName)
             item.isEnabled = false
             return item
         } : []
