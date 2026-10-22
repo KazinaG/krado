@@ -134,6 +134,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(startupHeader)
         loginToggle.title = L10n.text("Launch at Login")
         loginToggle.target = self
+        loginToggle.view = LoginRowView { [weak self] in self?.toggleLoginItem() }
         #if KRADO_LOGIN_SWITCH_PROBE
         // Probe only: deliberately uses a view to measure AppKit menu limitations.
         let probeView = NSView(frame: NSRect(x: 0, y: 0, width: 300, height: 32))
@@ -195,6 +196,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         item.image = symbol(symbolName)
         if action == #selector(quit) { item.keyEquivalent = "q" }
         menu.addItem(item)
+    }
+
+    func menu(_ menu: NSMenu, willHighlight item: NSMenuItem?) {
+        loginToggle.view?.needsDisplay = true
     }
 
     func menuWillOpen(_ menu: NSMenu) {
@@ -287,6 +292,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 image.isTemplate = false
                 image.accessibilityDescription = description
                 item.image = image
+                #if KRADO_CI_HOOKS
+                let ratioBase = String(format: "%.4f", base.size.width / base.size.height)
+                let ratioScaled = String(format: "%.4f", size.width / size.height)
+                print("KRADO_CI status image symbol=\(symbol.name) base=\(base.size.width)x\(base.size.height) scaled=\(size.width)x\(size.height) ratioBase=\(ratioBase) ratioScaled=\(ratioScaled)")
+                #endif
             } else {
                 item.image = nil
             }
@@ -310,6 +320,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         loginToggle.badge = row.badge.map { NSMenuItemBadge(string: L10n.text($0)) }
         loginToggle.setAccessibilityLabel(title + "、" + value)
         loginToggle.setAccessibilityValue(value)
+        (loginToggle.view as? LoginRowView)?.update(title: title, badge: row.badge.map { L10n.text($0) }, enabled: row.enabled)
         #if KRADO_LOGIN_SWITCH_PROBE
         loginToggle.badge = nil
         loginToggle.state = .off
