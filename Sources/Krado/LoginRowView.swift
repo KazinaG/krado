@@ -8,6 +8,9 @@ final class LoginRowView: NSView {
     private var badge: String?
     private var enabled = true
     private var hovered = false
+    private var isOn = false
+    // Preview: Control Center style small switch instead of the badge.
+    private let toggle = NSSwitch()
 
     init(activate: @escaping () -> Void) {
         self.activate = activate
@@ -17,13 +20,23 @@ final class LoginRowView: NSView {
         icon.imageScaling = .scaleNone
         icon.setAccessibilityElement(false)
         addSubview(icon)
+        toggle.controlSize = .small
+        toggle.target = self
+        toggle.action = #selector(switchClicked)
+        toggle.setAccessibilityElement(false)
+        addSubview(toggle)
         // The enclosing menu item supplies the action and accessibility metadata.
         setAccessibilityElement(false)
     }
 
     required init?(coder: NSCoder) { nil }
 
-    func update(title: String, badge: String?, enabled: Bool) {
+    @objc private func switchClicked() { activate() }
+
+    func update(title: String, badge: String?, enabled: Bool, isOn: Bool = false) {
+        self.isOn = isOn
+        toggle.state = isOn ? .on : .off
+        toggle.isEnabled = enabled
         self.title = title
         self.badge = badge
         self.enabled = enabled
@@ -81,7 +94,9 @@ final class LoginRowView: NSView {
         let titleSize = (title as NSString).size(withAttributes: attributes)
         (title as NSString).draw(at: NSPoint(x: 36, y: (bounds.height - titleSize.height) / 2), withAttributes: attributes)
 
-        if let badge {
+        let switchSize = toggle.fittingSize
+        toggle.frame = NSRect(x: bounds.maxX - 14 - switchSize.width, y: (bounds.height - switchSize.height) / 2, width: switchSize.width, height: switchSize.height)
+        if false, let badge {
             let badgeColor: NSColor = !enabled ? .disabledControlTextColor : highlighted ? .selectedMenuItemTextColor : .secondaryLabelColor
             let attributes: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: badgeColor]
             let size = (badge as NSString).size(withAttributes: attributes)
