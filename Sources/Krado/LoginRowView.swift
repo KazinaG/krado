@@ -73,6 +73,38 @@ final class LoginRowView: NSView {
         super.viewDidMoveToWindow()
         hovered = false
         needsDisplay = true
+        if window == nil { removeKeyMonitor() } else { installKeyMonitor() }
+    }
+
+    // Custom menu views lose AppKit's keyboard activation. While the menu is open,
+    // Return, Enter or Space toggles the row when the keyboard has highlighted it.
+    private var keyMonitor: Any?
+
+    private func installKeyMonitor() {
+        guard keyMonitor == nil else { return }
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self, self.handlesActivationKey(event) else { return event }
+            self.activate()
+            self.needsDisplay = true
+            return nil
+        }
+    }
+
+    private func removeKeyMonitor() {
+        if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
+        keyMonitor = nil
+    }
+
+    private func handlesActivationKey(_ event: NSEvent) -> Bool {
+        guard enabled, window != nil, enclosingMenuItem?.isHighlighted == true else { return false }
+        let mods = event.modifierFlags.intersection([.command, .option, .control, .shift])
+        guard mods.isEmpty else { return false }
+        // 36 Return, 76 keypad Enter, 49 Space
+        return [36, 76, 49].contains(event.keyCode)
+    }
+
+    override func keyDown(with event: NSEvent) {
+        if handlesActivationKey(event) { activate(); needsDisplay = true } else { super.keyDown(with: event) }
     }
 
     override func updateTrackingAreas() {
