@@ -10,6 +10,16 @@ import Sparkle
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let screens = ScreenManager()
     private let loginItem = LoginItemManager()
+    #if KRADO_CI_HOOKS
+    // Isolated from ServiceManagement: only the real row action flips this state.
+    private var ciLoginEnabled: Bool? = {
+        switch ProcessInfo.processInfo.environment["KRADO_CI_LOGIN_FAKE"] {
+        case "on": return true
+        case "off": return false
+        default: return nil
+        }
+    }()
+    #endif
     private var updaterController: SPUStandardUpdaterController?
     /// Sparkle is created stopped; scheduled checks begin only after onboarding.
     private var updaterStarted = false
@@ -134,6 +144,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(startupHeader)
         loginToggle.title = L10n.text("Launch at Login")
         loginToggle.target = self
+        if LoginRowPresentation.keepsMenuOpenOnToggle {
+            loginToggle.view = LoginRowView { [weak self] in self?.toggleLoginItem() }
+        }
         #if KRADO_LOGIN_SWITCH_PROBE
         // Probe only: deliberately uses a view to measure AppKit menu limitations.
         let probeView = NSView(frame: NSRect(x: 0, y: 0, width: 300, height: 32))
@@ -157,11 +170,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         reloadItem.target = self
         menu.addItem(reloadItem)
         updateItem.title = L10n.text("Check for Updates…")
-        updateItem.image = symbol("arrow.down.circle")
+        updateItem.image = symbol("arrow.down")
         updateItem.target = self
         refreshUpdateItem()
         menu.addItem(updateItem)
-        addAction(L10n.text("About krado"), "info.circle", #selector(showAbout), to: menu)
+        addAction(L10n.text("About krado"), "info", #selector(showAbout), to: menu)
         addAction(L10n.text("krado on GitHub…"), "chevron.left.forwardslash.chevron.right", #selector(openGitHub), to: menu)
         addAction(L10n.text("Uninstall krado…"), "trash", #selector(uninstall), to: menu)
         menu.addItem(.separator())
@@ -186,9 +199,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func symbol(_ name: String) -> NSImage? {
-        let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)
-        image?.isTemplate = true
-        return image
+        MenuActionSymbol.image(named: name)
     }
 
     private func addAction(_ title: String, _ symbolName: String, _ action: Selector, to menu: NSMenu) {
@@ -197,6 +208,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         item.image = symbol(symbolName)
         if action == #selector(quit) { item.keyEquivalent = "q" }
         menu.addItem(item)
+    }
+
+    func menu(_ menu: NSMenu, willHighlight item: NSMenuItem?) {
+        loginToggle.view?.needsDisplay = true
     }
 
     func menuWillOpen(_ menu: NSMenu) {
@@ -279,15 +294,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             image?.isTemplate = true
             item.image = image
         } else {
-            item.image = StatusPresentation.image(for: symbol, description: description)
+            // macOS 26 shrinks symbol images in menus (≈11pt); a redrawn image keeps its size (≈13pt on 15 and 26).
+            if let base = StatusPresentation.image(for: symbol, description: description) {
+                let side = StatusIconCanvas.side(baseWidth: base.size.width, baseHeight: base.size.height, factor: 0.91)
+                let size = NSSize(width: side, height: side)
+                let target = StatusIconCanvas.drawRect(side: side, baseWidth: base.size.width, baseHeight: base.size.height)
+                let image = NSImage(size: size, flipped: false) { _ in
+                    base.draw(in: target)
+                    return true
+                }
+                image.isTemplate = false
+                image.accessibilityDescription = description
+                item.image = image
+                #if KRADO_CI_HOOKS
+                let ratioBase = String(format: "%.4f", base.size.width / base.size.height)
+                let ratioScaled = String(format: "%.4f", size.width / size.height)
+                print("KRADO_CI status image symbol=\(symbol.name) base=\(base.size.width)x\(base.size.height) scaled=\(size.width)x\(size.height) ratioBase=\(ratioBase) ratioScaled=\(ratioScaled)")
+                #endif
+            } else {
+                item.image = nil
+            }
         }
         item.toolTip = description
         item.setAccessibilityLabel(description)
     }
 
     private func refreshLoginState() {
+        #if KRADO_CI_HOOKS
+        let state: LoginItemState = ciLoginEnabled.map { $0 ? .enabled : .disabled } ?? loginItem.state
+        let installed = ciLoginEnabled != nil || loginItem.isInstalled
+        #else
         let state = loginItem.state
         let installed = loginItem.isInstalled
+        #endif
         let row = LoginRowPresentation(state: state, installed: installed)
         let title = L10n.text(row.title)
         let value = L10n.text(row.stateText)
@@ -295,11 +334,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         loginToggle.state = .off
         loginToggle.isEnabled = row.enabled
         #if !KRADO_LOGIN_SWITCH_PROBE
-        loginToggle.image = symbol("power.circle")
+        loginToggle.image = symbol("power")
         #endif
-        loginToggle.badge = row.badge.map { NSMenuItemBadge(string: L10n.text($0)) }
+        loginToggle.badge = nil
         loginToggle.setAccessibilityLabel(title + "、" + value)
         loginToggle.setAccessibilityValue(value)
+        (loginToggle.view as? LoginRowView)?.update(title: title, badge: row.badge.map { L10n.text($0) }, enabled: row.enabled)
         #if KRADO_LOGIN_SWITCH_PROBE
         loginToggle.badge = nil
         loginToggle.state = .off
@@ -367,7 +407,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     #endif
 
     @objc private func toggleLoginItem() {
+        #if KRADO_CI_HOOKS
+        if let enabled = ciLoginEnabled {
+            ciLoginEnabled = !enabled
+            print("KRADO_CI real login row click: fake state=\(!enabled)")
+        } else {
+            loginItem.toggle()
+        }
+        #else
         loginItem.toggle()
+        #endif
         refreshLoginState()
         #if KRADO_CI_HOOKS
         printLoginEvidence()
@@ -389,6 +438,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 title: title,
                 action: nil, keyEquivalent: ""
             )
+            item.image = self.symbol(DisplayRowsPolicy.symbolName)
             item.isEnabled = false
             return item
         } : []

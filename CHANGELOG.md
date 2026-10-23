@@ -12,6 +12,8 @@ Planned as 0.2.0. 0.1.1 to 0.1.5 were not published; their changes are included 
 
 ### Changed
 
+- Installer window: use the selected B design in a 700×450-pt window, with 248-pt square cards, smaller 144-pt icons, a gradient wordmark and a mint destination card without corner guides. The centred dotted arrow grows smoothly into its rounded head, and the background starts at pure white.
+- Launch at Login row: clicking it no longer draws the On and Off labels on top of each other; only the new state is shown.
 - Window motion is calmer: moving a window into a zone takes 0.26 s and enlarging it takes 0.34 s (both were 0.2 s).
 - The menu is easier to scan: it is split into sections with headings (Status, Startup and krado), with Quit krado on its own at the bottom. Status shows two rows with colored symbols: whether Accessibility is allowed and whether window drags can snap. Every menu action has an icon that follows light and dark mode (including Reload Displays), and Quit krado has the shortcut ⌘Q.
 - Launch at Login shows its state as a word at the right end of the row (On, Off or Needs approval) instead of a checkmark. Choosing it switches it on or off right away; VoiceOver reads the state too.
