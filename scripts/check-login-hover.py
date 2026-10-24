@@ -74,15 +74,20 @@ for geometry_path in sorted(root.glob("*-geometry.json")):
     hy = round((g["y"] + g["height"] / 2) * s)
     hx = round((c["x"] - 8) * s)
     highlight = img.getpixel((hx, hy))
-    report.append(f"{case} badge (pixels): text {ink} on pill {bg} = {ratio(ink, bg):.2f}:1; "
+    measured = ratio(ink, bg)
+    report.append(f"{case} badge (pixels): text {ink} on pill {bg} = {measured:.2f}:1; "
                   f"pill vs highlight {highlight} = {ratio(bg, highlight):.2f}:1")
+    if measured < 3:
+        failures.append(f"{case}: badge text on screen {measured:.2f}:1 < 3:1 while highlighted")
     exact = g.get("colors")
-    if exact:
-        t, p, h = (tuple(exact[k]) for k in ("text", "pill", "highlight"))
-        r = ratio(t, p)
-        report.append(f"{case} badge (exact): text {t} on pill {p} = {r:.2f}:1; pill vs highlight {h} = {ratio(p, h):.2f}:1")
-        if r < 3:
-            failures.append(f"{case}: badge text contrast {r:.2f}:1 < 3:1 while highlighted")
+    if not exact:
+        failures.append(f"{case}: no highlighted badge colours recorded (row never drawn highlighted?)")
+        continue
+    t, p, h = (tuple(exact[k]) for k in ("text", "pill", "highlight"))
+    r = ratio(t, p)
+    report.append(f"{case} badge (exact): text {t} on pill {p} = {r:.2f}:1; pill vs highlight {h} = {ratio(p, h):.2f}:1")
+    if r < 3:
+        failures.append(f"{case}: badge text contrast {r:.2f}:1 < 3:1 while highlighted")
 
 (root / "report.txt").write_text("\n".join(report) + "\n")
 print("\n".join(report))
