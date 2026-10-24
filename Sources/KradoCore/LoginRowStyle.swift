@@ -10,7 +10,7 @@ public enum LoginRowStyle {
     }
 
     public enum Ink: Equatable, Sendable {
-        case label, secondaryLabel, disabled, selectedText, white, badgeInk
+        case label, secondaryLabel, disabled, selectedText, white, black, badgeInk
     }
 
     public struct Badge: Equatable, Sendable {
@@ -21,8 +21,8 @@ public enum LoginRowStyle {
         public let showsCheckmark: Bool
     }
 
-    /// On is filled and checked; Off is hollow, even when disabled or highlighted.
-    /// Approval keeps a faint fill. Native selected text supplies the hollow badge's ink.
+    /// On is filled and checked; Off is outlined until highlighted, then recessed.
+    /// Approval and disabled states keep their existing faint fill or outline.
     public static func badge(state: LoginItemState, highlighted: Bool, enabled: Bool) -> Badge {
         let on = state == .enabled
         let off = state == .disabled || state == .unavailable
@@ -31,10 +31,10 @@ public enum LoginRowStyle {
                          fill: !off, showsCheckmark: on)
         }
         if off {
-            return Badge(pill: highlighted ? .selectedText : .label,
-                         pillAlpha: highlighted ? 1 : 0.45,
-                         text: highlighted ? .selectedText : .secondaryLabel,
-                         fill: false, showsCheckmark: false)
+            return Badge(pill: highlighted ? .black : .label,
+                         pillAlpha: highlighted ? 0.4 : 0.45,
+                         text: highlighted ? .white : .secondaryLabel,
+                         fill: highlighted, showsCheckmark: false)
         }
         if on && highlighted {
             return Badge(pill: .white, pillAlpha: 1, text: .badgeInk,

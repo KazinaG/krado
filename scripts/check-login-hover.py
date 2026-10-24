@@ -75,18 +75,19 @@ for geometry_path in sorted(root.glob("*-geometry.json")):
     filled = g.get("highlightedFill")
     checked = g.get("highlightedCheckmark")
     expected_on = case.endswith("-on")
-    if filled != expected_on or checked != expected_on:
-        failures.append(f"{case}: expected filled+checked On or hollow+unchecked Off; got fill={filled} check={checked}")
-    # On's interior is opaque white; Off's interior is the native highlight.
-    background_name = "pill" if filled else "highlight"
+    if filled is not True or checked != expected_on:
+        failures.append(f"{case}: expected filled+checked On or recessed+unchecked Off; got fill={filled} check={checked}")
+    # Both highlighted badges are filled: white On, black at 40% over the highlight Off.
     interior = max(set(pill_pixels), key=pill_pixels.count)
-    expected_background = (255, 255, 255) if filled else highlight
+    expected_background = (255, 255, 255) if expected_on else tuple(round(v * 0.6) for v in highlight)
     if max(abs(a - b) for a, b in zip(interior, expected_background)) > 24:
-        failures.append(f"{case}: badge interior {interior} does not match {background_name} {expected_background}")
-    bg = interior if filled else highlight
+        failures.append(f"{case}: badge interior {interior} does not match pill {expected_background}")
+    if not expected_on and lum(interior) >= lum(highlight):
+        failures.append(f"{case}: Off pill must differ from and be darker than highlight {highlight}; got {interior}")
+    bg = interior
     ink = max(pill_pixels, key=lambda p: ratio(p, bg))
     measured = ratio(ink, bg)
-    report.append(f"{case} badge (pixels): text {ink} on {background_name} {bg} = {measured:.2f}:1; "
+    report.append(f"{case} badge (pixels): text {ink} on pill {bg} = {measured:.2f}:1; "
                   f"pill vs highlight {highlight} = {ratio(bg, highlight):.2f}:1")
     if measured < 3:
         failures.append(f"{case}: badge text on screen {measured:.2f}:1 < 3:1 while highlighted")
@@ -95,10 +96,14 @@ for geometry_path in sorted(root.glob("*-geometry.json")):
         failures.append(f"{case}: no highlighted badge colours recorded (row never drawn highlighted?)")
         continue
     t, p, h = (tuple(exact[k]) for k in ("text", "pill", "highlight"))
-    background = p if filled else h
-    r = ratio(t, background)
-    report.append(f"{case} badge (exact): text {t} on {background_name} {background} = {r:.2f}:1; pill vs highlight {h} = {ratio(p, h):.2f}:1")
-    if r < (4.5 if filled else 3):
+    expected_pill = (255, 255, 255) if expected_on else tuple(round(v * 0.6) for v in h)
+    if max(abs(a - b) for a, b in zip(p, expected_pill)) > 1:
+        failures.append(f"{case}: recorded pill {p} does not match composited pill {expected_pill}")
+    if not expected_on and lum(p) >= lum(h):
+        failures.append(f"{case}: recorded Off pill must differ from and be darker than highlight {h}; got {p}")
+    r = ratio(t, p)
+    report.append(f"{case} badge (exact): text {t} on pill {p} = {r:.2f}:1; pill vs highlight {h} = {ratio(p, h):.2f}:1")
+    if r < (4.5 if expected_on else 3):
         failures.append(f"{case}: badge text contrast {r:.2f}:1 below required contrast while highlighted")
 
 (root / "report.txt").write_text("\n".join(report) + "\n")

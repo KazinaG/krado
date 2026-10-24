@@ -11,28 +11,49 @@ import Testing
     }
 
     @Test(arguments: [false, true])
-    func onAndOffDifferInShape(highlighted: Bool) {
+    func onAndOffBadgeStyles(highlighted: Bool) {
         let on = LoginRowStyle.badge(state: .enabled, highlighted: highlighted, enabled: true)
         let off = LoginRowStyle.badge(state: .disabled, highlighted: highlighted, enabled: true)
         #expect(on.fill)
         #expect(on.showsCheckmark)
-        #expect(!off.fill)
+        #expect(off.fill == highlighted)
         #expect(!off.showsCheckmark)
         #expect(LoginRowStyle.badge(state: .unavailable, highlighted: highlighted, enabled: true) == off)
-        #expect(off.pill == (highlighted ? .selectedText : .label))
-        #expect(off.pillAlpha == (highlighted ? 1 : 0.45))
-        #expect(off.text == (highlighted ? .selectedText : .secondaryLabel))
+        #expect(off.pill == (highlighted ? .black : .label))
+        #expect(off.pillAlpha == (highlighted ? 0.4 : 0.45))
+        #expect(off.text == (highlighted ? .white : .secondaryLabel))
         if highlighted {
             #expect(on.pill == .white)
             #expect(on.pillAlpha == 1)
             #expect(on.text == .badgeInk)
             #expect(LoginRowStyle.contrast(LoginRowStyle.badgeInk, .white) >= 4.5)
-            // Off uses the native selected text/background pairing; no computed contrast rule.
         } else {
             #expect(on.pill == .label)
             #expect(on.pillAlpha == 0.14)
             #expect(on.text == .label)
         }
+    }
+
+    @Test(arguments: [
+        LoginRowStyle.RGB(0, 100, 225),   // Light blue
+        LoginRowStyle.RGB(225, 172, 21),  // Yellow
+        LoginRowStyle.RGB(105, 105, 105), // Graphite
+        LoginRowStyle.RGB(217, 59, 134),  // Pink
+        LoginRowStyle.RGB(0, 88, 208),    // Dark blue
+    ])
+    func highlightedOffContrast(highlight: LoginRowStyle.RGB) {
+        let off = LoginRowStyle.badge(state: .disabled, highlighted: true, enabled: true)
+        #expect(off.fill)
+        #expect(off.pill == .black)
+        #expect(off.pillAlpha == 0.4)
+        #expect(off.text == .white)
+        #expect(!off.showsCheckmark)
+        // Composite black over each highlight in sRGB, just as the view draws it.
+        let remaining = 1 - off.pillAlpha
+        let pill = LoginRowStyle.RGB(highlight.r * remaining,
+                                    highlight.g * remaining,
+                                    highlight.b * remaining)
+        #expect(LoginRowStyle.contrast(.white, pill) >= 3)
     }
 
     @Test(arguments: [false, true])

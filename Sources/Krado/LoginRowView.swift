@@ -192,6 +192,7 @@ final class LoginRowView: NSView {
         case .disabled: return .disabledControlTextColor
         case .selectedText: return .selectedMenuItemTextColor
         case .white: return .white
+        case .black: return .black
         case .badgeInk:
             let c = LoginRowStyle.badgeInk
             return NSColor(srgbRed: c.r / 255, green: c.g / 255, blue: c.b / 255, alpha: 1)
@@ -211,7 +212,8 @@ final class LoginRowView: NSView {
             return ["x": rect.minX, "y": screenTop - rect.maxY, "width": rect.width, "height": rect.height]
         }
         if highlighted {
-            // sRGB 0–255, the pill composited over the highlight as drawn.
+            // sRGB 0–255, including the recessed Off pill's black at 40% alpha
+            // composited over the highlight. Text is measured against that pill.
             func rgb(_ color: NSColor, over base: NSColor? = nil) -> [Int] {
                 let c = color.usingColorSpace(.sRGB) ?? color
                 let a = Double(c.alphaComponent)
