@@ -18,6 +18,7 @@ on:
       - packaging/dmg/**
       - scripts/changelog-section.sh
       - scripts/ci-signing-keychain.sh
+      - scripts/check-trial-dmg.sh
       - Package.swift
       - Package.resolved
   pull_request:
@@ -26,6 +27,10 @@ on:
       - scripts/make-dmg.sh
       - packaging/dmg/**
   workflow_dispatch:
+    inputs:
+      trial_version:
+        description: 試し版の版番号（例 0.1.7）。dryrun アーティファクトだけ作る。タグ・リリースは作らない
+        required: false
 
 permissions:
   contents: read
@@ -47,6 +52,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Resolve release kind
+        env:
+          TRIAL_VERSION: ${{ github.event_name == 'workflow_dispatch' && github.ref_type != 'tag' && inputs.trial_version || '' }}
         run: |
           # v1.2.3 = release (appcast.xml). v1.2.3-test = update-test build B: a draft
           # pre-release with appcast-test.xml, which releases/latest never serves.
@@ -54,6 +61,12 @@ jobs:
             { echo "KRADO_TEST_BUILD=1"; echo "KRADO_VERSION=${BASH_REMATCH[1]}"; echo "FEED_NAME=appcast-test.xml"; } >> "$GITHUB_ENV"
           else
             { echo "KRADO_TEST_BUILD=0"; echo "FEED_NAME=appcast.xml"; } >> "$GITHUB_ENV"
+            # Trial DMG for Kazina (docs/trial-build.ja.md): same signed, designed build as a
+            # release, only the version differs. Never on tags.
+            if [ -n "$TRIAL_VERSION" ]; then
+              [[ "$TRIAL_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::trial_version must look like 1.2.3"; exit 1; }
+              echo "KRADO_VERSION=$TRIAL_VERSION" >> "$GITHUB_ENV"
+            fi
           fi
 
       - name: Check changelogs
@@ -101,6 +114,9 @@ jobs:
           assert f"Image Width: {w} Image Length: {h + L['bleed']}" in info, info
           print("DMG window", bounds, "background", w, "x", h + L["bleed"])
           PY
+
+      - name: Check the DMG as a trial build (designed window, fixed certificate)
+        run: scripts/check-trial-dmg.sh "$(ls "$RELEASE_DIR"/krado-*.dmg | head -1)"
 
       - name: Show signature
         run: |
