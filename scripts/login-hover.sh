@@ -6,7 +6,13 @@ set -euo pipefail
 [[ "$(uname -s)" == Darwin ]] || { echo "error: needs a macOS CI desktop" >&2; exit 1; }
 out="$PWD/login-hover"; mkdir -p "$out"
 app_pid=""
-cleanup() { [[ -n "$app_pid" ]] && { kill "$app_pid" 2>/dev/null || true; wait "$app_pid" 2>/dev/null || true; app_pid=""; }; }
+cleanup() {
+    if [[ -n "$app_pid" ]]; then
+        kill "$app_pid" 2>/dev/null || true
+        wait "$app_pid" 2>/dev/null || true
+        app_pid=""
+    fi
+}
 trap cleanup EXIT
 swiftc scripts/login-hover-mouse.swift -o "$RUNNER_TEMP/login-hover-mouse"
 swiftc scripts/menu-shot-windows.swift -o "$RUNNER_TEMP/login-hover-windows"
@@ -17,10 +23,11 @@ shot() { screencapture -x -m "$out/$case-$1.png"; }
 for spec in light-blue:Light: dark-blue:Dark: light-yellow:Light:2 dark-graphite:Dark:-1 light-pink:Light:6; do
     IFS=: read -r case appearance accent <<< "$spec"
     args=(-AppleLanguages '(ja)' -AppleLocale ja_JP)
-    look=light; [[ "$appearance" == Dark ]] && look=dark
-    [[ -n "$accent" ]] && args+=(-AppleAccentColor "$accent")
+    look=light
+    if [[ "$appearance" == Dark ]]; then look=dark; fi
+    if [[ -n "$accent" ]]; then args+=(-AppleAccentColor "$accent"); fi
     # Graphite also needs the graphite Aqua variant.
-    [[ "$accent" == -1 ]] && args+=(-AppleAquaColorVariant 6)
+    if [[ "$accent" == -1 ]]; then args+=(-AppleAquaColorVariant 6); fi
     for path in slow-to-quit jump-to-quit down; do
         rm -f "$out/$case-geometry.json"
         NSUnbufferedIO=YES KRADO_CI_APPEARANCE="$look" KRADO_CI_LOGIN_FAKE=off KRADO_CI_OPEN_MENU=1 \

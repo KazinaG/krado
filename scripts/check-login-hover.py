@@ -21,9 +21,14 @@ def ratio(a, b):
     return (la + 0.05) / (lb + 0.05)
 
 
+def pixels(image):
+    flat = getattr(image, "get_flattened_data", None)
+    return list(flat() if flat else image.getdata())
+
+
 def changed(a, b):
     diff = ImageChops.difference(a, b)
-    return sum(max(p) > 24 for p in diff.getdata()) / (a.width * a.height)
+    return sum(max(p) > 24 for p in pixels(diff)) / (a.width * a.height)
 
 
 for geometry_path in sorted(root.glob("*-geometry.json")):
@@ -63,9 +68,9 @@ for geometry_path in sorted(root.glob("*-geometry.json")):
     s = img.width / menu["screenWidth"]
     c = g["capsule"]
     pill = img.crop(tuple(round(v * s) for v in (c["x"] + 2, c["y"] + 2, c["x"] + c["width"] - 2, c["y"] + c["height"] - 2)))
-    pixels = list(pill.getdata())
-    bg = max(set(pixels), key=pixels.count)
-    ink = max(pixels, key=lambda p: ratio(p, bg))
+    pill_pixels = pixels(pill)
+    bg = max(set(pill_pixels), key=pill_pixels.count)
+    ink = max(pill_pixels, key=lambda p: ratio(p, bg))
     hy = round((g["y"] + g["height"] / 2) * s)
     hx = round((c["x"] - 8) * s)
     highlight = img.getpixel((hx, hy))
