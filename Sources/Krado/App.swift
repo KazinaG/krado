@@ -347,7 +347,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if loginToggle.badge != nil { loginToggle.badge = nil }
         loginToggle.setAccessibilityLabel(title + "、" + value)
         loginToggle.setAccessibilityValue(value)
-        (loginToggle.view as? LoginRowView)?.update(title: title, badge: row.badge.map { L10n.text($0) }, state: state, enabled: row.enabled)
+        (loginToggle.view as? LoginRowView)?.update(title: title, stateText: value,
+                                                    allStateTexts: LoginRowPresentation.allStateTexts.map { L10n.text($0) },
+                                                    state: state, enabled: row.enabled)
         #if KRADO_LOGIN_SWITCH_PROBE
         loginToggle.badge = nil
         loginToggle.state = .off
@@ -360,7 +362,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         #if KRADO_LOGIN_SWITCH_PROBE
         print("KRADO_CI login probe value=\(value) badge=none detail=none")
         #else
-        print("KRADO_CI login badge=\(row.badge.map { L10n.text($0) } ?? "none") state=\(loginToggle.state == .off ? "off" : "on") axLabel=\(loginToggle.accessibilityLabel() ?? "") axValue=\(loginToggle.accessibilityValue() ?? "")")
+        print("KRADO_CI login stateText=\(value) state=\(loginToggle.state == .off ? "off" : "on") axLabel=\(loginToggle.accessibilityLabel() ?? "") axValue=\(loginToggle.accessibilityValue() ?? "")")
         #endif
         #endif
         let hint: String?

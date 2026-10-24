@@ -8,7 +8,7 @@ Unreleased changes do not imply that an intervening version was published.
 | --- | --- | --- |
 | Installer | Light 700 × 450 pt window, 248-pt square cards, 144-pt icons, gradient wordmark, rounded dotted arrow and mint Applications card. | Verify Finder labels, selection and bars at 1x and 2x using the Release workflow's render artifacts. |
 | Menu | Section headings, separate permission and drag status, bare About/Login/Update symbols, circled Accessibility symbol. Display rows appear with two or more screens. | Review actual Light/Dark menus, keyboard navigation, multiple displays and VoiceOver. |
-| Launch at Login | State words remain visible when toggled without closing the menu. On is filled with a checkmark; Off is outlined. | Run login-toggle and login-hover checks, and confirm real macOS registration and approval states in both languages. |
+| Launch at Login | The state word (On / Off / Needs approval) sits at the right of the row and updates when toggled without closing the menu. | Run login-toggle and login-hover checks, and confirm real macOS registration and approval states in both languages. |
 | Window motion | Moves/shrinks take 0.26 s, enlargements 0.34 s, with ease-out cubic timing. A slow or mismatched resize ends the glide with immediate destination placement. | Check near/far moves, growth/shrinkage, horizontal/vertical stretches, screen edges, apps with minimum sizes and Reduce Motion. |
 | Distribution | GitHub Release DMG and Sparkle updates with stable self-signing. | Preserve existing keys and certificates; complete the signing, Gatekeeper and update checks. |
 

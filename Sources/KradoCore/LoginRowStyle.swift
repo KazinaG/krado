@@ -26,83 +26,34 @@ public enum LoginRowStyle {
     }
 
     public enum Ink: Equatable, Sendable {
-        case label, secondaryLabel, disabled, selectedText, white, black, badgeInk
+        case label, disabled, selectedText
     }
 
-    public struct Badge: Equatable, Sendable {
-        public let pill: Ink
-        public let pillAlpha: Double
-        public let text: Ink
-        public let fill: Bool
-        public let showsCheckmark: Bool
-        public var symbolName: String? {
-            showsCheckmark ? "checkmark" : showsApproval ? "exclamationmark" : nil
-        }
-        public var showsApproval: Bool = false
-        /// A separate boundary is needed around the recessed highlighted Off fill.
-        public var ring: Ink? = nil
-        public var ringAlpha: Double = 1
+    /// One ink for the title and the state word, like a native menu row:
+    /// the state is read from the word, not from colour or a mark.
+    public static func ink(highlighted: Bool, enabled: Bool) -> Ink {
+        !enabled ? .disabled : highlighted ? .selectedText : .label
+    }
+}
+
+/// Horizontal layout of the Launch at Login row, in points.
+public enum LoginRowLayout {
+    /// Trailing edge of the state word, inset from the row's right edge.
+    public static let trailingInset: Double = 17
+    /// Minimum space between the title and the state word.
+    public static let gap: Double = 16
+    /// Room AppKit keeps after the trailing inset (matches native rows in CI menu-shots).
+    public static let extra: Double = 32
+
+    /// Width that fits the title and the widest state word, so the frame never
+    /// has to change while toggling.
+    public static func width(titleX: Double, titleWidth: Double, stateWidths: [Double], minimum: Double) -> Double {
+        let state = stateWidths.max() ?? 0
+        return max(minimum, (titleX + titleWidth + gap + state + trailingInset + extra).rounded(.up))
     }
 
-    /// On is filled and checked; Off is outlined until highlighted, then recessed.
-    /// Approval and disabled states keep their existing faint fill or outline.
-    public static func badge(state: LoginItemState, highlighted: Bool, enabled: Bool,
-                             offRingAlpha: Double = 0.45) -> Badge {
-        let on = state == .enabled
-        let off = state == .disabled || state == .unavailable
-        if !enabled {
-            return Badge(pill: .label, pillAlpha: 0.1, text: .disabled,
-                         fill: !off, showsCheckmark: on, showsApproval: state == .needsApproval,
-                         ring: off ? .label : nil, ringAlpha: 0.1)
-        }
-        if off {
-            return Badge(pill: highlighted ? .black : .label,
-                         pillAlpha: highlighted ? 0.4 : offRingAlpha,
-                         text: highlighted ? .white : .secondaryLabel,
-                         fill: highlighted, showsCheckmark: false,
-                         ring: highlighted ? .white : .label,
-                         ringAlpha: highlighted ? 1 : offRingAlpha)
-        }
-        if on && highlighted {
-            return Badge(pill: .white, pillAlpha: 1, text: .badgeInk,
-                         fill: true, showsCheckmark: true)
-        }
-        return Badge(pill: highlighted ? .selectedText : .label,
-                     pillAlpha: on ? 0.14 : 0.1,
-                     text: highlighted ? .selectedText : .label,
-                     fill: true, showsCheckmark: on, showsApproval: state == .needsApproval)
-    }
-
-    /// sRGB of `.badgeInk` (#1C1C1E, Apple's dark label grey).
-    public static let badgeInk: RGB = RGB(0x1C, 0x1C, 0x1E)
-
-    public struct RGB: Equatable, Sendable {
-        public let r: Double, g: Double, b: Double
-        public init(_ r: Double, _ g: Double, _ b: Double) { self.r = r; self.g = g; self.b = b }
-        public static let white = RGB(255, 255, 255)
-    }
-
-    public static func composite(_ ink: RGB, alpha: Double, over background: RGB) -> RGB {
-        RGB(ink.r * alpha + background.r * (1 - alpha),
-            ink.g * alpha + background.g * (1 - alpha),
-            ink.b * alpha + background.b * (1 - alpha))
-    }
-
-    /// Preserve the faint Off ring when it passes. Its target never exceeds
-    /// native label ink on the same background, even when that is below 3:1.
-    public static func offRingAlpha(label: RGB, labelAlpha: Double = 1, background: RGB) -> Double {
-        let target = min(3, contrast(composite(label, alpha: labelAlpha, over: background), background))
-        return contrast(composite(label, alpha: 0.45, over: background), background) >= target ? 0.45 : 1
-    }
-
-    /// WCAG 2 contrast ratio of two sRGB colours (0–255 per channel).
-    public static func contrast(_ a: RGB, _ b: RGB) -> Double {
-        func channel(_ v: Double) -> Double {
-            let c = v / 255
-            return c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4)
-        }
-        func luminance(_ c: RGB) -> Double { 0.2126 * channel(c.r) + 0.7152 * channel(c.g) + 0.0722 * channel(c.b) }
-        let (x, y) = (luminance(a), luminance(b))
-        return (max(x, y) + 0.05) / (min(x, y) + 0.05)
+    /// Left edge of a right-aligned state word.
+    public static func stateX(rowMaxX: Double, stateWidth: Double) -> Double {
+        (rowMaxX - trailingInset - stateWidth).rounded()
     }
 }

@@ -1,4 +1,4 @@
-"""Compare a settled, clicked badge with a fresh menu in the target state."""
+"""Compare a settled, clicked state word with a fresh menu in the target state."""
 import json
 import sys
 from pathlib import Path

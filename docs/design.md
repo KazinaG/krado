@@ -55,27 +55,20 @@ Display-name rows appear only when two or more displays are connected.
 Quit follows a separator without a heading. Status rows use standard attributed
 secondary lines and palette SF Symbols.
 
-Launch at Login uses a custom menu view with a leading `power` image and a
-fixed 16-point round state indicator. On is filled with a bold checkmark (white
-circle and #1C1C1E checkmark while highlighted); Off is a hollow ring, filled
-black at 40% over the highlight with a 1-point white ring inset 0.5 points while
-highlighted. The unhighlighted label-color ring keeps its 45% opacity when it
-meets contrast, otherwise uses full opacity. Approval has a faint fill and
-an exclamation mark; its hint appears below the row. State words are only for
-accessibility: label "<title>、<state>" and value <state>. The row's width depends
-on the title and fixed indicator, never the state, and is not reset during a
-toggle. ServiceManagement status is refreshed on opening and after toggling.
-`LoginRowPresentation`, `LoginBadgeMetrics` and `LoginRowStyle` keep these rules
-pure and tested.
-
-Contrast is at least 3:1 for the On checkmark against its circle, and for the
-highlighted Off white ring against the composited inner fill. Unhighlighted Off
-compares the ring with the menu background, targeting the lesser of 3:1 and
-native label ink contrast on that background. No circle-to-accent contrast is
-required: macOS's own white menu text on the yellow accent is only 2.08:1.
-The opacity choice uses the appearance's nominal window surface; screenshot CI
-also checks against the actual translucent menu background. CI records separate
-fill, ring, symbol and native label inks in every draw, plus ring width and inset.
+Launch at Login uses a custom menu view with a leading `power` image, the title,
+and the state as a word at the trailing edge: On, Off or Needs approval (オン /
+オフ / 承認待ち). There is no circle, checkmark or badge. The word uses the
+title's menu font and ink (label, selected-menu-item text while highlighted,
+disabled text when unavailable), right-aligned 17 points from the row edge. This
+follows Apple's guidance for toggled menu items: the title stays the same and the
+state reads as a value, not as an action. Approval's hint appears below the row.
+VoiceOver gets label "<title>、<state>" and value <state>. The row's width fits the
+title and the widest state word, is set once before the menu opens, and is not
+reset during a toggle, so the word never overlaps or moves the title.
+ServiceManagement status is refreshed on opening and after toggling.
+`LoginRowPresentation`, `LoginRowLayout` and `LoginRowStyle` keep these rules pure
+and tested. Real-menu CI checks the Japanese word for each state, that it uses the
+title's ink, and that it is about as legible as the title in every appearance.
 
 The custom row keeps the menu open on a click and monitors Return/Enter/Space
 for keyboard activation. AppKit owns the menu highlight. If AppKit drops its
@@ -91,7 +84,7 @@ build, never offered to users.
 
 `KRADO_CI_HOOKS=1` compiles runner-only hooks. `KRADO_CI_LOGIN=on|off` performs real
 registration/unregistration before opening the menu, logs errors, raw service status
-and mapped state, and logs displayed badge/detail text. `KRADO_CI_OPEN_MENU=1`
+and mapped state, and logs the displayed state word. `KRADO_CI_OPEN_MENU=1`
 opens the menu after two seconds; onboarding and Sparkle starts are suppressed.
 `KRADO_CI_STATE=permissionNeeded` remains a displayed-permission hook.
 `scripts/menu-shots.sh` installs each A/P app in /Applications and launches it
