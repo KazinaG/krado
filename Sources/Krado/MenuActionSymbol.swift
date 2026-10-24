@@ -1,6 +1,6 @@
 import AppKit
 
-/// Native template symbols; only the three adopted bare actions change visible size.
+/// Native template symbols; the three bare actions retain their circled symbols’ visible size.
 @MainActor
 enum MenuActionSymbol {
     static func image(named name: String) -> NSImage? {
@@ -24,7 +24,7 @@ enum MenuActionSymbol {
         return resized
     }
 
-    /// Match the adopted comparison's alpha bounds, without equating canvas and ink.
+    /// Match visible alpha bounds, without equating canvas size and ink.
     private static func visibleLongestEdge(of image: NSImage) -> CGFloat? {
         let pixelsPerPoint: CGFloat = 8
         guard let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil,

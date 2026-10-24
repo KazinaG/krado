@@ -10,22 +10,40 @@ public enum LoginRowStyle {
     }
 
     public enum Ink: Equatable, Sendable {
-        case label, disabled, selectedText, white, badgeInk
+        case label, secondaryLabel, disabled, selectedText, white, badgeInk
     }
 
     public struct Badge: Equatable, Sendable {
         public let pill: Ink
         public let pillAlpha: Double
         public let text: Ink
+        public let fill: Bool
+        public let showsCheckmark: Bool
     }
 
-    /// Unhighlighted: a faint pill with label text, like the native badge. Highlighted:
-    /// a solid white pill with dark text, so On/Off reads the same on every accent colour
-    /// and in Light and Dark (white text on a faint pill nearly vanished on blue).
-    public static func badge(highlighted: Bool, enabled: Bool) -> Badge {
-        if !enabled { return Badge(pill: .label, pillAlpha: 0.1, text: .disabled) }
-        if highlighted { return Badge(pill: .white, pillAlpha: 1, text: .badgeInk) }
-        return Badge(pill: .label, pillAlpha: 0.1, text: .label)
+    /// On is filled and checked; Off is hollow, even when disabled or highlighted.
+    /// Approval keeps a faint fill. Native selected text supplies the hollow badge's ink.
+    public static func badge(state: LoginItemState, highlighted: Bool, enabled: Bool) -> Badge {
+        let on = state == .enabled
+        let off = state == .disabled || state == .unavailable
+        if !enabled {
+            return Badge(pill: .label, pillAlpha: 0.1, text: .disabled,
+                         fill: !off, showsCheckmark: on)
+        }
+        if off {
+            return Badge(pill: highlighted ? .selectedText : .label,
+                         pillAlpha: highlighted ? 1 : 0.45,
+                         text: highlighted ? .selectedText : .secondaryLabel,
+                         fill: false, showsCheckmark: false)
+        }
+        if on && highlighted {
+            return Badge(pill: .white, pillAlpha: 1, text: .badgeInk,
+                         fill: true, showsCheckmark: true)
+        }
+        return Badge(pill: highlighted ? .selectedText : .label,
+                     pillAlpha: on ? 0.14 : 0.1,
+                     text: highlighted ? .selectedText : .label,
+                     fill: true, showsCheckmark: on)
     }
 
     /// sRGB of `.badgeInk` (#1C1C1E, Apple's dark label grey).

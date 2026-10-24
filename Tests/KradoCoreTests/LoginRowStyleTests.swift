@@ -10,22 +10,48 @@ import Testing
         #expect(!LoginRowStyle.isHighlighted(menuItemHighlighted: false, enabled: false))
     }
 
-    @Test func highlightedBadgeIsSolidWhiteWithDarkText() {
-        let badge = LoginRowStyle.badge(highlighted: true, enabled: true)
-        #expect(badge == .init(pill: .white, pillAlpha: 1, text: .badgeInk))
-        // Independent of the accent colour and of Light/Dark: text sits on the opaque pill.
-        #expect(LoginRowStyle.contrast(LoginRowStyle.badgeInk, .white) >= 4.5)
+    @Test(arguments: [false, true])
+    func onAndOffDifferInShape(highlighted: Bool) {
+        let on = LoginRowStyle.badge(state: .enabled, highlighted: highlighted, enabled: true)
+        let off = LoginRowStyle.badge(state: .disabled, highlighted: highlighted, enabled: true)
+        #expect(on.fill)
+        #expect(on.showsCheckmark)
+        #expect(!off.fill)
+        #expect(!off.showsCheckmark)
+        #expect(LoginRowStyle.badge(state: .unavailable, highlighted: highlighted, enabled: true) == off)
+        #expect(off.pill == (highlighted ? .selectedText : .label))
+        #expect(off.pillAlpha == (highlighted ? 1 : 0.45))
+        #expect(off.text == (highlighted ? .selectedText : .secondaryLabel))
+        if highlighted {
+            #expect(on.pill == .white)
+            #expect(on.pillAlpha == 1)
+            #expect(on.text == .badgeInk)
+            #expect(LoginRowStyle.contrast(LoginRowStyle.badgeInk, .white) >= 4.5)
+            // Off uses the native selected text/background pairing; no computed contrast rule.
+        } else {
+            #expect(on.pill == .label)
+            #expect(on.pillAlpha == 0.14)
+            #expect(on.text == .label)
+        }
     }
 
-    @Test func unhighlightedBadgeKeepsTheNativeLook() {
-        #expect(LoginRowStyle.badge(highlighted: false, enabled: true) == .init(pill: .label, pillAlpha: 0.1, text: .label))
-        #expect(LoginRowStyle.badge(highlighted: true, enabled: false).text == .disabled)
+    @Test(arguments: [false, true])
+    func approvalAndDisabledStates(highlighted: Bool) {
+        let approval = LoginRowStyle.badge(state: .needsApproval, highlighted: highlighted, enabled: true)
+        #expect(approval.fill)
+        #expect(!approval.showsCheckmark)
+        #expect(approval.pillAlpha == 0.1)
+        #expect(approval.text == (highlighted ? .selectedText : .label))
+        for state in [LoginItemState.enabled, .disabled, .unavailable, .needsApproval] {
+            let disabled = LoginRowStyle.badge(state: state, highlighted: highlighted, enabled: false)
+            #expect(disabled.text == .disabled)
+            #expect(disabled.fill == (state == .enabled || state == .needsApproval))
+            #expect(disabled.showsCheckmark == (state == .enabled))
+        }
     }
 
     @Test func contrastMatchesWCAG() {
         #expect(abs(LoginRowStyle.contrast(.white, .init(0, 0, 0)) - 21) < 0.01)
         #expect(abs(LoginRowStyle.contrast(.white, .white) - 1) < 0.0001)
-        // macOS's blue highlight (#0064E1) with white text, the system's own pairing.
-        #expect(LoginRowStyle.contrast(.white, .init(0x00, 0x64, 0xE1)) > 4.5)
     }
 }

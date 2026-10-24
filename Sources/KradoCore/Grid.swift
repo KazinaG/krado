@@ -32,7 +32,7 @@ public struct ScreenDescriptor: Equatable, Sendable {
     }
 }
 
-/// Rule B — one law for every screen: keep halving the screen, across and down,
+/// The same rule for every screen: keep halving the screen, across and down,
 /// while each zone stays at least 640 pt wide and 720 pt tall.
 /// columns = the largest of 1, 2, 4, 8 with W / columns ≥ 640; rows = the largest of 1, 2, 4 with H / rows ≥ 720.
 /// W × H is the whole screen (menu bar and Dock included), so showing or hiding them never changes the grid.

@@ -32,18 +32,22 @@ for spec in light-blue:Light: dark-blue:Dark: light-yellow:Light:2 dark-graphite
     if [[ -n "$accent" ]]; then args+=(-AppleAccentColor "$accent"); fi
     # Graphite also needs the graphite Aqua variant.
     if [[ "$accent" == -1 ]]; then args+=(-AppleAquaColorVariant 6); fi
-    for path in slow-to-quit jump-to-quit down; do
-        rm -f "$out/$case-geometry.json"
-        NSUnbufferedIO=YES KRADO_CI_LOGIN_FAKE=off KRADO_CI_OPEN_MENU=1 \
-            KRADO_CI_LOGIN_GEOMETRY="$out/$case-geometry.json" \
-            dist/krado.app/Contents/MacOS/krado "${args[@]}" > "$out/$case-$path-app.log" 2>&1 &
-        app_pid=$!
-        sleep 5
-        "$RUNNER_TEMP/login-hover-windows" "$app_pid" "$out/$case-windows.txt" > "$out/$case-menu.json"
-        mouse away; shot "$path-0-fresh"
-        mouse login; shot "$path-1-login"
-        mouse "$path"; shot "$path-2-after"
-        cleanup
+    appearance_case=$case
+    for state in off on; do
+        case="$appearance_case-$state"
+        for path in slow-to-quit jump-to-quit down; do
+            rm -f "$out/$case-geometry.json"
+            NSUnbufferedIO=YES KRADO_CI_LOGIN_FAKE="$state" KRADO_CI_OPEN_MENU=1 \
+                KRADO_CI_LOGIN_GEOMETRY="$out/$case-geometry.json" \
+                dist/krado.app/Contents/MacOS/krado "${args[@]}" > "$out/$case-$path-app.log" 2>&1 &
+            app_pid=$!
+            sleep 5
+            "$RUNNER_TEMP/login-hover-windows" "$app_pid" "$out/$case-windows.txt" > "$out/$case-menu.json"
+            mouse away; shot "$path-0-fresh"
+            mouse login; shot "$path-1-login"
+            mouse "$path"; shot "$path-2-after"
+            cleanup
+        done
     done
 done
 osascript -e 'tell application "System Events" to tell appearance preferences to set dark mode to false' || true
