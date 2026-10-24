@@ -8,27 +8,19 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
-Planned as 0.2.0. 0.1.1 to 0.1.5 were not published; their changes are included here.
-
 ### Changed
 
-- Installer window: use the selected B design in a 700×450-pt window, with 248-pt square cards, smaller 144-pt icons, a gradient wordmark and a mint destination card without corner guides. The centred dotted arrow grows smoothly into its rounded head, and the background starts at pure white.
-- Launch at Login row: clicking it no longer draws the On and Off labels on top of each other; only the new state is shown.
-- Launch at Login row: it no longer stays highlighted after the pointer or the keyboard moves to another item, so only one row is highlighted at a time. While it is highlighted, On/Off sits in a white pill with dark text, readable with every accent colour in Light and Dark.
-- Window motion is calmer: moving a window into a zone takes 0.26 s and enlarging it takes 0.34 s (both were 0.2 s).
-- The menu is easier to scan: it is split into sections with headings (Status, Startup and krado), with Quit krado on its own at the bottom. Status shows two rows with colored symbols: whether Accessibility is allowed and whether window drags can snap. Every menu action has an icon that follows light and dark mode (including Reload Displays), and Quit krado has the shortcut ⌘Q.
-- Launch at Login shows its state as a word at the right end of the row (On, Off or Needs approval) instead of a checkmark. Choosing it switches it on or off right away; VoiceOver reads the state too.
-- The rows listing each display and its grid now appear only when two or more displays are connected. Reload Displays stays in the menu.
-- When you drop a window on a zone, the window now glides into place instead of jumping (it moves instantly when Reduce Motion is on, or when an app's window cannot follow smoothly). While you drag, the highlight slides from zone to zone.
-- The grid now follows one rule with no special cases: krado keeps halving the screen, across and down, while every zone stays at least 640 pt wide and 720 pt tall (columns 1, 2, 4 or 8; rows 1, 2 or 4). It reads the whole screen size, so showing or hiding the Dock or menu bar no longer changes the grid. For example, 1920 × 1080 is now 2 × 1, 2560 × 1440 and 3008-pt-wide displays (including 6K at its default size) are now 4 × 2 instead of 2 × 2 or 3 × 2, and 6K at native size is 8 × 4.
-- Installer window: a new light design. krado and Applications keep their square cards, now with larger 160 pt icons, joined by a dotted arrow like 0.1.0's that sits centred between the cards; the whole layout is optically centred in the window.
+- The installer opens in a light 700 × 450 pt window with square cards, 144 pt icons, a gradient wordmark, a mint Applications card and a centred dotted arrow with a rounded head.
+- Launch at Login shows On, Off or Needs approval at the right end of its row. On has a filled pill (white while highlighted) with a checkmark; Off has an outlined pill that fills darker than the highlight, with white text and no checkmark. Choosing the row changes the state without closing the menu, and VoiceOver announces it. Only the current state is drawn, and the highlight follows the pointer or keyboard to the next item.
+- Windows glide into their zones with ease-out motion: moves and shrinks take 0.26 s and enlargements take 0.34 s. Placement is immediate with Reduce Motion or when an app cannot resize smoothly. During a drag, the zone highlight slides between cells.
+- The menu is divided into Status, Startup and krado sections, with Quit krado at the bottom and available via ⌘Q. Status shows Accessibility permission and whether window drags can snap. Menu actions have icons that follow Light and Dark appearance, including Reload Displays. Display names and grids appear only when two or more displays are connected.
+- The grid halves the whole screen across and down while each zone remains at least 640 pt wide and 720 pt tall, up to 8 columns and 4 rows. Showing or hiding the Dock or menu bar no longer changes it. For example, 1920 × 1080 uses 2 × 1; 2560 × 1440 and 3008-pt-wide displays, including 6K at its default size, use 4 × 2; native-size 6K uses 8 × 4.
 
 ### Fixed
 
-- The install window now always shows its own background, even when a disk image from another krado version is still open. The disk is named after its version (for example "krado 0.2.0"), because Finder looked up the background by disk name and could show an older version's picture, which made the cards look cut off and the labels misplaced.
-- On macOS 27 the menu icons are shown again (macOS 27 hides menu icons unless an app asks to keep them).
-- The install window that opens with the DMG is no longer cut off at the bottom and no longer shows a scroll bar when Finder's Path Bar or Status Bar is turned on, and the "krado" and "Applications" labels now sit inside their cards (also with filename extensions shown).
-- Enlarging a window by dropping it on more zones (for example from one zone to four) no longer jolts near the screen edge: krado moves the window before growing it, and shrinks it before moving.
+- The installer shows the correct background even when another version's disk image is open. Its cards and labels fit with Finder's Path Bar, Status Bar and filename extensions visible. Disk names include the version so Finder can distinguish their backgrounds.
+- Menu icons remain visible on macOS 27.
+- Enlarging a small window across several zones no longer slides it toward the centre at its old size before expanding at the end. If resizing is slow, delayed or constrained, krado immediately attempts the destination placement. Normal resizing shrinks before moving and grows at the new origin to avoid jolts near screen edges.
 
 ## [0.1.0] - 2026-10-20
 

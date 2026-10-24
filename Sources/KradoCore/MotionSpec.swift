@@ -2,9 +2,9 @@ import Foundation
 import CoreGraphics
 
 public enum MotionSpec {
-    /// Longest glide; also the default for callers that do not pass a duration.
-    /// 0.1.5 (Kazina, 2026-10-20 19:13): snapping felt a little fast and growing a
-    /// window too fast, so moves take 0.26 s and enlargements 0.34 s (were 0.20 s).
+    /// Moves and shrinks take 0.26 s; enlargements take 0.34 s.
+    /// Both use ease-out cubic timing, 1 − (1 − t)³, with rounded whole-point frames.
+    /// `duration` is the longest glide and the default for callers without a duration.
     public static let moveDuration: TimeInterval = 0.26
     public static let growDuration: TimeInterval = 0.34
     public static let duration: TimeInterval = growDuration
@@ -15,9 +15,6 @@ public enum MotionSpec {
     }
     public static let abortWriteMilliseconds: Double = 80
 
-    public enum Mode: Equatable, Sendable {
-        case full, positionOnly, abort
-    }
     public static func easeOut(_ progress: Double) -> Double {
         let t = min(1, max(0, progress))
         return 1 - pow(1 - t, 3)
@@ -32,42 +29,52 @@ public enum MotionSpec {
         max(1, Int(ceil(Double(max(1, refreshRate)) * max(0, duration))))
     }
     public static func frameInterval(refreshRate: Int) -> TimeInterval { 1 / Double(max(1, refreshRate)) }
-    /// Called after a size write. Position writes only use the abort threshold.
-    public static func nextMode(current: Mode, writeMilliseconds: Double,
-                                requested: CGSize, actual: CGSize, refreshRate: Int) -> Mode {
-        if current == .abort || writeMilliseconds > abortWriteMilliseconds { return .abort }
-        if current == .positionOnly { return .positionOnly }
-        if writeMilliseconds > frameInterval(refreshRate: refreshRate) * 1000 ||
-            abs(requested.width - actual.width) > 2 || abs(requested.height - actual.height) > 2 {
-            return .positionOnly
+
+    public enum Step: Equatable, Sendable {
+        case size(CGSize)
+        case position(CGPoint)
+
+        public func isNeeded(in actual: CGRect) -> Bool {
+            switch self {
+            case .size(let size): actual.size != size
+            case .position(let point): actual.origin != point
+            }
         }
-        return .full
     }
 
-    /// Outer zones use their display edge; interior or full-display zones use their centre.
-    public static func anchor(for target: CGRect, in workArea: CGRect) -> CGPoint {
-        func component(_ low: CGFloat, _ high: CGFloat, _ areaLow: CGFloat, _ areaHigh: CGFloat) -> CGFloat {
-            let atLow = abs(low - areaLow) <= 2
-            let atHigh = abs(high - areaHigh) <= 2
-            if atLow == atHigh { return 0.5 }
-            return atLow ? 0 : 1
-        }
-        return CGPoint(x: component(target.minX, target.maxX, workArea.minX, workArea.maxX),
-                       y: component(target.minY, target.maxY, workArea.minY, workArea.maxY))
+    public enum StepAction: Equatable, Sendable {
+        case continueGlide, snapToDestination
     }
 
-    public static func anchoredPosition(for requested: CGRect, actualSize: CGSize, anchor: CGPoint) -> CGPoint {
-        CGPoint(x: (requested.minX + (requested.width - actualSize.width) * anchor.x).rounded(),
-                y: (requested.minY + (requested.height - actualSize.height) * anchor.y).rounded())
+    /// Plan separate AX writes without adding overflow: shrink, move, then grow.
+    /// The last position restores the path if resizing itself moves the window.
+    public static func steps(from actual: CGRect, to requested: CGRect) -> [Step] {
+        let bridge = bridgeSize(from: actual, to: requested)
+        var steps: [Step] = []
+        if bridge != actual.size { steps.append(.size(bridge)) }
+        steps.append(.position(requested.origin))
+        if bridge != requested.size {
+            steps.append(.size(requested.size))
+            steps.append(.position(requested.origin))
+        }
+        return steps
     }
-    /// Preserve the selected edge when an app clamps its size, but keep a fitting
-    /// window inside the destination display's visible frame.
-    public static func anchoredPosition(for requested: CGRect, actualSize: CGSize,
-                                        anchor: CGPoint, in workArea: CGRect) -> CGPoint {
-        let point = anchoredPosition(for: requested, actualSize: actualSize, anchor: anchor)
-        guard workArea.contains(requested) else { return point }
-        return CGPoint(x: min(max(point.x, workArea.minX), max(workArea.minX, workArea.maxX - actualSize.width)),
-                       y: min(max(point.y, workArea.minY), max(workArea.minY, workArea.maxY - actualSize.height)))
+
+    /// Check each write before issuing another. A slow, lagging or clamped resize
+    /// ends the glide immediately; never move a stale-size window toward an anchor.
+    /// Size timings accumulate across the shrink/grow bridge within this frame.
+    /// Position-only moves retain the 80 ms abort budget.
+    public static func action(after step: Step, success: Bool, writeMilliseconds: Double,
+                              totalSizeWriteMilliseconds: Double, actualSize: CGSize?,
+                              refreshRate: Int) -> StepAction {
+        guard success, writeMilliseconds <= abortWriteMilliseconds else { return .snapToDestination }
+        if case .size(let requested) = step {
+            guard let actualSize,
+                  totalSizeWriteMilliseconds <= frameInterval(refreshRate: refreshRate) * 1000,
+                  abs(requested.width - actualSize.width) <= 2,
+                  abs(requested.height - actualSize.height) <= 2 else { return .snapToDestination }
+        }
+        return .continueGlide
     }
 
     /// AX size and position are separate writes. Shrink each axis before moving,
@@ -76,13 +83,5 @@ public enum MotionSpec {
     public static func bridgeSize(from actual: CGRect, to requested: CGRect) -> CGSize {
         CGSize(width: min(actual.width, requested.width),
                height: min(actual.height, requested.height))
-    }
-
-    public static func positionFirst(from actual: CGRect, to requested: CGRect) -> Bool {
-        bridgeSize(from: actual, to: requested) == actual.size
-    }
-
-    public static func writes(from actual: CGRect, to requested: CGRect) -> (position: Bool, size: Bool) {
-        (actual.origin != requested.origin, actual.size != requested.size)
     }
 }

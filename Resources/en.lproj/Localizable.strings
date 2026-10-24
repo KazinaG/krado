@@ -67,6 +67,7 @@
 "Ready to snap" = "Ready to snap";
 "Unavailable — retrying" = "Unavailable — retrying";
 "krado" = "krado";
+/* Explicit state words are also used in the menu item’s VoiceOver label and value. */
 "On" = "On";
 "Off" = "Off";
 "Needs approval" = "Needs approval";

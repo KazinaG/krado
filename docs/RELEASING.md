@@ -6,12 +6,9 @@ of a published release. [CHANGELOG.md](../CHANGELOG.md) is the source of truth; 
 Distribution is a DMG attached to a GitHub Release plus a Sparkle 2 appcast. There
 is no Homebrew tap.
 
-Local preparation for the next version is tracked in [NEXT_RELEASE.md](NEXT_RELEASE.md).
-The build default is 0.1.6, but the release scope and dated notes are not final.
-The active preparation branch is based on GitHub main and changes only DMG assets
-and tools, version metadata and documentation. Earlier study branches retain motion trial A;
-do not merge those wholesale. Do not tag or package a final candidate until the
-scope and verification gates in that checklist are resolved.
+Preparation checks for the next version are tracked in [NEXT_RELEASE.md](NEXT_RELEASE.md).
+Do not tag or package a final candidate until its scope and verification checks are
+complete. Trial DMGs use the separate [trial build procedure](trial-build.ja.md).
 
 ## Update feed
 
@@ -66,7 +63,7 @@ update-test feed and the uninstall file list:
   of `CHANGELOG.md` (`scripts/changelog-section.sh`), signs the DMG and writes
   `appcast.xml` with Sparkle's `generate_appcast`, verifies the signature, length
   and URL, then creates a **draft** GitHub Release with the DMG and appcast.
-- **Tag `v<version>-test` pushed:** builds update-test build B with
+- **Tag `v<version>-test` pushed:** builds the update-test version with
   `KRADO_VERSION=<version>`, writes `appcast-test.xml`, and creates a **draft
   pre-release**. See [signing-and-update-test.md](signing-and-update-test.md).
 - **Branch push touching release files:** the same build, signing and

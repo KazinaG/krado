@@ -1,12 +1,10 @@
 # DMG window
 
-The window that opens with `krado-<version>.dmg` (packaging style B): a light gradient,
+The window that opens with `krado-<version>.dmg` has a light gradient,
 the "krado" wordmark and "Drag krado to Applications" on top, two square cards with
 144-pt icons (krado; Applications as the mint target), and a dotted arrow between them.
-Kazina selected the right-hand 144-pt option and its shared rounded arrow on
-2026-10-20. The design keeps composition B's gradient wordmark, white top, background,
-frame and destination emphasis, without the extra corner guides. See
-[`docs/DECISIONS.md`](../../docs/DECISIONS.md) and the remaining release gates in
+The wordmark has a gradient, the background starts at white, and the destination
+card is emphasized without corner guides. Remaining release checks are in
 [`docs/NEXT_RELEASE.md`](../../docs/NEXT_RELEASE.md).
 
 - `layout.json`: shared geometry (700 × 450 pt content plus a 32 pt title bar, 144 pt
@@ -36,7 +34,7 @@ frame and destination emphasis, without the extra corner guides. See
   area (the area below the title bar, which is 32 pt on macOS 26 and 28 pt on macOS 15;
   `window_rect` and .DS_Store's WindowBounds include it).
 - Arrow: dots lengthen into capsules while their gaps narrow, meeting an open rounded
-  head. Nine Oklab colour stops smooth #7579ff → #0d967b. The selected default
+  head. Nine Oklab colour stops smooth #7579ff → #0d967b. The default
   (`--arrow-variant accepted`) keeps y 258 and a 2.6-pt stroke, with 15.2 pt of ink
   clearance to each card. Explicit `open` and `filled` options preserve the earlier
   unselected finishing studies; neither is the production default.
@@ -58,7 +56,7 @@ frame and destination emphasis, without the extra corner guides. See
 
 ## Generate assets without opening Finder
 
-Generate the selected production background with an already available SVG renderer:
+Generate the production background with an already available SVG renderer:
 
 ```sh
 python3 packaging/dmg/make_backgrounds.py --svg-only
@@ -66,26 +64,26 @@ node packaging/dmg/render-backgrounds.cjs packaging/dmg/B
 python3 packaging/dmg/make_backgrounds.py --check
 ```
 
-The committed SVG and both PNG scales match the selected B follow-up byte for byte.
+The production SVG and both PNG scales are committed in `B/`.
 
 To reproduce the historical finishing studies, use `--output-dir` to keep them
 separate from production. `--svg-only` writes vector sources without
 importing CairoSVG, for an SVG renderer already available on the build machine:
 
 ```sh
-python3 packaging/dmg/make_backgrounds.py --arrow-variant open --svg-only --output-dir /tmp/krado-study-A
-python3 packaging/dmg/make_backgrounds.py --arrow-variant filled --svg-only --output-dir /tmp/krado-study-B
-node packaging/dmg/render-backgrounds.cjs /tmp/krado-study-A /tmp/krado-study-B
+python3 packaging/dmg/make_backgrounds.py --arrow-variant open --svg-only --output-dir /tmp/krado-study-open
+python3 packaging/dmg/make_backgrounds.py --arrow-variant filled --svg-only --output-dir /tmp/krado-study-filled
+node packaging/dmg/render-backgrounds.cjs /tmp/krado-study-open /tmp/krado-study-filled
 ```
 
 The render command uses an already available `sharp` installation (normal Node module
-resolution, including `NODE_PATH`). This pass used sharp 0.35.5 / libvips 8.18.7 /
+resolution, including `NODE_PATH`). The committed images were rendered with sharp 0.35.5 / libvips 8.18.7 /
 librsvg 2.63.2 to generate the committed PNGs and both previews from those SVGs.
 CairoSVG's default PNG path remains available; rasterizer/font differences can
 change antialiasing, so compare SVG geometry and pixels from the same renderer.
 
 Render each SVG at 700 × 466 and 1400 × 932 px (450 pt content + 16 pt bottom bleed).
-The bottom bleed adds height only. Menu symbols and motion are outside this change.
+The bottom bleed adds height only.
 
 ## CI tools (GitHub macOS runners only, never on a personal Mac)
 

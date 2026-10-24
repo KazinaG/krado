@@ -143,34 +143,39 @@ v0.1 does not force apps past size constraints, verify the final applied AX fram
 
 ## Motion
 
-ウインドウ本体 glides
-from its drop frame to the zone for about 0.20 seconds with ease-out cubic timing.
+The window glides from its drop frame to the zone with ease-out cubic timing,
+`1 - (1 - t)^3`. Moves and shrinks take 0.26 seconds; enlargements take 0.34 seconds.
+These durations give enlargements more time than moves. The desired feel is closer
+to macOS Show Desktop; see [NEXT_RELEASE.md](NEXT_RELEASE.md) for comparison checks.
 A main-run-loop `NSScreen.displayLink(target:selector:)` (public since macOS 14)
 drives whole-point AX steps. Progress is elapsed wall-clock time divided by the
-0.20-second duration: slow AX writes produce fewer frames, never extra animation
-time. Each step skips unchanged size/position, writes size first while in full
-mode, reads the actual frame, and anchors position after any app-induced move.
-A size deviation greater than 2 points or a size write exceeding one display
-frame (`1000 / refreshRate` ms, about 16.7 ms at 60 Hz) switches permanently to
-position-only frames for this glide. Position uses the actual size so the zone's
-outer display edge (or centre for interior/full-display zones) follows the eased
-path. This hybrid defers further size writes to the final placement.
+selected duration: slow AX writes produce fewer frames, never extra animation time.
+
+`MotionSpec.steps` plans separate AX writes: shrink each axis first, move the
+smaller rectangle, then grow at the new origin. Unchanged writes are skipped.
+Each size write is read back before another write is allowed; resizing that moves
+the origin is followed by a position correction to the interpolated path.
+`MotionSpec.action` ends the glide immediately if a size readback differs by more
+than 2 points or the accumulated size-write time for the step exceeds one display
+frame (`1000 / refreshRate` ms, about 16.7 ms at 60 Hz). There is no stale-size
+position fallback: the next placement attempts the destination in one step.
 
 Any failed write/read or individual size/position write exceeding
-`MotionSpec.abortWriteMilliseconds` (80 ms) ends stepping. Completion, abort,
-a new mouse-down, cancellation, or a new snap attempts the existing final
-`Accessibility.setFrame` (Position → Size → Position) placement once. AX calls
-share the wall-clock budget; an in-flight synchronous call and the final placement
-can still block past the duration, up to the AX messaging timeout per call.
-The pure `MotionSpec.nextMode` decision and actual-size anchoring are tested in
-KradoCore. The 光る枠 stays at the target during the glide and hides through the
-completion callback when it lands.
+`MotionSpec.abortWriteMilliseconds` (80 ms) also ends stepping. Completion, abort,
+a new mouse-down, cancellation, or a new snap attempts `Accessibility.setFrame`
+once, using the same shrink–move–grow order and correcting the final origin if
+resizing changed it. AX calls share the wall-clock budget; an in-flight synchronous
+call and the final placement can still block past the duration, up to the AX
+messaging timeout per call. An app can still constrain the final size.
+The pure write planner and fallback decisions are tested in KradoCore, including
+slow, lagging and clamping fake windows. The zone highlight stays at the target
+during the glide and hides through the completion callback when it lands.
 
 Motion honors `accessibilityDisplayShouldReduceMotion`: placement and
 layer/panel transitions become instant.
 
 The grid uses cached static tile layers, rebuilt only for geometry/system colors.
-The 光る枠 is a separate shape layer: position, bounds, and rounded path animate
+The zone highlight is a separate shape layer: position, bounds, and rounded path animate
 for 0.12 seconds from their current presentation values, including Shift span
 changes; its first appearance fades and grows. Retargeting neither redraws tiles
 nor changes panel alpha. The previous redraw-per-target code and the stationary
