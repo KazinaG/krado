@@ -346,7 +346,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         loginToggle.badge = nil
         loginToggle.setAccessibilityLabel(title + "、" + value)
         loginToggle.setAccessibilityValue(value)
-        (loginToggle.view as? LoginRowView)?.update(title: title, badge: row.badge.map { L10n.text($0) }, enabled: row.enabled)
+        (loginToggle.view as? LoginRowView)?.update(title: title, badge: row.badge.map { L10n.text($0) }, state: state, enabled: row.enabled)
         #if KRADO_LOGIN_SWITCH_PROBE
         loginToggle.badge = nil
         loginToggle.state = .off

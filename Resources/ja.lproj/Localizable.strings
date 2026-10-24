@@ -4,9 +4,9 @@
 "⚠︎ Launch at Login: %@" = "⚠︎ ログイン時に起動：%@";
 "Accessibility Setup…" = "アクセシビリティの設定…";
 "Reload Displays" = "画面構成を再読込";
-"About krado" = "kradoについて";
-"krado on GitHub…" = "GitHubでkradoを見る…";
-"Quit krado" = "kradoを終了";
+"About krado" = "krado について";
+"krado on GitHub…" = "GitHub で krado を見る…";
+"Quit krado" = "krado を終了";
 "✓ Accessibility: allowed" = "✓ アクセシビリティ：許可済み";
 "⚠︎ Accessibility: not allowed — click to set up" = "⚠︎ アクセシビリティ：未許可 — クリックして設定";
 "✓ Watching window drags" = "✓ ウインドウのドラッグを監視中";
@@ -15,22 +15,22 @@
 "krado — Accessibility permission needed" = "krado — アクセシビリティの許可が必要です";
 "krado — Watching window drags" = "krado — ウインドウのドラッグを監視中";
 "krado — Event monitoring error" = "krado — イベント監視エラー";
-"%@: %d × %d (%d zones)" = "%@：%d × %d（%dゾーン）";
+"%@: %d × %d (%d zones)" = "%@：%d × %d（%d ゾーン）";
 "%@: 1 × 1 (no split)" = "%@：1 × 1（分割なし）";
-"Drag a window. Drop it on the grid.\nFree & open source. MIT License." = "ウインドウをドラッグ。マス目にドロップ。\n無料・オープンソース。MITライセンス。";
-"Welcome to krado" = "kradoへようこそ";
+"Drag a window. Drop it on the grid.\nFree & open source. MIT License." = "ウインドウをドラッグして、マス目に配置。\n無料・オープンソース。MIT ライセンス。";
+"Welcome to krado" = "krado へようこそ";
 "Give your windows a place." = "ウインドウを、心地よい場所へ。";
-"krado needs Accessibility permission to read and move other apps’ windows. It never reads keystrokes or screen contents and sends nothing over the network." = "kradoが他のアプリのウインドウ情報を読み取り、移動するにはアクセシビリティの許可が必要です。キー入力や画面の内容は読み取りません。ネットワークへの送信も行いません。";
-"1. Click Open System Settings below.\n2. Enable krado in Privacy & Security → Accessibility.\n3. If krado is missing, click + and add krado.app from Applications." = "1. 下の「システム設定を開く」をクリックします。\n2. プライバシーとセキュリティ → アクセシビリティでkradoを許可します。\n3. kradoがなければ「+」でアプリケーションフォルダのkrado.appを追加します。";
+"krado needs Accessibility permission to read and move other apps’ windows. It never reads keystrokes or screen contents and sends nothing over the network." = "krado が他のアプリのウインドウ情報を読み取り、移動するにはアクセシビリティの許可が必要です。キー入力や画面の内容は読み取りません。ネットワークへの送信も行いません。";
+"1. Click Open System Settings below.\n2. Enable krado in Privacy & Security → Accessibility.\n3. If krado is missing, click + and add krado.app from Applications." = "1. 下の「システム設定を開く」をクリックします。\n2. プライバシーとセキュリティ → アクセシビリティで krado を許可します。\n3. krado がなければ「+」でアプリケーションフォルダの krado.app を追加します。";
 "Open System Settings" = "システム設定を開く";
-"After a rebuild or update, you may need to remove the old krado entry with −, then add it again with +." = "再ビルドや更新の後は、古いkradoの登録を「−」で削除してから「+」で追加し直す必要がある場合があります。";
+"After a rebuild or update, you may need to remove the old krado entry with −, then add it again with +." = "再ビルドや更新の後は、古い krado の登録を「−」で削除してから「+」で追加し直す必要がある場合があります。";
 "Waiting for Accessibility permission…" = "アクセシビリティの許可を待っています…";
 "✓ All set! Accessibility is allowed." = "✓ 準備完了！アクセシビリティが許可されました。";
 "⚠︎ Window placement failed. The app may restrict its window size or position." = "⚠︎ ウインドウを配置できませんでした。アプリ側でサイズや位置が制限されている場合があります。";
 
 /* Visual status: short labels and full tooltip descriptions. */
 "Permission needed" = "許可が必要";
-"Accessibility allowed" = "アクセシビリティ許可済み";
+"Accessibility allowed" = "アクセシビリティ：許可済み";
 "Watching" = "監視中";
 "Stopped" = "停止中";
 "Monitoring unavailable" = "監視できません";
@@ -40,12 +40,12 @@
 "Monitoring is paused until Accessibility permission is granted." = "アクセシビリティが許可されるまで監視を一時停止しています。";
 "Window drag monitoring is paused." = "ウインドウのドラッグ監視を一時停止しています。";
 "Window drag monitoring is stopped." = "ウインドウのドラッグ監視を停止しています。";
-"Window drag monitoring is unavailable. krado will retry automatically." = "ウインドウのドラッグを監視できません。kradoが自動的に再試行します。";
+"Window drag monitoring is unavailable. krado will retry automatically." = "ウインドウのドラッグを監視できません。krado が自動的に再試行します。";
 "krado — Monitoring paused" = "krado — 監視を一時停止中";
 "krado — Monitoring stopped" = "krado — 監視を停止中";
 
 "Check for Updates…" = "アップデートを確認…";
-"Optional: start krado automatically when you log in. You can change this later in the menu." = "お好みで：ログインしたときに krado を自動で起動できます。あとからメニューで変えられます。";
+"Optional: start krado automatically when you log in. You can change this later in the menu." = "必要に応じて、ログイン時に krado を自動で起動できます。あとからメニューで変更できます。";
 "Launch krado at Login" = "ログイン時に krado を起動";
 "Open Login Items Settings…" = "ログイン項目の設定を開く…";
 "✓ krado will launch at login." = "✓ ログイン時に krado が起動します。";
@@ -55,8 +55,8 @@
 "krado will turn off Launch at Login, remove its Accessibility permission, settings and caches, move itself to the Trash, and quit." = "ログイン時の起動をオフにし、アクセシビリティの許可・設定・キャッシュを消してから、krado をゴミ箱に入れて終了します。";
 "Uninstall" = "アンインストール";
 "Cancel" = "キャンセル";
-"krado could not finish uninstalling." = "アンインストールを最後まで終えられませんでした。";
-"In System Settings → Privacy & Security → Accessibility, select krado and click −. Then remove krado in General → Login Items & Extensions and move krado.app to the Trash." = "システム設定 → プライバシーとセキュリティ → アクセシビリティで krado を選んで − を押してください。続けて 一般 → ログイン項目と機能拡張 で krado を外し、krado.app をゴミ箱に入れてください。";
+"krado could not finish uninstalling." = "アンインストールを完了できませんでした。";
+"In System Settings → Privacy & Security → Accessibility, select krado and click −. Then remove krado in General → Login Items & Extensions and move krado.app to the Trash." = "システム設定 → プライバシーとセキュリティ → アクセシビリティで krado を選んで − を押してください。続いて「一般 → ログイン項目と機能拡張」で krado を削除し、krado.app をゴミ箱に入れてください。";
 
 "Status" = "ステータス";
 "Startup" = "起動";
@@ -67,6 +67,7 @@
 "Ready to snap" = "スナップできます";
 "Unavailable — retrying" = "利用できません — 再試行中";
 "krado" = "krado";
+/* Explicit state words are also used in the menu item’s VoiceOver label and value. */
 "On" = "オン";
 "Off" = "オフ";
 "Needs approval" = "承認待ち";

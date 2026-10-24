@@ -54,7 +54,7 @@ be EdDSA-signed by the release key. Remove the override after the test:
 defaults delete io.github.kazinag.krado KradoTestFeedURL
 ```
 
-Build B for such a test is a `v<version>-test` tag (e.g. `v0.1.1-test`), which the
+The newer version for an update test uses a `v<version>-test` tag (e.g. `v0.1.1-test`), which the
 release workflow turns into a draft **pre-release** whose feed is named
 `appcast-test.xml`. Publishing it as a pre-release (owner decision) makes its assets
 downloadable; `releases/latest` never points at a pre-release, so public users are

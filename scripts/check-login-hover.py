@@ -69,11 +69,23 @@ for geometry_path in sorted(root.glob("*-geometry.json")):
     c = g["capsule"]
     pill = img.crop(tuple(round(v * s) for v in (c["x"] + 2, c["y"] + 2, c["x"] + c["width"] - 2, c["y"] + c["height"] - 2)))
     pill_pixels = pixels(pill)
-    bg = max(set(pill_pixels), key=pill_pixels.count)
-    ink = max(pill_pixels, key=lambda p: ratio(p, bg))
     hy = round((g["y"] + g["height"] / 2) * s)
     hx = round((c["x"] - 8) * s)
     highlight = img.getpixel((hx, hy))
+    filled = g.get("highlightedFill")
+    checked = g.get("highlightedCheckmark")
+    expected_on = case.endswith("-on")
+    if filled is not True or checked != expected_on:
+        failures.append(f"{case}: expected filled+checked On or recessed+unchecked Off; got fill={filled} check={checked}")
+    # Both highlighted badges are filled: white On, black at 40% over the highlight Off.
+    interior = max(set(pill_pixels), key=pill_pixels.count)
+    expected_background = (255, 255, 255) if expected_on else tuple(round(v * 0.6) for v in highlight)
+    if max(abs(a - b) for a, b in zip(interior, expected_background)) > 24:
+        failures.append(f"{case}: badge interior {interior} does not match pill {expected_background}")
+    if not expected_on and lum(interior) >= lum(highlight):
+        failures.append(f"{case}: Off pill must differ from and be darker than highlight {highlight}; got {interior}")
+    bg = interior
+    ink = max(pill_pixels, key=lambda p: ratio(p, bg))
     measured = ratio(ink, bg)
     report.append(f"{case} badge (pixels): text {ink} on pill {bg} = {measured:.2f}:1; "
                   f"pill vs highlight {highlight} = {ratio(bg, highlight):.2f}:1")
@@ -84,10 +96,15 @@ for geometry_path in sorted(root.glob("*-geometry.json")):
         failures.append(f"{case}: no highlighted badge colours recorded (row never drawn highlighted?)")
         continue
     t, p, h = (tuple(exact[k]) for k in ("text", "pill", "highlight"))
+    expected_pill = (255, 255, 255) if expected_on else tuple(round(v * 0.6) for v in h)
+    if max(abs(a - b) for a, b in zip(p, expected_pill)) > 1:
+        failures.append(f"{case}: recorded pill {p} does not match composited pill {expected_pill}")
+    if not expected_on and lum(p) >= lum(h):
+        failures.append(f"{case}: recorded Off pill must differ from and be darker than highlight {h}; got {p}")
     r = ratio(t, p)
     report.append(f"{case} badge (exact): text {t} on pill {p} = {r:.2f}:1; pill vs highlight {h} = {ratio(p, h):.2f}:1")
-    if r < 3:
-        failures.append(f"{case}: badge text contrast {r:.2f}:1 < 3:1 while highlighted")
+    if r < (4.5 if expected_on else 3):
+        failures.append(f"{case}: badge text contrast {r:.2f}:1 below required contrast while highlighted")
 
 (root / "report.txt").write_text("\n".join(report) + "\n")
 print("\n".join(report))
