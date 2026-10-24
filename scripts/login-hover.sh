@@ -17,11 +17,13 @@ shot() { screencapture -x -m "$out/$case-$1.png"; }
 for spec in light-blue:Light: dark-blue:Dark: light-yellow:Light:2 dark-graphite:Dark:-1 light-pink:Light:6; do
     IFS=: read -r case appearance accent <<< "$spec"
     args=(-AppleLanguages '(ja)' -AppleLocale ja_JP)
-    [[ "$appearance" == Dark ]] && args+=(-AppleInterfaceStyle Dark)
+    look=light; [[ "$appearance" == Dark ]] && look=dark
     [[ -n "$accent" ]] && args+=(-AppleAccentColor "$accent")
+    # Graphite also needs the graphite Aqua variant.
+    [[ "$accent" == -1 ]] && args+=(-AppleAquaColorVariant 6)
     for path in slow-to-quit jump-to-quit down; do
         rm -f "$out/$case-geometry.json"
-        NSUnbufferedIO=YES KRADO_CI_LOGIN_FAKE=off KRADO_CI_OPEN_MENU=1 \
+        NSUnbufferedIO=YES KRADO_CI_APPEARANCE="$look" KRADO_CI_LOGIN_FAKE=off KRADO_CI_OPEN_MENU=1 \
             KRADO_CI_LOGIN_GEOMETRY="$out/$case-geometry.json" \
             dist/krado.app/Contents/MacOS/krado "${args[@]}" > "$out/$case-$path-app.log" 2>&1 &
         app_pid=$!

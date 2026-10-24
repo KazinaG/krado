@@ -8,7 +8,6 @@ final class LoginRowView: NSView {
     private var title = ""
     private var badge: String?
     private var enabled = true
-    private var hovered = false
 
     private static var rowHeight: CGFloat {
         if #available(macOS 26, *) { return 24 }
@@ -71,7 +70,6 @@ final class LoginRowView: NSView {
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        hovered = false
         needsDisplay = true
         if window == nil { removeKeyMonitor() } else { installKeyMonitor() }
     }
@@ -107,23 +105,6 @@ final class LoginRowView: NSView {
         if handlesActivationKey(event) { activate(); needsDisplay = true } else { super.keyDown(with: event) }
     }
 
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-        for area in trackingAreas { removeTrackingArea(area) }
-        addTrackingArea(NSTrackingArea(rect: .zero,
-            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self, userInfo: nil))
-    }
-
-    override func mouseEntered(with event: NSEvent) {
-        hovered = true
-        needsDisplay = true
-    }
-
-    override func mouseExited(with event: NSEvent) {
-        hovered = false
-        needsDisplay = true
-    }
-
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     override func mouseDown(with event: NSEvent) {}
@@ -140,7 +121,8 @@ final class LoginRowView: NSView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        let highlighted = enabled && (enclosingMenuItem?.isHighlighted == true || hovered)
+        // Only AppKit's highlight (shared by mouse and keyboard); no hover state of our own.
+        let highlighted = LoginRowStyle.isHighlighted(menuItemHighlighted: enclosingMenuItem?.isHighlighted == true, enabled: enabled)
         if highlighted {
             NSColor.selectedContentBackgroundColor.setFill()
             NSBezierPath(roundedRect: bounds.insetBy(dx: 5, dy: 0), xRadius: 4, yRadius: 4).fill()
@@ -156,8 +138,9 @@ final class LoginRowView: NSView {
         var capsule = NSRect.zero
         var pillColor = NSColor.clear, badgeColor = NSColor.clear
         if let badge {
-            badgeColor = !enabled ? .disabledControlTextColor : highlighted ? .selectedMenuItemTextColor : .labelColor
-            pillColor = NSColor.labelColor.withAlphaComponent(0.1)
+            let style = LoginRowStyle.badge(highlighted: highlighted, enabled: enabled)
+            badgeColor = Self.color(style.text)
+            pillColor = Self.color(style.pill).withAlphaComponent(style.pillAlpha)
             let attributes: [NSAttributedString.Key: Any] = [.font: badgeFont, .foregroundColor: badgeColor]
             let size = (badge as NSString).size(withAttributes: attributes)
             let width = LoginBadgeMetrics.capsuleWidth(textWidth: size.width)
@@ -175,6 +158,18 @@ final class LoginRowView: NSView {
         #endif
     }
 
+    private static func color(_ ink: LoginRowStyle.Ink) -> NSColor {
+        switch ink {
+        case .label: return .labelColor
+        case .disabled: return .disabledControlTextColor
+        case .selectedText: return .selectedMenuItemTextColor
+        case .white: return .white
+        case .badgeInk:
+            let c = LoginRowStyle.badgeInk
+            return NSColor(srgbRed: c.r / 255, green: c.g / 255, blue: c.b / 255, alpha: 1)
+        }
+    }
+
     #if KRADO_CI_HOOKS
     private static var lastHighlightedColors: [String: [Int]]?
 
@@ -189,10 +184,16 @@ final class LoginRowView: NSView {
             // sRGB 0–255, the pill composited over the highlight as drawn.
             func rgb(_ color: NSColor, over base: NSColor? = nil) -> [Int] {
                 let c = color.usingColorSpace(.sRGB) ?? color
-                let b = base?.usingColorSpace(.sRGB)
-                let a = c.alphaComponent
-                func mix(_ v: CGFloat, _ w: CGFloat?) -> Int { Int(((v * a + (w ?? 1) * (b == nil ? 0 : 1 - a)) * 255).rounded()) }
-                return [mix(c.redComponent, b?.redComponent), mix(c.greenComponent, b?.greenComponent), mix(c.blueComponent, b?.blueComponent)]
+                let a = Double(c.alphaComponent)
+                let top = [Double(c.redComponent), Double(c.greenComponent), Double(c.blueComponent)]
+                var under = [0.0, 0.0, 0.0]
+                if let b = base?.usingColorSpace(.sRGB) {
+                    under = [Double(b.redComponent), Double(b.greenComponent), Double(b.blueComponent)]
+                }
+                return (0..<3).map { i in
+                    let mixed: Double = top[i] * a + under[i] * (1 - a)
+                    return Int((mixed * 255).rounded())
+                }
             }
             let highlight = NSColor.selectedContentBackgroundColor
             let pillRGB = rgb(pill, over: highlight)
