@@ -8,6 +8,7 @@ on:
       - Sources/Krado/LoginRowView.swift
       - Sources/Krado/App.swift
       - Sources/KradoCore/LoginBadge*.swift
+      - Sources/KradoCore/LoginRow*.swift
       - scripts/login-hover*
       - scripts/check-login-hover.py
       - .github/workflows/login-hover.yml
