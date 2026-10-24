@@ -8,7 +8,6 @@ final class LoginRowView: NSView {
     private var title = ""
     private var badge: String?
     private var enabled = true
-    private var hovered = false
 
     private static var rowHeight: CGFloat {
         if #available(macOS 26, *) { return 24 }
@@ -71,7 +70,6 @@ final class LoginRowView: NSView {
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        hovered = false
         needsDisplay = true
         if window == nil { removeKeyMonitor() } else { installKeyMonitor() }
     }
@@ -107,23 +105,6 @@ final class LoginRowView: NSView {
         if handlesActivationKey(event) { activate(); needsDisplay = true } else { super.keyDown(with: event) }
     }
 
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-        for area in trackingAreas { removeTrackingArea(area) }
-        addTrackingArea(NSTrackingArea(rect: .zero,
-            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self, userInfo: nil))
-    }
-
-    override func mouseEntered(with event: NSEvent) {
-        hovered = true
-        needsDisplay = true
-    }
-
-    override func mouseExited(with event: NSEvent) {
-        hovered = false
-        needsDisplay = true
-    }
-
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     override func mouseDown(with event: NSEvent) {}
@@ -140,22 +121,8 @@ final class LoginRowView: NSView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        #if KRADO_CI_HOOKS
-        if let path = ProcessInfo.processInfo.environment["KRADO_CI_LOGIN_GEOMETRY"], let window {
-            let rect = window.convertToScreen(convert(bounds, to: nil))
-            let screenTop = NSScreen.screens[0].frame.maxY
-            let evidence: [String: Any] = [
-                "x": rect.minX, "y": screenTop - rect.maxY,
-                "width": rect.width, "height": rect.height,
-                "label": badge ?? "", "nativeBadge": enclosingMenuItem?.badge != nil
-            ]
-            if let data = try? JSONSerialization.data(withJSONObject: evidence, options: [.sortedKeys]) {
-                try? data.write(to: URL(fileURLWithPath: path), options: .atomic)
-            }
-            print("KRADO_CI draw login label=\(badge ?? "none") frame=\(frame) dirty=\(dirtyRect)")
-        }
-        #endif
-        let highlighted = enabled && (enclosingMenuItem?.isHighlighted == true || hovered)
+        // Only AppKit's highlight (shared by mouse and keyboard); no hover state of our own.
+        let highlighted = LoginRowStyle.isHighlighted(menuItemHighlighted: enclosingMenuItem?.isHighlighted == true, enabled: enabled)
         if highlighted {
             NSColor.selectedContentBackgroundColor.setFill()
             NSBezierPath(roundedRect: bounds.insetBy(dx: 5, dy: 0), xRadius: 4, yRadius: 4).fill()
@@ -168,18 +135,80 @@ final class LoginRowView: NSView {
         let titleSize = (title as NSString).size(withAttributes: attributes)
         (title as NSString).draw(at: NSPoint(x: Self.titleX, y: (bounds.height - titleSize.height) / 2), withAttributes: attributes)
 
+        var capsule = NSRect.zero
+        var pillColor = NSColor.clear, badgeColor = NSColor.clear
         if let badge {
-            let badgeColor: NSColor = !enabled ? .disabledControlTextColor : highlighted ? .selectedMenuItemTextColor : .labelColor
+            let style = LoginRowStyle.badge(highlighted: highlighted, enabled: enabled)
+            badgeColor = Self.color(style.text)
+            pillColor = Self.color(style.pill).withAlphaComponent(style.pillAlpha)
             let attributes: [NSAttributedString.Key: Any] = [.font: badgeFont, .foregroundColor: badgeColor]
             let size = (badge as NSString).size(withAttributes: attributes)
             let width = LoginBadgeMetrics.capsuleWidth(textWidth: size.width)
             let height = LoginBadgeMetrics.height
-            let capsule = NSRect(x: (bounds.maxX - 17 - width).rounded(),
+            capsule = NSRect(x: (bounds.maxX - 17 - width).rounded(),
                 y: ((bounds.height - height) / 2).rounded(), width: width, height: height)
-            NSColor.labelColor.withAlphaComponent(0.1).setFill()
+            pillColor.setFill()
             NSBezierPath(roundedRect: capsule, xRadius: height / 2, yRadius: height / 2).fill()
             let x = LoginBadgeMetrics.textX(capsuleMinX: capsule.minX, capsuleWidth: width, textWidth: size.width)
             (badge as NSString).draw(at: NSPoint(x: x, y: capsule.minY + (height - size.height) / 2), withAttributes: attributes)
         }
+        #if KRADO_CI_HOOKS
+        writeCIEvidence(highlighted: highlighted, capsule: capsule, pill: pillColor, text: badgeColor)
+        print("KRADO_CI draw login label=\(badge ?? "none") highlighted=\(highlighted) frame=\(frame) dirty=\(dirtyRect)")
+        #endif
     }
+
+    private static func color(_ ink: LoginRowStyle.Ink) -> NSColor {
+        switch ink {
+        case .label: return .labelColor
+        case .disabled: return .disabledControlTextColor
+        case .selectedText: return .selectedMenuItemTextColor
+        case .white: return .white
+        case .badgeInk:
+            let c = LoginRowStyle.badgeInk
+            return NSColor(srgbRed: c.r / 255, green: c.g / 255, blue: c.b / 255, alpha: 1)
+        }
+    }
+
+    #if KRADO_CI_HOOKS
+    private static var lastHighlightedColors: [String: [Int]]?
+
+    private func writeCIEvidence(highlighted: Bool, capsule: NSRect, pill: NSColor, text: NSColor) {
+        guard let path = ProcessInfo.processInfo.environment["KRADO_CI_LOGIN_GEOMETRY"], let window else { return }
+        let screenTop = NSScreen.screens[0].frame.maxY
+        func screenRect(_ local: NSRect) -> [String: Double] {
+            let rect = window.convertToScreen(convert(local, to: nil))
+            return ["x": rect.minX, "y": screenTop - rect.maxY, "width": rect.width, "height": rect.height]
+        }
+        if highlighted {
+            // sRGB 0–255, the pill composited over the highlight as drawn.
+            func rgb(_ color: NSColor, over base: NSColor? = nil) -> [Int] {
+                let c = color.usingColorSpace(.sRGB) ?? color
+                let a = Double(c.alphaComponent)
+                let top = [Double(c.redComponent), Double(c.greenComponent), Double(c.blueComponent)]
+                var under = [0.0, 0.0, 0.0]
+                if let b = base?.usingColorSpace(.sRGB) {
+                    under = [Double(b.redComponent), Double(b.greenComponent), Double(b.blueComponent)]
+                }
+                return (0..<3).map { i in
+                    let mixed: Double = top[i] * a + under[i] * (1 - a)
+                    return Int((mixed * 255).rounded())
+                }
+            }
+            let highlight = NSColor.selectedContentBackgroundColor
+            let pillRGB = rgb(pill, over: highlight)
+            let pillColor = NSColor(srgbRed: CGFloat(pillRGB[0]) / 255, green: CGFloat(pillRGB[1]) / 255, blue: CGFloat(pillRGB[2]) / 255, alpha: 1)
+            Self.lastHighlightedColors = ["highlight": rgb(highlight), "pill": pillRGB, "text": rgb(text, over: pillColor)]
+        }
+        var evidence: [String: Any] = screenRect(bounds)
+        evidence["capsule"] = screenRect(capsule)
+        evidence["label"] = badge ?? ""
+        evidence["nativeBadge"] = enclosingMenuItem?.badge != nil
+        evidence["highlighted"] = highlighted
+        if let colors = Self.lastHighlightedColors { evidence["colors"] = colors }
+        if let data = try? JSONSerialization.data(withJSONObject: evidence, options: [.sortedKeys]) {
+            try? data.write(to: URL(fileURLWithPath: path), options: .atomic)
+        }
+    }
+    #endif
 }

@@ -211,6 +211,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func menu(_ menu: NSMenu, willHighlight item: NSMenuItem?) {
+        // The row draws from isHighlighted, which changes right after this call; redraw
+        // now and once more after AppKit has moved the highlight.
+        loginToggle.view?.needsDisplay = true
+        DispatchQueue.main.async { [weak self] in self?.loginToggle.view?.needsDisplay = true }
+    }
+
+    func menuDidClose(_ menu: NSMenu) {
         loginToggle.view?.needsDisplay = true
     }
 
