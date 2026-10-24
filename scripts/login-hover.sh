@@ -23,14 +23,18 @@ shot() { screencapture -x -m "$out/$case-$1.png"; }
 for spec in light-blue:Light: dark-blue:Dark: light-yellow:Light:2 dark-graphite:Dark:-1 light-pink:Light:6; do
     IFS=: read -r case appearance accent <<< "$spec"
     args=(-AppleLanguages '(ja)' -AppleLocale ja_JP)
-    look=light
-    if [[ "$appearance" == Dark ]]; then look=dark; fi
+    # Menu-bar menus follow the system appearance, so switch the runner itself.
+    dark=false
+    if [[ "$appearance" == Dark ]]; then dark=true; fi
+    osascript -e "tell application \"System Events\" to tell appearance preferences to set dark mode to $dark"
+    sleep 2
+    echo "$case dark mode: $(defaults read -g AppleInterfaceStyle 2>/dev/null || echo Light)" >> "$out/environment.txt"
     if [[ -n "$accent" ]]; then args+=(-AppleAccentColor "$accent"); fi
     # Graphite also needs the graphite Aqua variant.
     if [[ "$accent" == -1 ]]; then args+=(-AppleAquaColorVariant 6); fi
     for path in slow-to-quit jump-to-quit down; do
         rm -f "$out/$case-geometry.json"
-        NSUnbufferedIO=YES KRADO_CI_APPEARANCE="$look" KRADO_CI_LOGIN_FAKE=off KRADO_CI_OPEN_MENU=1 \
+        NSUnbufferedIO=YES KRADO_CI_LOGIN_FAKE=off KRADO_CI_OPEN_MENU=1 \
             KRADO_CI_LOGIN_GEOMETRY="$out/$case-geometry.json" \
             dist/krado.app/Contents/MacOS/krado "${args[@]}" > "$out/$case-$path-app.log" 2>&1 &
         app_pid=$!
@@ -42,4 +46,5 @@ for spec in light-blue:Light: dark-blue:Dark: light-yellow:Light:2 dark-graphite
         cleanup
     done
 done
+osascript -e 'tell application "System Events" to tell appearance preferences to set dark mode to false' || true
 python3 scripts/check-login-hover.py "$out"

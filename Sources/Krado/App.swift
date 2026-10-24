@@ -109,9 +109,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         #if KRADO_CI_HOOKS
         let evidence = "Accessibility trusted: \(AXIsProcessTrusted())\n"
         FileHandle.standardOutput.write(Data(evidence.utf8))
-        if ProcessInfo.processInfo.environment["KRADO_CI_APPEARANCE"] == "dark" {
-            NSApp.appearance = NSAppearance(named: .darkAqua)
-        }
         if ProcessInfo.processInfo.environment["KRADO_CI_OPEN_MENU"] == "1" {
             Task { @MainActor [weak self] in
                 try? await Task.sleep(for: .seconds(2))
