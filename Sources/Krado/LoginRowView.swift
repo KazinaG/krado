@@ -5,11 +5,13 @@ import KradoCore
 final class LoginRowView: NSView {
     private let activate: () -> Void
     private let icon = NSImageView()
-    private let badgeCheckmark = NSImageView()
+    private let badgeSymbol = NSImageView()
     private var title = ""
     private var badge: String?
     private var enabled = true
     private var state: LoginItemState = .disabled
+    private var highlight = LoginRowStyle.Highlight()
+    private var pointerTracking: NSTrackingArea?
 
     private static var rowHeight: CGFloat {
         if #available(macOS 26, *) { return 24 }
@@ -34,10 +36,6 @@ final class LoginRowView: NSView {
         return 42
     }
 
-    private var badgeFont: NSFont {
-        NSFont.systemFont(ofSize: LoginBadgeMetrics.fontSize, weight: LoginBadgeMetrics.isBold ? .bold : .medium)
-    }
-
     init(activate: @escaping () -> Void) {
         self.activate = activate
         // The menu sizes itself from this initial width; 260/259 match the native row with a badge (CI menu-shots).
@@ -47,13 +45,10 @@ final class LoginRowView: NSView {
         icon.imageScaling = .scaleProportionallyUpOrDown
         icon.setAccessibilityElement(false)
         addSubview(icon)
-        badgeCheckmark.image = NSImage(systemSymbolName: "checkmark", accessibilityDescription: nil)?
-            .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 9, weight: .bold))
-        badgeCheckmark.image?.isTemplate = true
-        badgeCheckmark.imageScaling = .scaleProportionallyUpOrDown
-        badgeCheckmark.setAccessibilityElement(false)
-        badgeCheckmark.isHidden = true
-        addSubview(badgeCheckmark)
+        badgeSymbol.imageScaling = .scaleProportionallyUpOrDown
+        badgeSymbol.setAccessibilityElement(false)
+        badgeSymbol.isHidden = true
+        addSubview(badgeSymbol)
         // The enclosing menu item supplies the action and accessibility metadata.
         setAccessibilityElement(false)
     }
@@ -65,16 +60,19 @@ final class LoginRowView: NSView {
         self.badge = badge
         self.enabled = enabled
         self.state = state
-        let font = NSFont.menuFont(ofSize: 0)
-        let titleWidth = (title as NSString).size(withAttributes: [.font: font]).width
-        let style = LoginRowStyle.badge(state: state, highlighted: false, enabled: enabled)
-        let badgeWidth = badge.map {
-            LoginBadgeMetrics.capsuleWidth(textWidth: ($0 as NSString).size(withAttributes: [.font: badgeFont]).width, showsCheckmark: style.showsCheckmark)
-        } ?? 0
-        // Start the title at the native image-column boundary. Let the menu
-        // stretch this content-sized row to accommodate its other items.
-        let width = Self.titleX + titleWidth + (badge == nil ? 0 : 16 + badgeWidth) + 49
-        setFrameSize(NSSize(width: max(Self.nativeWidth, ceil(width)), height: Self.rowHeight))
+        // Size from the title once, before menu tracking. Never reset the frame
+        // while toggling: AppKit owns the stretched width of its view item.
+        if window == nil {
+            let titleWidth = (title as NSString).size(withAttributes: [.font: NSFont.menuFont(ofSize: 0)]).width
+            let width = Self.titleX + titleWidth + 16 + LoginBadgeMetrics.diameter + 49
+            let size = NSSize(width: max(Self.nativeWidth, ceil(width)), height: Self.rowHeight)
+            if frame.size != size { setFrameSize(size) }
+        }
+        badgeSymbol.image = LoginRowStyle.badge(state: state, highlighted: false, enabled: enabled).symbolName.flatMap {
+            NSImage(systemSymbolName: $0, accessibilityDescription: nil)?
+                .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: LoginBadgeMetrics.symbolSize, weight: .bold))
+        }
+        badgeSymbol.image?.isTemplate = true
         needsLayout = true
         needsDisplay = true
     }
@@ -82,7 +80,10 @@ final class LoginRowView: NSView {
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         needsDisplay = true
-        if window == nil { removeKeyMonitor() } else { installKeyMonitor() }
+        if window == nil {
+            highlight.menuDidClose()
+            removeKeyMonitor()
+        } else { installKeyMonitor() }
     }
 
     // Custom menu views lose AppKit's keyboard activation. While the menu is open,
@@ -122,7 +123,32 @@ final class LoginRowView: NSView {
 
     override func mouseUp(with event: NSEvent) {
         guard enabled, bounds.contains(convert(event.locationInWindow, from: nil)) else { return }
+        highlight.clickedInside()
         activate()
+        needsDisplay = true
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let pointerTracking { removeTrackingArea(pointerTracking) }
+        let area = NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self)
+        addTrackingArea(area)
+        pointerTracking = area
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        highlight.mouseExited()
+        needsDisplay = true
+    }
+
+    func menuWillHighlight(thisRow: Bool?) {
+        highlight.menuWillHighlight(thisRow: thisRow)
+        needsDisplay = true
+    }
+
+    func menuDidClose() {
+        highlight.menuDidClose()
+        needsDisplay = true
     }
 
     override func layout() {
@@ -132,8 +158,7 @@ final class LoginRowView: NSView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        // Only AppKit's highlight (shared by mouse and keyboard); no hover state of our own.
-        let highlighted = LoginRowStyle.isHighlighted(menuItemHighlighted: enclosingMenuItem?.isHighlighted == true, enabled: enabled)
+        let highlighted = highlight.isHighlighted(menuItemHighlighted: enclosingMenuItem?.isHighlighted == true, enabled: enabled)
         if highlighted {
             NSColor.selectedContentBackgroundColor.setFill()
             NSBezierPath(roundedRect: bounds.insetBy(dx: 5, dy: 0), xRadius: 4, yRadius: 4).fill()
@@ -147,40 +172,47 @@ final class LoginRowView: NSView {
         (title as NSString).draw(at: NSPoint(x: Self.titleX, y: (bounds.height - titleSize.height) / 2), withAttributes: attributes)
 
         var capsule = NSRect.zero
-        var pillColor = NSColor.clear, badgeColor = NSColor.clear
-        let style = LoginRowStyle.badge(state: state, highlighted: highlighted, enabled: enabled)
-        badgeCheckmark.isHidden = badge == nil || !style.showsCheckmark
-        if let badge {
+        var pillColor = NSColor.clear, badgeColor = NSColor.clear, ringColor = NSColor.clear
+        // Menu materials are translucent; use the appearance's window surface
+        // to choose opacity, then let screenshot CI verify the actual menu surface.
+        func rgb(_ color: NSColor) -> LoginRowStyle.RGB {
+            .init(Double(color.redComponent) * 255, Double(color.greenComponent) * 255, Double(color.blueComponent) * 255)
+        }
+        var offRingAlpha = 1.0
+        if let background = NSColor.windowBackgroundColor.usingColorSpace(.sRGB),
+           let label = NSColor.labelColor.usingColorSpace(.sRGB) {
+            offRingAlpha = LoginRowStyle.offRingAlpha(label: rgb(label), labelAlpha: Double(label.alphaComponent),
+                                                     background: rgb(background))
+        }
+        let style = LoginRowStyle.badge(state: state, highlighted: highlighted, enabled: enabled,
+                                       offRingAlpha: offRingAlpha)
+        badgeSymbol.isHidden = badge == nil || style.symbolName == nil
+        if badge != nil {
             badgeColor = Self.color(style.text)
             pillColor = Self.color(style.pill).withAlphaComponent(style.pillAlpha)
-            let attributes: [NSAttributedString.Key: Any] = [.font: badgeFont, .foregroundColor: badgeColor]
-            let size = (badge as NSString).size(withAttributes: attributes)
-            let width = LoginBadgeMetrics.capsuleWidth(textWidth: size.width, showsCheckmark: style.showsCheckmark)
-            let height = LoginBadgeMetrics.height
-            capsule = NSRect(x: (bounds.maxX - 17 - width).rounded(),
-                y: ((bounds.height - height) / 2).rounded(), width: width, height: height)
+            let height = LoginBadgeMetrics.diameter
+            capsule = NSRect(x: (bounds.maxX - 17 - height).rounded(),
+                y: ((bounds.height - height) / 2).rounded(), width: height, height: height)
             if style.fill {
                 pillColor.setFill()
                 NSBezierPath(roundedRect: capsule, xRadius: height / 2, yRadius: height / 2).fill()
-            } else {
-                pillColor.setStroke()
-                let outline = NSBezierPath(roundedRect: capsule.insetBy(dx: 0.5, dy: 0.5),
-                                           xRadius: (height - 1) / 2, yRadius: (height - 1) / 2)
-                outline.lineWidth = 1
+            }
+            if let ring = style.ring {
+                ringColor = Self.color(ring).withAlphaComponent(style.ringAlpha)
+                ringColor.setStroke()
+                let outline = NSBezierPath(roundedRect: capsule.insetBy(dx: LoginBadgeMetrics.strokeWidth / 2, dy: LoginBadgeMetrics.strokeWidth / 2),
+                                           xRadius: (height - LoginBadgeMetrics.strokeWidth) / 2, yRadius: (height - LoginBadgeMetrics.strokeWidth) / 2)
+                outline.lineWidth = LoginBadgeMetrics.strokeWidth
                 outline.stroke()
             }
-            let contentWidth = LoginBadgeMetrics.contentWidth(textWidth: size.width, showsCheckmark: style.showsCheckmark)
-            var x = LoginBadgeMetrics.textX(capsuleMinX: capsule.minX, capsuleWidth: width, textWidth: contentWidth)
-            if style.showsCheckmark {
-                badgeCheckmark.frame = NSRect(x: x, y: capsule.minY + (height - 9) / 2,
-                                              width: LoginBadgeMetrics.checkmarkWidth, height: 9)
-                badgeCheckmark.contentTintColor = badgeColor
-                x += LoginBadgeMetrics.checkmarkWidth + LoginBadgeMetrics.checkmarkGap
-            }
-            (badge as NSString).draw(at: NSPoint(x: x, y: capsule.minY + (height - size.height) / 2), withAttributes: attributes)
+            badgeSymbol.isHidden = style.symbolName == nil
+            let inset = LoginBadgeMetrics.symbolInset()
+            badgeSymbol.frame = capsule.insetBy(dx: inset, dy: inset)
+            badgeSymbol.contentTintColor = badgeColor
         }
         #if KRADO_CI_HOOKS
-        writeCIEvidence(highlighted: highlighted, capsule: capsule, pill: pillColor, text: badgeColor, style: style)
+        writeCIEvidence(highlighted: highlighted, capsule: capsule, pill: pillColor, text: badgeColor,
+                        ring: ringColor, style: style)
         print("KRADO_CI draw login label=\(badge ?? "none") highlighted=\(highlighted) frame=\(frame) dirty=\(dirtyRect)")
         #endif
     }
@@ -200,20 +232,23 @@ final class LoginRowView: NSView {
     }
 
     #if KRADO_CI_HOOKS
-    private static var lastHighlightedColors: [String: [Int]]?
-    private static var lastHighlightedFill = false
-    private static var lastHighlightedCheckmark = false
-
-    private func writeCIEvidence(highlighted: Bool, capsule: NSRect, pill: NSColor, text: NSColor, style: LoginRowStyle.Badge) {
+    private func writeCIEvidence(highlighted: Bool, capsule: NSRect, pill: NSColor, text: NSColor,
+                                 ring: NSColor, style: LoginRowStyle.Badge) {
         guard let path = ProcessInfo.processInfo.environment["KRADO_CI_LOGIN_GEOMETRY"], let window else { return }
         let screenTop = NSScreen.screens[0].frame.maxY
         func screenRect(_ local: NSRect) -> [String: Double] {
             let rect = window.convertToScreen(convert(local, to: nil))
             return ["x": rect.minX, "y": screenTop - rect.maxY, "width": rect.width, "height": rect.height]
         }
-        if highlighted {
-            // sRGB 0–255, including the recessed Off pill's black at 40% alpha
-            // composited over the highlight. Text is measured against that pill.
+        var evidence: [String: Any] = screenRect(bounds)
+        do {
+            // Current-draw sRGB, including the recessed fill and separate ring.
+            // Unhighlighted checks also composite raw inks over screenshot pixels
+            // because the menu material can differ from the nominal surface.
+            func rgba(_ color: NSColor) -> [Double] {
+                let c = color.usingColorSpace(.sRGB) ?? color
+                return [Double(c.redComponent) * 255, Double(c.greenComponent) * 255, Double(c.blueComponent) * 255, Double(c.alphaComponent)]
+            }
             func rgb(_ color: NSColor, over base: NSColor? = nil) -> [Int] {
                 let c = color.usingColorSpace(.sRGB) ?? color
                 let a = Double(c.alphaComponent)
@@ -227,21 +262,27 @@ final class LoginRowView: NSView {
                     return Int((mixed * 255).rounded())
                 }
             }
-            let highlight = NSColor.selectedContentBackgroundColor
-            let pillRGB = style.fill ? rgb(pill, over: highlight) : rgb(highlight)
+            let background = highlighted ? NSColor.selectedContentBackgroundColor : NSColor.windowBackgroundColor
+            let pillRGB = style.fill ? rgb(pill, over: background) : rgb(background)
             let pillColor = NSColor(srgbRed: CGFloat(pillRGB[0]) / 255, green: CGFloat(pillRGB[1]) / 255, blue: CGFloat(pillRGB[2]) / 255, alpha: 1)
-            Self.lastHighlightedFill = style.fill
-            Self.lastHighlightedCheckmark = style.showsCheckmark
-            Self.lastHighlightedColors = ["highlight": rgb(highlight), "pill": pillRGB, "text": rgb(text, over: pillColor)]
+            evidence["colors"] = ["background": rgb(background), "pill": pillRGB,
+                                  "text": rgb(text, over: pillColor), "ring": rgb(ring, over: pillColor)]
+            evidence["inks"] = ["pill": rgba(pill), "text": rgba(text), "ring": rgba(ring), "label": rgba(.labelColor)]
         }
-        var evidence: [String: Any] = screenRect(bounds)
         evidence["capsule"] = screenRect(capsule)
         evidence["label"] = badge ?? ""
+        evidence["state"] = state == .enabled ? "on" : state == .needsApproval ? "approval" : "off"
+        evidence["symbol"] = style.symbolName ?? ""
+        evidence["drawsStateText"] = false
+        evidence["menuItemHighlighted"] = enclosingMenuItem?.isHighlighted == true
+        evidence["pointerInsideSinceClick"] = highlight.pointerInsideSinceClick
         evidence["nativeBadge"] = enclosingMenuItem?.badge != nil
         evidence["highlighted"] = highlighted
-        evidence["highlightedFill"] = Self.lastHighlightedFill
-        evidence["highlightedCheckmark"] = Self.lastHighlightedCheckmark
-        if let colors = Self.lastHighlightedColors { evidence["colors"] = colors }
+        evidence["highlightedFill"] = style.fill
+        evidence["highlightedCheckmark"] = style.showsCheckmark
+        evidence["drawsRing"] = style.ring != nil
+        evidence["ringWidth"] = LoginBadgeMetrics.strokeWidth
+        evidence["ringInset"] = LoginBadgeMetrics.strokeWidth / 2
         if let data = try? JSONSerialization.data(withJSONObject: evidence, options: [.sortedKeys]) {
             try? data.write(to: URL(fileURLWithPath: path), options: .atomic)
         }

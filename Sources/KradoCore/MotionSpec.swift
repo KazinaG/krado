@@ -3,7 +3,7 @@ import CoreGraphics
 
 public enum MotionSpec {
     /// Moves and shrinks take 0.26 s; enlargements take 0.34 s.
-    /// Both use ease-out cubic timing, 1 − (1 − t)³, with rounded whole-point frames.
+    /// Both use the public Core Animation default curve with whole-point frames.
     /// `duration` is the longest glide and the default for callers without a duration.
     public static let moveDuration: TimeInterval = 0.26
     public static let growDuration: TimeInterval = 0.34
@@ -15,12 +15,37 @@ public enum MotionSpec {
     }
     public static let abortWriteMilliseconds: Double = 80
 
-    public static func easeOut(_ progress: Double) -> Double {
-        let t = min(1, max(0, progress))
-        return 1 - pow(1 - t, 3)
+    /// Public Core Animation default timing: cubic Bézier (0.25, 0.1), (0.25, 1).
+    /// That macOS Show Desktop uses this curve is an assumption.
+    public static func defaultTiming(_ progress: Double) -> Double {
+        let x = min(1, max(0, progress))
+        guard x > 0, x < 1 else { return x }
+        func bezier(_ t: Double, _ a: Double, _ b: Double) -> Double {
+            let u = 1 - t
+            return 3 * u * u * t * a + 3 * u * t * t * b + t * t * t
+        }
+        var t = x
+        // Newton converges quickly for this curve; retain a bracket for bisection.
+        var lower = 0.0, upper = 1.0
+        for _ in 0..<8 {
+            let error = bezier(t, 0.25, 0.25) - x
+            if abs(error) < 1e-9 { return bezier(t, 0.1, 1) }
+            if error < 0 { lower = t } else { upper = t }
+            let derivative = 0.75 * (1 - t) * (1 - t) + 2.25 * t * t
+            let next = t - error / derivative
+            if next <= lower || next >= upper { break }
+            t = next
+        }
+        for _ in 0..<32 {
+            t = (lower + upper) / 2
+            let value = bezier(t, 0.25, 0.25)
+            if abs(value - x) < 1e-9 { break }
+            if value < x { lower = t } else { upper = t }
+        }
+        return bezier(t, 0.1, 1)
     }
     public static func frame(from: CGRect, to: CGRect, progress: Double) -> CGRect {
-        let t = CGFloat(easeOut(progress))
+        let t = CGFloat(defaultTiming(progress))
         func mix(_ a: CGFloat, _ b: CGFloat) -> CGFloat { (a + (b - a) * t).rounded() }
         return CGRect(x: mix(from.minX, to.minX), y: mix(from.minY, to.minY),
                       width: mix(from.width, to.width), height: mix(from.height, to.height))
@@ -60,20 +85,11 @@ public enum MotionSpec {
         return steps
     }
 
-    /// Check each write before issuing another. A slow, lagging or clamped resize
-    /// ends the glide immediately; never move a stale-size window toward an anchor.
-    /// Size timings accumulate across the shrink/grow bridge within this frame.
-    /// Position-only moves retain the 80 ms abort budget.
-    public static func action(after step: Step, success: Bool, writeMilliseconds: Double,
-                              totalSizeWriteMilliseconds: Double, actualSize: CGSize?,
-                              refreshRate: Int) -> StepAction {
+    /// Only a failed AX write or a single hung write ends the glide early.
+    /// Slow callbacks skip frames on the same wall-clock curve. Read-back size
+    /// differences (including lag, rounding and clamping) never change this decision.
+    public static func action(success: Bool, writeMilliseconds: Double) -> StepAction {
         guard success, writeMilliseconds <= abortWriteMilliseconds else { return .snapToDestination }
-        if case .size(let requested) = step {
-            guard let actualSize,
-                  totalSizeWriteMilliseconds <= frameInterval(refreshRate: refreshRate) * 1000,
-                  abs(requested.width - actualSize.width) <= 2,
-                  abs(requested.height - actualSize.height) <= 2 else { return .snapToDestination }
-        }
         return .continueGlide
     }
 

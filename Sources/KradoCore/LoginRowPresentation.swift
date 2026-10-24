@@ -4,6 +4,7 @@ public struct LoginRowPresentation: Equatable, Sendable {
     public static let keepsMenuOpenOnToggle = true
     public let title = "Launch at Login"
     public let stateText: String
+    /// Localized state text for accessibility/evidence; the view draws only its mark.
     public let badge: String?
     public let enabled: Bool
 

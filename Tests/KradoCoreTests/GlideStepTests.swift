@@ -2,126 +2,154 @@ import Foundation
 import Testing
 @testable import KradoCore
 
-@Suite("Glide step fallback")
+@Suite("Time-based glide with fake AX windows and clock")
 struct GlideStepTests {
     private enum Behavior: Equatable {
-        case follows, slow, lagging, clamped, resizeMovesOrigin
+        case fast, slow, lagging, rounding, clamped, resizeMovesOrigin, failed, hung
+
+        func size(_ requested: CGSize) -> CGSize {
+            switch self {
+            case .rounding:
+                CGSize(width: (requested.width / 7).rounded() * 7,
+                       height: (requested.height / 15).rounded() * 15)
+            case .clamped:
+                CGSize(width: min(1000, requested.width), height: min(600, requested.height))
+            default: requested
+            }
+        }
     }
 
-    private enum Event: Equatable {
-        case write(MotionSpec.Step)
-        case snap(CGRect)
+    private struct Clock {
+        var now = 0.0
+        let interval = 1 / 60.0
+        mutating func nextCallback() {
+            now = (floor((now + 1e-9) / interval) + 1) * interval
+        }
+    }
+
+    private struct Placement {
+        let time: Double
+        let requested: CGRect
+        let actual: CGRect
     }
 
     private struct FakeWindow {
         var frame: CGRect
-        var events: [Event] = []
-        var completedFrames: [CGRect] = []
+        var placements: [Placement] = []
+        var destinationRequests: [CGRect] = []
+        var clock = Clock()
+        var lastWriteDuration = 0.0
+        var writes = 0
 
-        mutating func glide(from start: CGRect, to destination: CGRect, behavior: Behavior) {
-            for tick in 1...20 {
-                let requested = MotionSpec.frame(from: start, to: destination, progress: Double(tick) / 20)
-                var sizeMilliseconds = 0.0
-                for step in MotionSpec.steps(from: frame, to: requested) {
-                    guard step.isNeeded(in: frame) else { continue }
-                    events.append(.write(step))
-                    var milliseconds = 1.0
+        mutating func glide(to target: CGRect, behavior: Behavior) {
+            let start = frame
+            let duration = MotionSpec.duration(from: start, to: target)
+            func finish(_ window: inout FakeWindow) {
+                // Exactly one final placement request, even when the app refuses
+                // the target's size. AX success cannot override an app's max size.
+                window.destinationRequests.append(target)
+                window.frame = CGRect(origin: target.origin, size: behavior.size(target.size))
+            }
+            clock.nextCallback()
+            while clock.now < duration {
+                let sampledTime = clock.now
+                let requested = MotionSpec.frame(from: start, to: target, progress: sampledTime / duration)
+                // Lagging read-back reports the original size throughout the glide.
+                var current = behavior == .lagging ? CGRect(origin: frame.origin, size: start.size) : frame
+                var needsOriginCorrection = false
+                for step in MotionSpec.steps(from: current, to: requested) {
+                    if clock.now >= duration { finish(&self); return }
+                    let forcePosition: Bool
+                    if case .position = step { forcePosition = needsOriginCorrection } else { forcePosition = false }
+                    guard forcePosition || step.isNeeded(in: current) else { continue }
+                    writes += 1
+                    let milliseconds: Double = behavior == .hung ? 81 : behavior == .slow ? Double(20 + (writes % 3) * 10) : 1
+                    lastWriteDuration = milliseconds / 1000
+                    clock.now += lastWriteDuration
                     switch step {
-                    case .position(let point): frame.origin = point
                     case .size(let size):
-                        // Fail only after several successful frames, to catch a fallback
-                        // that quietly continues the rest of an already-started glide.
-                        let fault = tick >= 4
-                        if fault && behavior == .slow { milliseconds = 20 }
-                        if !fault || (behavior != .lagging && behavior != .clamped) { frame.size = size }
+                        frame.size = behavior.size(size)
                         if behavior == .resizeMovesOrigin { frame.origin.x += 7; frame.origin.y += 5 }
-                        sizeMilliseconds += milliseconds
+                        current.size = size
+                        needsOriginCorrection = true
+                    case .position(let point):
+                        frame.origin = point
+                        current.origin = point
+                        needsOriginCorrection = false
                     }
-                    let action = MotionSpec.action(after: step, success: true, writeMilliseconds: milliseconds,
-                                                   totalSizeWriteMilliseconds: sizeMilliseconds,
-                                                   actualSize: frame.size, refreshRate: 60)
-                    if action == .snapToDestination {
-                        // A single destination placement request, with no further glide
-                        // position write. A clamping app may still refuse the final size.
-                        events.append(.snap(destination))
-                        frame.origin = destination.origin
-                        if behavior != .clamped { frame.size = destination.size }
+                    if MotionSpec.action(success: behavior != .failed, writeMilliseconds: milliseconds) == .snapToDestination {
+                        finish(&self)
                         return
                     }
                 }
-                // AX size and position are separate writes. Record each completed
-                // display step; the shrink/move/grow bridge is tested separately.
-                completedFrames.append(frame)
+                placements.append(Placement(time: sampledTime, requested: requested, actual: frame))
+                if clock.now >= duration { finish(&self); return }
+                clock.nextCallback()
             }
+            finish(&self)
         }
     }
 
-    @Test("Small-window growth snaps immediately on slow, lagging or clamped size writes")
-    func failedGrowthNeverSlidesAStaleSize() {
-        // Geometry fixtures independent of GridPolicy: 2×2 cells, each 640×360.
-        // The first target spans the full display height; the second is interior.
-        // Both formerly used a centre anchor on at least one axis.
-        let fullHeightGrid = GridGeometry(workArea: CGRect(x: 0, y: 0, width: 2560, height: 720),
-                                          layout: GridLayout(columns: 4, rows: 2))
-        let interiorGrid = GridGeometry(workArea: CGRect(x: 0, y: 0, width: 2560, height: 1440),
-                                        layout: GridLayout(columns: 4, rows: 4))
+    @Test("Every responsive app glides through 4x growth, including full-height targets")
+    func growthKeepsItsTimeAndRequestedOrigin() {
         let cases = [
-            (CGRect(x: 1920, y: 360, width: 640, height: 360),
-             fullHeightGrid.frame(for: GridSpan(columns: 0..<2, rows: 0..<2))),
-            (CGRect(x: 1920, y: 1080, width: 640, height: 360),
-             interiorGrid.frame(for: GridSpan(columns: 1..<3, rows: 1..<3)))
+            (CGRect(x: 1920, y: 360, width: 640, height: 360), CGRect(x: 0, y: 0, width: 1280, height: 720)),
+            (CGRect(x: 1920, y: 1080, width: 640, height: 360), CGRect(x: 640, y: 360, width: 1280, height: 720))
         ]
         for (start, target) in cases {
-            #expect(target.width == start.width * 2)
-            #expect(target.height == start.height * 2)
-            for behavior in [Behavior.slow, .lagging, .clamped] {
-                var fake = FakeWindow(frame: start)
-                fake.glide(from: start, to: target, behavior: behavior)
-                #expect(fake.completedFrames.count == 3)
-                for (index, frame) in fake.completedFrames.enumerated() {
-                    #expect(frame == MotionSpec.frame(from: start, to: target, progress: Double(index + 1) / 20))
-                }
-                #expect(fake.events.last == .snap(target))
-                #expect(fake.events.filter { if case .snap = $0 { true } else { false } }.count == 1)
-                // The rejected resize is followed immediately by the destination.
-                if fake.events.count >= 2 {
-                    let beforeSnap = fake.events[fake.events.count - 2]
-                    if case .write(.size) = beforeSnap {} else { Issue.record("Moved after a rejected size write") }
-                }
-                #expect(fake.frame.origin == target.origin)
-                if behavior != .clamped { #expect(fake.frame == target) }
+            for behavior in [Behavior.fast, .slow, .lagging, .rounding, .clamped, .resizeMovesOrigin] {
+                check(start: start, target: target, behavior: behavior)
             }
         }
     }
 
-    @Test("Healthy growth, horizontal and vertical stretches keep every interpolated frame")
-    func healthyWindowsKeepGliding() {
+    @Test("Horizontal, vertical, mixed-axis shrink/grow and move paths")
+    func otherPaths() {
         let start = CGRect(x: 1920, y: 1080, width: 640, height: 360)
-        for target in [CGRect(x: 640, y: 360, width: 1280, height: 720),
-                       CGRect(x: 1280, y: 1080, width: 1280, height: 360),
+        for target in [CGRect(x: 1280, y: 1080, width: 1280, height: 360),
                        CGRect(x: 1920, y: 720, width: 640, height: 720),
+                       CGRect(x: 640, y: 360, width: 800, height: 200),
+                       CGRect(x: 640, y: 360, width: 320, height: 180),
                        start.offsetBy(dx: -640, dy: -360)] {
-            for behavior in [Behavior.follows, .resizeMovesOrigin] {
-                var fake = FakeWindow(frame: start)
-                fake.glide(from: start, to: target, behavior: behavior)
-                #expect(fake.completedFrames.count == 20)
-                #expect(!fake.events.contains(.snap(target)))
-                for (index, frame) in fake.completedFrames.enumerated() {
-                    #expect(frame == MotionSpec.frame(from: start, to: target, progress: Double(index + 1) / 20))
-                }
-                #expect(fake.frame == target)
+            for behavior in [Behavior.fast, .slow, .resizeMovesOrigin] {
+                check(start: start, target: target, behavior: behavior)
             }
         }
     }
 
-    @Test("A refused shrink bridge snaps before moving")
-    func refusedBridgeDoesNotMove() {
-        let actual = CGRect(x: 600, y: 600, width: 500, height: 500)
-        let requested = CGRect(x: 0, y: 0, width: 800, height: 200)
-        let steps = MotionSpec.steps(from: actual, to: requested)
-        #expect(steps.first == .size(CGSize(width: 500, height: 200)))
-        let action = MotionSpec.action(after: steps[0], success: true, writeMilliseconds: 1,
-                                       totalSizeWriteMilliseconds: 1, actualSize: actual.size, refreshRate: 60)
-        #expect(action == .snapToDestination)
+    private func check(start: CGRect, target: CGRect, behavior: Behavior) {
+        var fake = FakeWindow(frame: start)
+        fake.glide(to: target, behavior: behavior)
+        #expect(fake.placements.count >= 2)
+        for placement in fake.placements {
+            let curve = MotionSpec.frame(from: start, to: target,
+                                         progress: placement.time / MotionSpec.duration(from: start, to: target))
+            #expect(placement.requested == curve)
+            #expect(abs(placement.actual.minX - curve.minX) <= 1)
+            #expect(abs(placement.actual.minY - curve.minY) <= 1)
+            #expect(placement.actual.size == behavior.size(curve.size))
+        }
+        #expect(fake.destinationRequests == [target])
+        #expect(fake.frame.origin == target.origin)
+        #expect(fake.frame.size == behavior.size(target.size))
+        // Display quantisation, or one in-flight write, can cross the deadline.
+        let duration = MotionSpec.duration(from: start, to: target)
+        #expect(fake.clock.now >= duration)
+        #expect(fake.clock.now <= duration + max(fake.clock.interval, fake.lastWriteDuration) + 1e-9)
+    }
+
+    @Test("An AX error or a single write over 80 ms immediately attempts the destination once")
+    func abortsOnlyForErrorOrHungWrite() {
+        let start = CGRect(x: 1920, y: 360, width: 640, height: 360)
+        let target = CGRect(x: 0, y: 0, width: 1280, height: 720)
+        for behavior in [Behavior.failed, .hung] {
+            var fake = FakeWindow(frame: start)
+            fake.glide(to: target, behavior: behavior)
+            #expect(fake.writes == 1)
+            #expect(fake.placements.isEmpty)
+            #expect(fake.destinationRequests == [target])
+            #expect(fake.frame == target)
+            #expect(fake.clock.now < MotionSpec.growDuration)
+        }
     }
 }

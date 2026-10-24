@@ -1,7 +1,7 @@
 name: Login row hover
 
 # Real menu, real pointer: the Launch at Login row must lose its highlight when the
-# pointer or keyboard moves on, and its On/Off badge must stay readable while highlighted.
+# pointer or keyboard moves on, retain highlight after a click, and show contrasting state marks.
 on:
   push:
     paths:

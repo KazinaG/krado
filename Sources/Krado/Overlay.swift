@@ -83,7 +83,7 @@ private final class GridView: NSView {
             animation.fromValue = from
             animation.toValue = to
             animation.duration = duration
-            animation.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            animation.timingFunction = CAMediaTimingFunction(name: .default)
             highlight.add(animation, forKey: key)
         }
         animate("position", visible ? oldPosition : highlight.position, highlight.position)

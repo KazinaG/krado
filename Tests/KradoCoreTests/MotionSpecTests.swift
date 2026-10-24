@@ -6,14 +6,18 @@ import Testing
 struct MotionSpecTests {
     @Test("Easing and rounded interpolation")
     func easingAndRoundedInterpolation() {
-        #expect(MotionSpec.easeOut(-1) == 0)
-        #expect(MotionSpec.easeOut(2) == 1)
-        #expect(MotionSpec.easeOut(0.5) == 0.875)
+        #expect(MotionSpec.defaultTiming(0) == 0)
+        #expect(MotionSpec.defaultTiming(1) == 1)
+        #expect(MotionSpec.defaultTiming(-1) == 0)
+        #expect(MotionSpec.defaultTiming(2) == 1)
+        #expect(abs(MotionSpec.defaultTiming(0.5) - 0.8024) < 0.002)
+        let samples = (0...1000).map { MotionSpec.defaultTiming(Double($0) / 1000) }
+        for (a, b) in zip(samples, samples.dropFirst()) { #expect(b >= a) }
         let a = CGRect(x: -100, y: 0, width: 300, height: 200)
         let b = CGRect(x: 100, y: 80, width: 600, height: 400)
         #expect(MotionSpec.frame(from: a, to: b, progress: 0) == a)
         #expect(MotionSpec.frame(from: a, to: b, progress: 1) == b)
-        #expect(MotionSpec.frame(from: a, to: b, progress: 0.5).origin.x == 75)
+        #expect(MotionSpec.frame(from: a, to: b, progress: 0.5).origin.x == 60)
     }
 
     @Test("Display budget")
@@ -26,28 +30,12 @@ struct MotionSpecTests {
 
     @Test("Per-write fallback boundaries")
     func fallbackBoundaries() {
-        let size = CGSize(width: 500, height: 400)
-        func action(_ milliseconds: Double, _ actual: CGSize? = CGSize(width: 500, height: 400),
-                    rate: Int = 60, total: Double? = nil, success: Bool = true) -> MotionSpec.StepAction {
-            MotionSpec.action(after: .size(size), success: success, writeMilliseconds: milliseconds,
-                              totalSizeWriteMilliseconds: total ?? milliseconds, actualSize: actual, refreshRate: rate)
-        }
         #expect(MotionSpec.abortWriteMilliseconds == 80)
-        #expect(action(1000 / 60.0) == .continueGlide)
-        #expect(action(1000 / 60.0 + 0.01) == .snapToDestination)
-        #expect(action(10, rate: 60) == .continueGlide)
-        #expect(action(10, rate: 120) == .snapToDestination)
-        #expect(action(8, total: 17) == .snapToDestination)
-        #expect(action(0, CGSize(width: 502, height: 398)) == .continueGlide)
-        #expect(action(0, CGSize(width: 502.01, height: 400)) == .snapToDestination)
-        #expect(action(0, CGSize(width: 500, height: 397.99)) == .snapToDestination)
-        #expect(action(0, nil) == .snapToDestination)
-        #expect(action(0, success: false) == .snapToDestination)
-        #expect(action(1, rate: 0) == .continueGlide)
-        for (milliseconds, expected) in [(80.0, MotionSpec.StepAction.continueGlide), (80.01, .snapToDestination)] {
-            #expect(MotionSpec.action(after: .position(.zero), success: true, writeMilliseconds: milliseconds,
-                                      totalSizeWriteMilliseconds: 0, actualSize: nil, refreshRate: 60) == expected)
+        for milliseconds in [0.0, 10, 20, 40, 80] {
+            #expect(MotionSpec.action(success: true, writeMilliseconds: milliseconds) == .continueGlide)
         }
+        #expect(MotionSpec.action(success: true, writeMilliseconds: 80.01) == .snapToDestination)
+        #expect(MotionSpec.action(success: false, writeMilliseconds: 1) == .snapToDestination)
     }
 
     @Test("Growing is slower than moving")
@@ -56,7 +44,7 @@ struct MotionSpecTests {
         #expect(MotionSpec.duration(from: cell, to: cell.offsetBy(dx: 640, dy: 0)) == MotionSpec.moveDuration)
         #expect(MotionSpec.duration(from: cell, to: CGRect(x: 0, y: 0, width: 1280, height: 1440)) == MotionSpec.growDuration)
         #expect(MotionSpec.duration(from: CGRect(x: 0, y: 0, width: 1280, height: 1440), to: cell) == MotionSpec.moveDuration)
-        #expect(MotionSpec.moveDuration > 0.20)
-        #expect(MotionSpec.growDuration > MotionSpec.moveDuration)
+        #expect(MotionSpec.moveDuration == 0.26)
+        #expect(MotionSpec.growDuration == 0.34)
     }
 }

@@ -10,17 +10,27 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Changed
 
-- The installer opens in a light 700 × 450 pt window with square cards, 144 pt icons, a gradient wordmark, a mint Applications card and a centred dotted arrow with a rounded head.
-- Launch at Login shows On, Off or Needs approval at the right end of its row. On has a filled pill (white while highlighted) with a checkmark; Off has an outlined pill that fills darker than the highlight, with white text and no checkmark. Choosing the row changes the state without closing the menu, and VoiceOver announces it. Only the current state is drawn, and the highlight follows the pointer or keyboard to the next item.
-- Windows glide into their zones with ease-out motion: moves and shrinks take 0.26 s and enlargements take 0.34 s. Placement is immediate with Reduce Motion or when an app cannot resize smoothly. During a drag, the zone highlight slides between cells.
-- The menu is divided into Status, Startup and krado sections, with Quit krado at the bottom and available via ⌘Q. Status shows Accessibility permission and whether window drags can snap. Menu actions have icons that follow Light and Dark appearance, including Reload Displays. Display names and grids appear only when two or more displays are connected.
-- The grid halves the whole screen across and down while each zone remains at least 640 pt wide and 720 pt tall, up to 8 columns and 4 rows. Showing or hiding the Dock or menu bar no longer changes it. For example, 1920 × 1080 uses 2 × 1; 2560 × 1440 and 3008-pt-wide displays, including 6K at its default size, use 4 × 2; native-size 6K uses 8 × 4.
+- The installer has a light background, square app cards, a colorful krado logo and a mint Applications card linked by a dotted arrow.
+- Launch at Login uses a filled circle with ✓ for on, an empty circle for off and ! for approval needed, without On/Off words.
+- Launch at Login can be toggled without closing the menu, and VoiceOver announces its state.
+- Every window glides into its snap position the same way, including when enlarging, in about a third of a second.
+- Windows snap immediately when Reduce Motion is enabled.
+- The selected zone glides smoothly between cells while dragging.
+- The menu groups status and startup settings, with Quit krado at the bottom and available via ⌘Q.
+- Menu status shows whether krado has permission to move windows and can snap dragged windows.
+- Menu actions, including Reload Displays, have icons suited to Light and Dark appearance.
+- Display names and grids appear in the menu only when multiple displays are connected.
+- Snap zones divide the full screen evenly, up to 8 columns and 4 rows, while keeping each zone at least 640 × 720 points.
+- Showing or hiding the Dock or menu bar leaves the snap grid unchanged.
 
 ### Fixed
 
-- The installer shows the correct background even when another version's disk image is open. Its cards and labels fit with Finder's Path Bar, Status Bar and filename extensions visible. Disk names include the version so Finder can distinguish their backgrounds.
+- Launch at Login stays highlighted after clicking while the pointer remains on the row, and clears when another item is selected.
+- The installer shows the correct background even when another version’s disk image is open.
+- Installer cards and labels fit with Finder’s Path Bar, Status Bar and filename extensions visible.
 - Menu icons remain visible on macOS 27.
-- Enlarging a small window across several zones no longer slides it toward the centre at its old size before expanding at the end. If resizing is slow, delayed or constrained, krado immediately attempts the destination placement. Normal resizing shrinks before moving and grows at the new origin to avoid jolts near screen edges.
+- Enlarging a small window across several zones no longer slides it toward the center before suddenly expanding.
+- Snapping avoids abrupt jumps near screen edges and glides smoothly even when an app delays resizing or limits window sizes.
 
 ## [0.1.0] - 2026-10-20
 

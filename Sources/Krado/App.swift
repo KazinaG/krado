@@ -213,12 +213,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menu(_ menu: NSMenu, willHighlight item: NSMenuItem?) {
         // The row draws from isHighlighted, which changes right after this call; redraw
         // now and once more after AppKit has moved the highlight.
+        (loginToggle.view as? LoginRowView)?.menuWillHighlight(thisRow: item.map { $0 === loginToggle })
         loginToggle.view?.needsDisplay = true
         DispatchQueue.main.async { [weak self] in self?.loginToggle.view?.needsDisplay = true }
     }
 
     func menuDidClose(_ menu: NSMenu) {
-        loginToggle.view?.needsDisplay = true
+        (loginToggle.view as? LoginRowView)?.menuDidClose()
     }
 
     func menuWillOpen(_ menu: NSMenu) {
@@ -337,13 +338,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let row = LoginRowPresentation(state: state, installed: installed)
         let title = L10n.text(row.title)
         let value = L10n.text(row.stateText)
-        loginToggle.title = title
-        loginToggle.state = .off
-        loginToggle.isEnabled = row.enabled
+        if loginToggle.title != title { loginToggle.title = title }
+        if loginToggle.state != .off { loginToggle.state = .off }
+        if loginToggle.isEnabled != row.enabled { loginToggle.isEnabled = row.enabled }
         #if !KRADO_LOGIN_SWITCH_PROBE
-        loginToggle.image = symbol("power")
+        if loginToggle.image == nil { loginToggle.image = symbol("power") }
         #endif
-        loginToggle.badge = nil
+        if loginToggle.badge != nil { loginToggle.badge = nil }
         loginToggle.setAccessibilityLabel(title + "、" + value)
         loginToggle.setAccessibilityValue(value)
         (loginToggle.view as? LoginRowView)?.update(title: title, badge: row.badge.map { L10n.text($0) }, state: state, enabled: row.enabled)
@@ -362,18 +363,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         print("KRADO_CI login badge=\(row.badge.map { L10n.text($0) } ?? "none") state=\(loginToggle.state == .off ? "off" : "on") axLabel=\(loginToggle.accessibilityLabel() ?? "") axValue=\(loginToggle.accessibilityValue() ?? "")")
         #endif
         #endif
+        let hint: String?
         switch LoginItemPolicy.hint(state: state, installedInApplications: installed) {
-        case .allowInSettings:
-            loginHint.title = L10n.text("Allow krado in System Settings → Login Items")
-            loginHint.isHidden = false
-        case .moveToApplications:
-            loginHint.title = L10n.text("Move krado to Applications to launch at login")
-            loginHint.isHidden = false
-        case nil:
-            loginHint.isHidden = true
+        case .allowInSettings: hint = L10n.text("Allow krado in System Settings → Login Items")
+        case .moveToApplications: hint = L10n.text("Move krado to Applications to launch at login")
+        case nil: hint = nil
         }
-        loginError.title = loginItem.errorMessage.map { L10n.format("⚠︎ Launch at Login: %@", $0) } ?? ""
-        loginError.isHidden = loginItem.errorMessage == nil
+        if let hint, loginHint.title != hint { loginHint.title = hint }
+        if loginHint.isHidden != (hint == nil) { loginHint.isHidden = hint == nil }
+        let error = loginItem.errorMessage.map { L10n.format("⚠︎ Launch at Login: %@", $0) } ?? ""
+        if loginError.title != error { loginError.title = error }
+        if loginError.isHidden != (loginItem.errorMessage == nil) { loginError.isHidden = loginItem.errorMessage == nil }
     }
 
     @objc private func checkForUpdates() {

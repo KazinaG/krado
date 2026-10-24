@@ -55,19 +55,39 @@ Display-name rows appear only when two or more displays are connected.
 Quit follows a separator without a heading. Status rows use standard attributed
 secondary lines and palette SF Symbols.
 
-Launch at Login uses a leading `power.circle` image and a trailing
-`NSMenuItemBadge` showing On / Off / Needs approval, with no checkmark. Its
-accessibility label is "<title>、<state>" and its value is <state>. State is read
-from `SMAppService.mainApp.status` on every menu opening and after toggling.
-Approval is a separate visible state. `LoginRowPresentation` keeps the mapping
+Launch at Login uses a custom menu view with a leading `power` image and a
+fixed 16-point round state indicator. On is filled with a bold checkmark (white
+circle and #1C1C1E checkmark while highlighted); Off is a hollow ring, filled
+black at 40% over the highlight with a 1-point white ring inset 0.5 points while
+highlighted. The unhighlighted label-color ring keeps its 45% opacity when it
+meets contrast, otherwise uses full opacity. Approval has a faint fill and
+an exclamation mark; its hint appears below the row. State words are only for
+accessibility: label "<title>、<state>" and value <state>. The row's width depends
+on the title and fixed indicator, never the state, and is not reset during a
+toggle. ServiceManagement status is refreshed on opening and after toggling.
+`LoginRowPresentation`, `LoginBadgeMetrics` and `LoginRowStyle` keep these rules
 pure and tested.
 
-Production rows have no `NSMenuItem.view`: Apple's [Views in Menu Items](https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/MenuList/Articles/ViewsInMenuItems.html)
-explains that a view item does not draw its title or state and does not support
-keyboard events. Native rows retain system material, highlighting, navigation and
-VoiceOver. `KRADO_LOGIN_SWITCH_PROBE=1` is an evidence-only build with a standard
-NSSwitch and label in a view, with acceptsFirstMouse enabled; it is never offered
-to users. CI screenshots must establish its actual appearance and keyboard behavior.
+Contrast is at least 3:1 for the On checkmark against its circle, and for the
+highlighted Off white ring against the composited inner fill. Unhighlighted Off
+compares the ring with the menu background, targeting the lesser of 3:1 and
+native label ink contrast on that background. No circle-to-accent contrast is
+required: macOS's own white menu text on the yellow accent is only 2.08:1.
+The opacity choice uses the appearance's nominal window surface; screenshot CI
+also checks against the actual translucent menu background. CI records separate
+fill, ring, symbol and native label inks in every draw, plus ring width and inset.
+
+The custom row keeps the menu open on a click and monitors Return/Enter/Space
+for keyboard activation. AppKit owns the menu highlight. If AppKit drops its
+custom-view highlight after mouse-up, a bounded pointer-since-click state keeps
+the row highlighted. Mouse exit, another menu item being highlighted (including
+keyboard navigation), menu close or view detachment clears that state. Another
+item's selection suppresses even a stale AppKit highlight bit, so there cannot
+be a second highlighted row. The real-menu CI check captures click-stay after
+0.5 seconds in both toggle directions and then moves to Quit. The CI-only
+`KRADO_CI_LOGIN_FAKE` hook flips only through the real row action, without changing
+ServiceManagement. `KRADO_LOGIN_SWITCH_PROBE=1` remains an evidence-only NSSwitch
+build, never offered to users.
 
 `KRADO_CI_HOOKS=1` compiles runner-only hooks. `KRADO_CI_LOGIN=on|off` performs real
 registration/unregistration before opening the menu, logs errors, raw service status
@@ -95,7 +115,7 @@ An invalidated window, screen reload, permission loss, or disabled tap clears th
 
 ## Open at login
 
-The app uses `ServiceManagement.SMAppService.mainApp`. Launch at Login is **off by default**: krado never registers itself. The welcome/permission guide offers it as one optional button (`LoginItemPolicy.onboardingOffer`): **Launch krado at Login** when it can be registered, **Open Login Items Settings…** while macOS waits for approval, a hint when krado is outside Applications, and a confirmation when it is already on. After Accessibility is granted the guide stays open (with **Done**) only while the button is still useful; otherwise it closes itself. The menu's Launch at Login row (power icon and an On / Off / Needs approval label, no checkmark) does the same registration. Registration/unregistration failures are retained as localized menu errors and never crash the app. The menu refreshes service status when opened: `.enabled` is shown as on, `.requiresApproval` shows a distinct approval state and hint and opens `SMAppService.openSystemSettingsLoginItems()`, `.notRegistered` is off, and `.notFound` is treated as off.
+The app uses `ServiceManagement.SMAppService.mainApp`. Launch at Login is **off by default**: krado never registers itself. The welcome/permission guide offers it as one optional button (`LoginItemPolicy.onboardingOffer`): **Launch krado at Login** when it can be registered, **Open Login Items Settings…** while macOS waits for approval, a hint when krado is outside Applications, and a confirmation when it is already on. After Accessibility is granted the guide stays open (with **Done**) only while the button is still useful; otherwise it closes itself. The menu's Launch at Login row (power icon and a round state mark) does the same registration. Registration/unregistration failures are retained as localized menu errors and never crash the app. The menu refreshes service status when opened: `.enabled` is shown as on, `.requiresApproval` shows a distinct approval state and hint and opens `SMAppService.openSystemSettingsLoginItems()`, `.notRegistered` is off, and `.notFound` is treated as off.
 
 Registration is offered only if `Bundle.main.bundlePath` is inside `/Applications/` or the current user's `~/Applications/` and not under `/AppTranslocation/` (quarantined downloads may run translocated). Otherwise the guide and menu say **Move krado to Applications to launch at login**; an existing registration can still be turned off. `LoginItemPolicy` keeps these pure decisions in KradoCore, normalizes `..`, checks folder boundaries, and is tested without ServiceManagement.
 
@@ -143,40 +163,45 @@ v0.1 does not force apps past size constraints, verify the final applied AX fram
 
 ## Motion
 
-The window glides from its drop frame to the zone with ease-out cubic timing,
-`1 - (1 - t)^3`. Moves and shrinks take 0.26 seconds; enlargements take 0.34 seconds.
-These durations give enlargements more time than moves. The desired feel is closer
-to macOS Show Desktop; see [NEXT_RELEASE.md](NEXT_RELEASE.md) for comparison checks.
+The window glides from its drop frame to the zone using the public Core Animation
+default timing function: cubic Bézier control points (0.25, 0.1), (0.25, 1.0).
+`MotionSpec.defaultTiming` solves x(t) by Newton iteration with a bisection fallback
+and returns y(t). That Show Desktop uses this curve is an assumption, not a claim
+about its implementation. Moves and shrinks take 0.26 seconds; enlargements take
+0.34 seconds. See [NEXT_RELEASE.md](NEXT_RELEASE.md) for comparison checks.
 A main-run-loop `NSScreen.displayLink(target:selector:)` (public since macOS 14)
-drives whole-point AX steps. Progress is elapsed wall-clock time divided by the
-selected duration: slow AX writes produce fewer frames, never extra animation time.
+drives whole-point AX steps. Each callback samples elapsed wall-clock time divided
+by duration. Slow writes skip intermediate frames; they do not extend the curve.
 
 `MotionSpec.steps` plans separate AX writes: shrink each axis first, move the
-smaller rectangle, then grow at the new origin. Unchanged writes are skipped.
-Each size write is read back before another write is allowed; resizing that moves
-the origin is followed by a position correction to the interpolated path.
-`MotionSpec.action` ends the glide immediately if a size readback differs by more
-than 2 points or the accumulated size-write time for the step exceeds one display
-frame (`1000 / refreshRate` ms, about 16.7 ms at 60 Hz). There is no stale-size
-position fallback: the next placement attempts the destination in one step.
+smaller rectangle, then grow at the requested origin. Unchanged writes are skipped.
+A size write always forces the following position correction, because resizing
+can also move the window. Every position uses the curve's requested origin, with
+no center anchoring. Read-back is used to plan the next safe bridge; missing,
+lagging, rounded or clamped read-back never changes the continuation decision.
 
-Any failed write/read or individual size/position write exceeding
-`MotionSpec.abortWriteMilliseconds` (80 ms) also ends stepping. Completion, abort,
-a new mouse-down, cancellation, or a new snap attempts `Accessibility.setFrame`
-once, using the same shrink–move–grow order and correcting the final origin if
-resizing changed it. AX calls share the wall-clock budget; an in-flight synchronous
-call and the final placement can still block past the duration, up to the AX
-messaging timeout per call. An app can still constrain the final size.
-The pure write planner and fallback decisions are tested in KradoCore, including
-slow, lagging and clamping fake windows. The zone highlight stays at the target
-during the glide and hides through the completion callback when it lands.
+The pure `MotionSpec.action` ends stepping early only for a failed AX write or one
+individual write longer than `MotionSpec.abortWriteMilliseconds` (80 ms).
+The deadline is checked before each write, so only an in-flight write can cross
+it before final placement. Completion, abort, a new mouse-down, cancellation or
+a new snap attempts the exact destination once with `Accessibility.setFrame`,
+using the existing shrink–move–grow order and final origin correction. The final
+placement itself consists of synchronous AX writes and may block; an app can
+still constrain the actual final size even when it reports success.
+Fake-clock/window tests cover fast, 20–40 ms writes, lagging read-back, 7×15-point
+size rounding, max-size clamping, resize-induced origin changes, AX errors and
+hung writes. They assert intermediate requested origins, time bounds and exactly
+one final destination request, including 4x growth to full-height targets,
+horizontal/vertical stretches, mixed-axis changes, shrink and move.
+The zone highlight stays at the target during the glide and hides on completion.
 
 Motion honors `accessibilityDisplayShouldReduceMotion`: placement and
 layer/panel transitions become instant.
 
 The grid uses cached static tile layers, rebuilt only for geometry/system colors.
 The zone highlight is a separate shape layer: position, bounds, and rounded path animate
-for 0.12 seconds from their current presentation values, including Shift span
+for 0.12 seconds on the same Core Animation default curve from their current
+presentation values, including Shift span
 changes; its first appearance fades and grows. Retargeting neither redraws tiles
 nor changes panel alpha. The previous redraw-per-target code and the stationary
 branch's hide when returning near the original position were flicker sources.

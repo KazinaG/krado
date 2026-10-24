@@ -1,5 +1,5 @@
 // CI only. Post real pointer and key events over krado's open menu.
-//   login-hover-mouse <login-geometry.json> <menu.json> away|login|slow-to-quit|jump-to-quit|down
+//   login-hover-mouse <login-geometry.json> <menu.json> away|login|click-stay|slow-to-quit|jump-to-quit|down
 import CoreGraphics
 import Foundation
 
@@ -21,6 +21,13 @@ func move(_ p: CGPoint) {
 switch command {
 case "away": move(CGPoint(x: 5, y: 500))
 case "login": move(login)
+case "click-stay":
+    // Keep the pointer exactly where it was; no move can repair a lost highlight.
+    for type in [CGEventType.leftMouseDown, .leftMouseUp] {
+        CGEvent(mouseEventSource: source, mouseType: type, mouseCursorPosition: login, mouseButton: .left)!
+            .post(tap: .cghidEventTap)
+        Thread.sleep(forTimeInterval: 0.1)
+    }
 case "slow-to-quit":
     // A person moving down the menu: about 0.4 s, every row in between is crossed.
     for i in 1...24 {
@@ -35,5 +42,5 @@ case "down":
     }
 default: fatalError("unknown command \(command)")
 }
-Thread.sleep(forTimeInterval: 0.4)
+Thread.sleep(forTimeInterval: command == "click-stay" ? 0.5 : 0.4)
 print(String(format: "login=%.0f,%.0f quit=%.0f,%.0f", login.x, login.y, quit.x, quit.y))
