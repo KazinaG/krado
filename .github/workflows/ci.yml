@@ -1,19 +1,45 @@
 name: CI
 
-on: [push, pull_request]
+# 文書だけの変更（docs/・README・AGENTS.md・CONTRIBUTING.md・LICENSE）では走らない。
+# CHANGELOG*.md は changelog ジョブが確かめるので除外しない。タグの push には paths は効かない。
+on:
+  push:
+    paths-ignore:
+      - 'docs/**'
+      - 'README.md'
+      - 'README.ja.md'
+      - 'AGENTS.md'
+      - 'CONTRIBUTING.md'
+      - 'LICENSE'
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - 'README.md'
+      - 'README.ja.md'
+      - 'AGENTS.md'
+      - 'CONTRIBUTING.md'
+      - 'LICENSE'
 
 permissions:
   contents: read
 
+# 同じブランチに新しい push が来たら古い実行を止める。main は止めずに全部最後まで走らせる。
+concurrency:
+  # main は実行ごとに別グループ（待ち行列でも止まらない）。
+  group: ci-${{ github.ref == 'refs/heads/main' && github.run_id || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   changelog:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - run: scripts/check-changelog-headings.sh
 
   tests:
     runs-on: macos-latest
+    timeout-minutes: 20
     env:
       CLANG_MODULE_CACHE_PATH: ${{ github.workspace }}/.build/module-cache
       SWIFT_MODULECACHE_PATH: ${{ github.workspace }}/.build/module-cache

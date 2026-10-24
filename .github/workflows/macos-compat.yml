@@ -14,7 +14,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, macos-26]
+        # macos-latest は今 macos-26（arm64）と同じイメージ。同じものを2回走らせない。
+        os: [macos-latest]
     runs-on: ${{ matrix.os }}
     env:
       CLANG_MODULE_CACHE_PATH: ${{ github.workspace }}/.build/module-cache
