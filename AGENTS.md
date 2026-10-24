@@ -10,5 +10,6 @@
 - Run on macOS (headless only): `swift test --disable-keychain` and `swift build --disable-keychain`.
 - CI (`.github/workflows/ci.yml`) also runs `swift build --disable-keychain -Xswiftc -DKRADO_LOGIN_SWITCH_PROBE -Xswiftc -DKRADO_CI_HOOKS` and `swift build --disable-keychain -Xswiftc -DKRADO_LAB_HOOKS`.
 - Changelog: edit `CHANGELOG.md` and `CHANGELOG.ja.md` together; check with `scripts/check-changelog-headings.sh`.
+- Trial DMGs for Kazina: only via `docs/trial-build.ja.md` (Release workflow `trial_version`, then `scripts/check-trial-dmg.sh`). Never a local plain or ad-hoc DMG.
 - Never touch tags, releases, signing keys, appcast, or published artifacts; publishing needs Kazina's OK.
 - Never print secrets.

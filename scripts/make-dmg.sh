@@ -6,11 +6,21 @@ set -euo pipefail
 # DMG_STYLE=plain: a plain window with an Applications shortcut (hdiutil only).
 # DMGBUILD=<path> uses an existing dmgbuild; otherwise a pinned, hash-checked copy
 # is installed into .build/dmgbuild-venv (build machine only).
+# A plain or ad-hoc DMG is refused unless KRADO_UNSIGNED_DMG_OK=1 (layout experiments
+# only, never for a trial or a release): ad hoc changes the designated requirement on
+# every build, so Accessibility shows a second krado. Trial DMGs: docs/trial-build.ja.md.
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 style="${DMG_STYLE:-B}"
 case "$style" in plain) ;; *) [ -f "$repo_root/packaging/dmg/$style/background@2x.png" ] || { echo "Unknown DMG_STYLE $style (no packaging/dmg/$style/)." >&2; exit 2; } ;; esac
 if [ "${SKIP_APP_BUILD:-0}" != 1 ]; then "$repo_root/scripts/build-app.sh"; fi
 bundle="$repo_root/dist/krado.app"
+if [ "${KRADO_UNSIGNED_DMG_OK:-0}" != 1 ]; then
+    if [ "$style" = plain ] || codesign -dv "$bundle" 2>&1 | grep -q '^Signature=adhoc'; then
+        echo "error: plain or ad-hoc DMG refused (set KRADO_SIGN_IDENTITY and keep DMG_STYLE=B;" >&2
+        echo "       trial DMGs come from the Release workflow, see docs/trial-build.ja.md)." >&2
+        exit 3
+    fi
+fi
 version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$bundle/Contents/Info.plist")"
 output_dir="${OUTPUT_DIR:-$repo_root/dist}"
 mkdir -p "$output_dir"

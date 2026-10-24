@@ -27,7 +27,7 @@ jobs:
       - name: Check geometry
         run: python3 packaging/dmg/make_backgrounds.py --check
       - name: Build krado DMG (ad hoc)
-        run: OUTPUT_DIR=dist/shootdmg DMG_NAME=krado.dmg scripts/make-dmg.sh
+        run: KRADO_UNSIGNED_DMG_OK=1 OUTPUT_DIR=dist/shootdmg DMG_NAME=krado.dmg scripts/make-dmg.sh
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         if: inputs.compare_ref != ''
         with:
@@ -38,7 +38,7 @@ jobs:
         run: |
           cd compare
           DMGBUILD="$GITHUB_WORKSPACE/.build/dmgbuild-venv/bin/dmgbuild" OUTPUT_DIR="$GITHUB_WORKSPACE/dist/shootdmg" \
-            DMG_NAME=krado-compare.dmg scripts/make-dmg.sh
+            DMG_NAME=krado-compare.dmg KRADO_UNSIGNED_DMG_OK=1 scripts/make-dmg.sh
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: dmg-shoot

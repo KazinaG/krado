@@ -15,7 +15,9 @@ Release builds are therefore signed with one long-lived self-signed certificate:
   secret with `KRADO_SIGNING_P12_PASSWORD` into a temporary keychain under
   `$RUNNER_TEMP`, exports `KRADO_SIGN_IDENTITY`/`KRADO_SIGN_KEYCHAIN`, and
   `cleanup` deletes that keychain at the end of the job. No login keychain is used.
-- Local builds without `KRADO_SIGN_IDENTITY` are signed ad hoc.
+- Local builds without `KRADO_SIGN_IDENTITY` are signed ad hoc; `scripts/make-dmg.sh`
+  refuses to package them (or a plain window) unless `KRADO_UNSIGNED_DMG_OK=1`.
+  Trial DMGs come from the Release workflow: [trial-build.ja.md](trial-build.ja.md).
 - **Never regenerate the certificate.** A new certificate means every user grants
   Accessibility once more. Its backup lives with the Sparkle EdDSA key.
 
