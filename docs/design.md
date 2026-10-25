@@ -53,13 +53,22 @@ A main-run-loop timer also checks trust every three seconds. Once trusted, attem
 The standard NSMenu always shows the ステータス / 起動 / krado section headings.
 Display-name rows appear only when two or more displays are connected.
 Quit follows a separator without a heading. Status rows use standard attributed
-secondary lines and palette SF Symbols.
+secondary lines and palette SF Symbols. Rows that only inform are disabled
+(`isEnabled = false`, no action; the menu does not auto-enable), so they never
+highlight and AppKit dims them: the drag-monitor row always, and Accessibility once
+it is allowed. Accessibility stays enabled only while permission is needed, because
+choosing it opens the setup guide (`StatusRowPolicy`; real-menu CI `status-rows`).
 
 Launch at Login uses a custom menu view with a leading `power` image, the title,
 and the state word inside a capsule at the trailing edge: On, Off or Needs approval
 (オン / オフ / 承認待ち), 10 pt medium in a 16 pt capsule with 8 pt padding, right-aligned
 17 points from the row edge. Only On is filled (label ink with the menu background
-ink as text; white with #1C1C1E text while highlighted). Off and Needs approval are an
+ink as text; white with #1C1C1E text while highlighted). On's fill and outline are one
+shape at 85 % opacity in Light, Dark and while highlighted (the opacity of
+`labelColor` on macOS 26), so the edge is never darker than the fill. A toggle while
+the menu is open cross-fades the old and new capsule over 150 ms (Core Animation's
+default curve); it is opacity only, so it also runs with Reduce Motion (Apple HIG,
+Accessibility: replace motion with fades). Off and Needs approval are an
 outline in the title's ink (style A). Styles B (faint fill) and C (outline and faint
 fill) exist only behind the CI hook `KRADO_CI_LOGIN_OFF_STYLE` for comparison shots
 (`login-row-styles` workflow). On and Off share one capsule width, so toggling never

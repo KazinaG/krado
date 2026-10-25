@@ -20,6 +20,10 @@ final class LoginRowView: NSView {
     private var pointerTracking: NSTrackingArea?
     private(set) var isDrawnHighlighted = false
     private var offStyle = LoginRowStyle.shippedOffStyle
+    // The capsule that is fading out after a toggle, and the 150 ms cross-fade.
+    private var previous: (state: LoginItemState, text: String)?
+    private var fade = LoginRowStyle.Fade()
+    private var fadeTimer: Timer?
 
     private static var rowHeight: CGFloat {
         if #available(macOS 26, *) { return 24 }
@@ -107,6 +111,10 @@ final class LoginRowView: NSView {
     /// `allStateTexts` are every state word; the row is sized for the widest capsule.
     func update(title: String, stateText: String, onOffTexts: [String], allStateTexts: [String],
                 state: LoginItemState, enabled: Bool) {
+        // A toggle while the menu is open cross-fades the capsule (Kazina 10/26 03:14).
+        if window != nil, state != self.state || stateText != self.stateText {
+            startFade(from: (self.state, self.stateText))
+        }
         self.title = title
         self.stateText = stateText
         self.onOffTexts = onOffTexts
@@ -135,7 +143,37 @@ final class LoginRowView: NSView {
         if window == nil {
             highlight.menuDidClose()
             removeKeyMonitor()
+            stopFade()
         } else { installKeyMonitor() }
+    }
+
+    private static var now: Double { ProcessInfo.processInfo.systemUptime }
+
+    private func startFade(from old: (state: LoginItemState, text: String)) {
+        previous = old
+        fade.start(at: Self.now)
+        guard fadeTimer == nil else { return }
+        // Common modes: the menu's event-tracking run loop mode must keep the timer firing.
+        let timer = Timer(timeInterval: 1.0 / 120, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.fadeTick() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        fadeTimer = timer
+    }
+
+    private func fadeTick() {
+        content.needsDisplay = true
+        if !fade.isRunning(at: Self.now) { stopFade() }
+    }
+
+    /// Ends the cross-fade. The start time is kept until the menu closes so CI can log
+    /// the settled frame.
+    private func stopFade() {
+        fadeTimer?.invalidate()
+        fadeTimer = nil
+        previous = nil
+        content.needsDisplay = true
+        if window == nil { fade.finish() }
     }
 
     // Custom menu views lose AppKit's keyboard activation. While the menu is open,
@@ -241,33 +279,76 @@ final class LoginRowView: NSView {
         (title as NSString).draw(at: NSPoint(x: Self.titleX, y: (bounds.height - titleSize.height) / 2), withAttributes: attributes)
 
         // The state word inside a capsule at the trailing edge; solid only when On.
+        // While a toggle fades, the old capsule fades out as the new one fades in.
+        let now = Self.now
+        let fading = previous != nil && fade.isRunning(at: now)
+        let opacities = fading ? fade.opacities(at: now) : (outgoing: 0, incoming: 1)
+        if fading, let previous {
+            drawCapsule(state: previous.state, text: previous.text, highlighted: highlighted, opacity: opacities.outgoing)
+        }
+        #if KRADO_CI_HOOKS
+        let (style, capsule, wordRect) = drawCapsule(state: state, text: stateText, highlighted: highlighted,
+                                                     opacity: opacities.incoming)
+        writeCIEvidence(highlighted: highlighted, capsule: capsule, wordRect: wordRect, foreground: foreground, style: style)
+        if let startedAt = fade.startedAt, now - startedAt < 1 {
+            print(String(format: "KRADO_CI login fade t=%.4f p=%.4f outgoing=%.4f incoming=%.4f",
+                         now - startedAt, fade.progress(at: now), opacities.outgoing, opacities.incoming))
+        }
+        print("KRADO_CI draw login label=\(stateText) highlighted=\(highlighted) frame=\(frame)")
+        #else
+        drawCapsule(state: state, text: stateText, highlighted: highlighted, opacity: opacities.incoming)
+        #endif
+    }
+
+    /// One capsule and its word at `opacity` (1 when not fading). On's fill and ring
+    /// are drawn as one shape in a transparency layer at 85 %, so the ring is exactly
+    /// as dark as the fill.
+    @discardableResult
+    private func drawCapsule(state: LoginItemState, text: String, highlighted: Bool,
+                             opacity: Double) -> (LoginRowStyle.Capsule, NSRect, NSRect) {
+        let bounds = content.bounds
         let style = LoginRowStyle.capsule(state: state, highlighted: highlighted, enabled: enabled, offStyle: offStyle)
-        let width = capsuleWidth(for: stateText)
+        let width = capsuleWidth(for: text)
         let height = CGFloat(LoginBadgeMetrics.height)
         let capsule = NSRect(x: CGFloat(LoginRowLayout.stateX(rowMaxX: Double(bounds.maxX), stateWidth: Double(width))),
                              y: ((bounds.height - height) / 2).rounded(), width: width, height: height)
-        if let fill = style.fill {
-            Self.color(fill).withAlphaComponent(CGFloat(style.fillAlpha)).setFill()
-            NSBezierPath(roundedRect: capsule, xRadius: height / 2, yRadius: height / 2).fill()
+        let stroke = CGFloat(LoginBadgeMetrics.strokeWidth)
+        let outline = NSBezierPath(roundedRect: capsule.insetBy(dx: stroke / 2, dy: stroke / 2),
+                                   xRadius: (height - stroke) / 2, yRadius: (height - stroke) / 2)
+        outline.lineWidth = stroke
+        let solid = NSBezierPath(roundedRect: capsule, xRadius: height / 2, yRadius: height / 2)
+        let cg = NSGraphicsContext.current?.cgContext
+        cg?.saveGState()
+        if style.fillAndRingShareOpacity, let fill = style.fill {
+            cg?.setAlpha(CGFloat(style.fillAlpha * opacity))
+            cg?.beginTransparencyLayer(auxiliaryInfo: nil)
+            let ink = Self.color(fill).withAlphaComponent(1)
+            ink.setFill(); solid.fill()
+            ink.setStroke(); outline.stroke()
+            cg?.endTransparencyLayer()
+        } else {
+            cg?.setAlpha(CGFloat(opacity))
+            if let fill = style.fill {
+                Self.color(fill).withAlphaComponent(CGFloat(style.fillAlpha)).setFill()
+                solid.fill()
+            }
+            if let ring = style.ring {
+                let ink = Self.color(ring)
+                (style.ringAlpha.map { ink.withAlphaComponent(CGFloat($0)) } ?? ink).setStroke()
+                outline.stroke()
+            }
         }
-        if let ring = style.ring {
-            let stroke = CGFloat(LoginBadgeMetrics.strokeWidth)
-            let outline = NSBezierPath(roundedRect: capsule.insetBy(dx: stroke / 2, dy: stroke / 2),
-                                       xRadius: (height - stroke) / 2, yRadius: (height - stroke) / 2)
-            outline.lineWidth = stroke
-            Self.color(ring).setStroke()
-            outline.stroke()
-        }
+        cg?.restoreGState()
+        cg?.saveGState()
+        cg?.setAlpha(CGFloat(opacity))
         let textAttributes: [NSAttributedString.Key: Any] = [.font: Self.badgeFont, .foregroundColor: Self.color(style.text)]
-        let textSize = (stateText as NSString).size(withAttributes: textAttributes)
+        let textSize = (text as NSString).size(withAttributes: textAttributes)
         let wordRect = NSRect(x: CGFloat(LoginBadgeMetrics.textX(capsuleMinX: Double(capsule.minX), capsuleWidth: Double(width),
                                                                   textWidth: Double(textSize.width))),
                               y: capsule.minY + (height - textSize.height) / 2, width: textSize.width, height: textSize.height)
-        (stateText as NSString).draw(at: wordRect.origin, withAttributes: textAttributes)
-        #if KRADO_CI_HOOKS
-        writeCIEvidence(highlighted: highlighted, capsule: capsule, wordRect: wordRect, foreground: foreground, style: style)
-        print("KRADO_CI draw login label=\(stateText) highlighted=\(highlighted) frame=\(frame)")
-        #endif
+        (text as NSString).draw(at: wordRect.origin, withAttributes: textAttributes)
+        cg?.restoreGState()
+        return (style, capsule, wordRect)
     }
 
     private static func color(_ ink: LoginRowStyle.Ink) -> NSColor {
@@ -314,6 +395,11 @@ final class LoginRowView: NSView {
         evidence["capsuleRing"] = style.ring != nil
         var inks: [String: Any] = ["title": rgba(foreground), "label": rgba(.labelColor), "text": rgba(Self.color(style.text))]
         if let fill = style.fill { inks["fill"] = rgba(Self.color(fill)); inks["fillAlpha"] = style.fillAlpha }
+        if let ring = style.ring { inks["ring"] = rgba(Self.color(ring)) }
+        if let ringAlpha = style.ringAlpha { inks["ringAlpha"] = ringAlpha }
+        evidence["fillAndRingShareOpacity"] = style.fillAndRingShareOpacity
+        evidence["fadeDuration"] = LoginRowStyle.Fade.duration
+        evidence["reduceMotion"] = MotionPreference.reduceMotion
         evidence["inks"] = inks
         evidence["menuItemHighlighted"] = enclosingMenuItem?.isHighlighted == true
         evidence["pointerInsideSinceClick"] = highlight.pointerInsideSinceClick

@@ -54,10 +54,25 @@ public enum LoginRowStyle {
         public let fill: Ink?
         public let fillAlpha: Double
         public let ring: Ink?
+        /// Opacity of the ring. nil = the ink as the system gives it (Off's outline).
+        public let ringAlpha: Double?
         public let text: Ink
+        public init(fill: Ink?, fillAlpha: Double, ring: Ink?, ringAlpha: Double? = nil, text: Ink) {
+            self.fill = fill; self.fillAlpha = fillAlpha; self.ring = ring; self.ringAlpha = ringAlpha; self.text = text
+        }
         /// The solid fill that means On. Faint fills (style B/C) are not "filled".
-        public var isSolid: Bool { fill != nil && fillAlpha >= 1 }
+        public var isSolid: Bool { fill != nil && fillAlpha >= LoginRowStyle.onOpacity }
+        /// On draws its fill and ring as one shape at one opacity, so the edge is
+        /// never darker than the fill (Kazina 10/26 03:22).
+        public var fillAndRingShareOpacity: Bool {
+            fill != nil && ring == fill && ringAlpha == fillAlpha
+        }
     }
+
+    /// On's fill and ring: 85 % in Light, Dark and while highlighted (Kazina 10/26 03:28,
+    /// "どこも 85%"), the opacity of Apple's labelColor (measured in CI: 216/255 in
+    /// Light and Dark on macOS 26). Size and type stay as they were.
+    public static let onOpacity = 0.85
 
     /// Faint fill of style B/C: under the highlight it is lighter so the word stays legible.
     public static let faintFillAlpha = 0.12
@@ -67,8 +82,8 @@ public enum LoginRowStyle {
                                offStyle: OffStyle = shippedOffStyle) -> Capsule {
         if state == .enabled && enabled {
             return highlighted
-                ? Capsule(fill: .selectedText, fillAlpha: 1, ring: nil, text: .badgeInk)
-                : Capsule(fill: .label, fillAlpha: 1, ring: nil, text: .onFillText)
+                ? Capsule(fill: .selectedText, fillAlpha: onOpacity, ring: .selectedText, ringAlpha: onOpacity, text: .badgeInk)
+                : Capsule(fill: .label, fillAlpha: onOpacity, ring: .label, ringAlpha: onOpacity, text: .onFillText)
         }
         // Off, Needs approval and any disabled row: never solid.
         let ink = ink(highlighted: highlighted, enabled: enabled)
@@ -80,6 +95,36 @@ public enum LoginRowStyle {
             return Capsule(fill: ink, fillAlpha: faint, ring: nil, text: ink)
         case .outlineAndFaintFill:
             return Capsule(fill: ink, fillAlpha: faint, ring: ink, text: ink)
+        }
+    }
+
+    /// Cross-fade of the capsule when the state changes while the menu is open
+    /// (Kazina 10/26 03:14: 150 ms). Opacity only, nothing moves or scales, so it also
+    /// runs with Reduce Motion: Apple's HIG lists replacing motion with fades as a way
+    /// to reduce motion (developer.apple.com/design/human-interface-guidelines/accessibility).
+    public struct Fade: Equatable, Sendable {
+        public static let duration: Double = 0.15
+        /// Reduce Motion keeps the same cross-fade (see above).
+        public static func duration(reduceMotion: Bool) -> Double { duration }
+
+        public private(set) var startedAt: Double?
+        public init() {}
+        public mutating func start(at time: Double) { startedAt = time }
+        public mutating func finish() { startedAt = nil }
+
+        /// 0 at the start, 1 when done; Core Animation's default curve, like krado's other motion.
+        public func progress(at time: Double) -> Double {
+            guard let startedAt else { return 1 }
+            return MotionSpec.defaultTiming((time - startedAt) / Self.duration)
+        }
+        public func isRunning(at time: Double) -> Bool {
+            guard let startedAt else { return false }
+            return time - startedAt < Self.duration
+        }
+        /// Opacity of the previous and the new capsule.
+        public func opacities(at time: Double) -> (outgoing: Double, incoming: Double) {
+            let p = progress(at: time)
+            return (1 - p, p)
         }
     }
 

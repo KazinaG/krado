@@ -138,5 +138,61 @@ import Testing
         #expect(abs(LoginBadgeMetrics.textX(capsuleMinX: 100, capsuleWidth: 40, textWidth: 20) - 110) < 0.01)
         #expect(LoginRowPresentation.onOffTexts.allSatisfy { LoginRowPresentation.allStateTexts.contains($0) })
     }
-}
 
+    // Kazina 10/26 03:22 "オン時に枠だけ濃さが違うのは絶対にやめた方がいい" and 03:28 "どこも 85%":
+    // On's fill and ring are one opacity, 0.85, resting (Light and Dark share the rule) and highlighted.
+    @Test func onFillAndRingAreBoth85Percent() {
+        for highlighted in [false, true] {
+            let on = LoginRowStyle.capsule(state: .enabled, highlighted: highlighted, enabled: true)
+            #expect(on.fill != nil && on.ring == on.fill, "highlighted=\(highlighted)")
+            #expect(on.fillAlpha == 0.85, "highlighted=\(highlighted)")
+            #expect(on.ringAlpha == 0.85, "highlighted=\(highlighted)")
+            #expect(on.fillAndRingShareOpacity)
+            #expect(on.isSolid)
+        }
+        #expect(LoginRowStyle.onOpacity == 0.85)
+        // Only the opacity changed: same capsule size and type as 0.1.12.
+        #expect(LoginBadgeMetrics.fontSize == 10 && LoginBadgeMetrics.height == 16 && LoginBadgeMetrics.horizontalPadding == 8)
+    }
+
+    // Kazina 10/26 03:19 "両方オフは完璧": Off stays style A, no fill and an outline only.
+    @Test func offStaysOutlineOnlyWithTheInkAsGiven() {
+        for highlighted in [false, true] {
+            let off = LoginRowStyle.capsule(state: .disabled, highlighted: highlighted, enabled: true)
+            #expect(off.fill == nil && off.fillAlpha == 0)
+            #expect(off.ring != nil && off.ringAlpha == nil)
+            #expect(!off.isSolid && !off.fillAndRingShareOpacity)
+        }
+    }
+
+    // Kazina 10/26 03:14 "krado のオンオフに 150ms のフェード": 150 ms through in-between values.
+    @Test func toggleFadesOver150msThroughInBetweenValues() {
+        var fade = LoginRowStyle.Fade()
+        #expect(LoginRowStyle.Fade.duration == 0.15)
+        #expect(!fade.isRunning(at: 10))
+        fade.start(at: 10)
+        #expect(fade.progress(at: 10) == 0)
+        #expect(fade.opacities(at: 10).outgoing == 1 && fade.opacities(at: 10).incoming == 0)
+        var last = 0.0
+        for ms in stride(from: 15.0, through: 135, by: 15) {
+            let t = 10 + ms / 1000
+            let p = fade.progress(at: t)
+            #expect(p > 0 && p < 1, "\(ms) ms")
+            #expect(p > last, "\(ms) ms")
+            #expect(fade.isRunning(at: t))
+            let o = fade.opacities(at: t)
+            #expect(abs(o.outgoing + o.incoming - 1) < 1e-9)
+            last = p
+        }
+        #expect(fade.progress(at: 10.15) == 1)
+        #expect(!fade.isRunning(at: 10.15))
+        fade.finish()
+        #expect(fade.progress(at: 10.05) == 1)
+    }
+
+    // Reduce Motion keeps the opacity-only fade (Apple HIG Accessibility: replace motion with fades).
+    @Test func reduceMotionKeepsTheFade() {
+        #expect(LoginRowStyle.Fade.duration(reduceMotion: true) == 0.15)
+        #expect(LoginRowStyle.Fade.duration(reduceMotion: false) == 0.15)
+    }
+}

@@ -82,6 +82,61 @@ def check_state_text(case, path, phase, img, g, scale, expected_on):
         failures.append(f"{context}: On capsule fill is not visible ({fill:.2f}:1, title {title:.2f}:1)")
     if not expected_on and g.get("offStyle") == "A" and fill > 1.15:
         failures.append(f"{context}: Off capsule (outline) looks filled ({fill:.2f}:1)")
+    # Kazina 10/26 03:19: Off stays A, outline only, no fill.
+    if not expected_on and g.get("offStyle") == "A" and ("fill" in inks or g.get("capsuleRing") is not True):
+        failures.append(f"{context}: Off must be an outline without fill (inks={inks})")
+    if expected_on:
+        check_on_opacity(context, img, g, scale, row_bg)
+
+
+def coverage(pixel, background, ink):
+    """How much of `ink` was laid over `background`, from the channel that moves most."""
+    k = max(range(3), key=lambda i: abs(ink[i] - background[i]))
+    span = ink[k] - background[k]
+    return (pixel[k] - background[k]) / span if span else 0.0
+
+
+def check_on_opacity(context, img, g, scale, row_bg):
+    """Kazina 10/26 03:22 and 03:28: On's fill and ring share one opacity, 85 %, in Light,
+    Dark and while highlighted. Read from the app's evidence and from the pixels: the
+    fill's coverage over the row and the top edge's coverage must both be 0.85."""
+    inks = g.get("inks") or {}
+    if inks.get("fillAlpha") != 0.85 or inks.get("ringAlpha") != 0.85 or g.get("fillAndRingShareOpacity") is not True:
+        failures.append(f"{context}: On fill/ring opacity must both be 0.85 "
+                        f"(fill={inks.get('fillAlpha')}, ring={inks.get('ringAlpha')})")
+    base = inks.get("fill") or [255, 255, 255, 1]
+    ink = [round(v) for v in base[:3]]
+    r = g["stateRect"]
+    mid = round((g["y"] + g["height"] / 2) * scale)
+    inside = img.getpixel((round((r["x"] + 4) * scale), mid))
+    # The straight top edge, just past the rounded end: the ring's whole pixel row.
+    edge = img.getpixel((round((r["x"] + 9) * scale), round(r["y"] * scale)))
+    a_fill, a_edge = coverage(inside, row_bg, ink), coverage(edge, row_bg, ink)
+    report.append(f"{context}: On coverage fill={a_fill:.3f} edge={a_edge:.3f} (ink {ink} over {row_bg})")
+    if abs(a_fill - 0.85) > 0.04:
+        failures.append(f"{context}: On fill looks {a_fill:.2f} opaque, not 0.85")
+    if abs(a_edge - a_fill) > 0.04:
+        failures.append(f"{context}: On ring ({a_edge:.2f}) and fill ({a_fill:.2f}) differ in opacity")
+
+
+def check_fade(case, path):
+    """Kazina 10/26 03:14: the toggle cross-fades over 150 ms through in-between values."""
+    log = (root / f"{case}-{path}-app.log").read_text(errors="replace")
+    samples = []
+    for line in log.splitlines():
+        if line.startswith("KRADO_CI login fade "):
+            fields = dict(part.split("=", 1) for part in line.split()[3:])
+            samples.append({k: float(v) for k, v in fields.items()})
+    middle = [s for s in samples if 0.02 < s["p"] < 0.98]
+    done = [s for s in samples if s["p"] >= 1]
+    report.append(f"{case} {path}: fade samples={len(samples)} in-between={len(middle)} "
+                  f"first-done-t={done[0]['t'] if done else None}")
+    if not middle:
+        failures.append(f"{case} {path}: toggle did not pass through in-between opacities")
+    elif any(abs(s["outgoing"] + s["incoming"] - 1) > 0.01 for s in middle):
+        failures.append(f"{case} {path}: cross-fade opacities do not add up to 1")
+    if not done or not 0.15 <= done[0]["t"] <= 0.4 or any(s["t"] >= 0.15 for s in middle):
+        failures.append(f"{case} {path}: fade must take 150 ms (done at {done[0]['t'] if done else None})")
 
 
 def selection_profile(img, fresh, x_left, y_from, y_to, scale):
@@ -180,6 +235,7 @@ for geometry_path in geometry_paths:
             if changed(word(imgs["2-after"], gs["2-after"]), word(target_img, target_g)) > 0.02:
                 failures.append(f"{case}: clicked word differs from fresh flipped state")
             report.append(f"{case}: click-stay highlight={stayed:.2f}; state={gs['2-after'].get('state')}")
+            check_fade(case, path)
         check_state_text(case, path, after, imgs[after], gs[after], s,
                         case.endswith("-on") != (path == "click-stay"))
         stuck = changed(crop["0-fresh"], crop[after])
