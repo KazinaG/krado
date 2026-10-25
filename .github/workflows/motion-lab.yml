@@ -1,8 +1,6 @@
 name: Motion lab
 
 on:
-  push:
-    branches: [codex/next-version]
   workflow_dispatch:
 
 permissions:
