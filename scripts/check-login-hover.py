@@ -1,4 +1,4 @@
-"""Judge the real menu: click-stay, one highlight that looks native, and the On/Off capsule."""
+"""Judge the real menu: click-stay, one highlight that looks native, and the Apple mini switch."""
 import json
 import sys
 from pathlib import Path
@@ -6,19 +6,6 @@ from PIL import Image, ImageChops
 
 root = Path(sys.argv[1])
 failures, report = [], []
-
-
-def lum(c):
-    def ch(v):
-        v /= 255
-        return v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4
-    r, g, b = (ch(v) for v in c[:3])
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b
-
-
-def ratio(a, b):
-    la, lb = sorted((lum(a), lum(b)), reverse=True)
-    return (la + 0.05) / (lb + 0.05)
 
 
 def pixels(image):
@@ -38,50 +25,29 @@ def evidence(case, path, phase):
 WORDS = {"on": "オン", "off": "オフ"}  # the CI menu runs in Japanese
 
 
-def check_state_text(case, path, phase, img, g, scale, expected_on):
-    """The state word sits inside a capsule that is solid only when On."""
+def check_switch(case, path, phase, img, g, scale, expected_on):
     context = f"{case} {path} {phase}"
     state = "on" if expected_on else "off"
-    if g.get("drawsStateText") is not True or g.get("drawsStateCapsule") is not True:
-        failures.append(f"{context}: expected the state word inside a capsule")
-    if g.get("nativeBadge"):
-        failures.append(f"{context}: native badge and custom state word both active")
-    if g.get("state") != state or g.get("label") != WORDS[state]:
-        failures.append(f"{context}: wrong state/word: {g.get('state')}/{g.get('label')}")
-    if g.get("capsuleSolid") is not expected_on:
-        failures.append(f"{context}: capsule must be solid only when On (solid={g.get('capsuleSolid')})")
+    if g.get("switchClass") != "NSSwitch" or g.get("switchControlSize") != "mini":
+        failures.append(f"{context}: expected Apple NSSwitch, mini")
+    if g.get("switchState") != state or g.get("state") != state or g.get("label") != WORDS[state]:
+        failures.append(f"{context}: wrong switch state or accessibility word")
+    if g.get("switchEnabled") is not True or g.get("nativeBadge"):
+        failures.append(f"{context}: switch disabled or duplicate native badge")
+    r, t = g["switchRect"], g["titleRect"]
+    if (r["x"] < g["x"] or r["y"] < g["y"] or
+            r["x"] + r["width"] > g["x"] + g["width"] or
+            r["y"] + r["height"] > g["y"] + g["height"]):
+        failures.append(f"{context}: switch outside row")
+    if abs(r["y"] + r["height"] / 2 - g["y"] - g["height"] / 2) > 1:
+        failures.append(f"{context}: switch not vertically centred")
+    if r["x"] < t["x"] + t["width"] + 15.5 or abs(r["x"] + r["width"] - g["x"] - g["width"] + 17) > 0.5:
+        failures.append(f"{context}: switch overlaps title or wrong trailing inset")
+    if g.get("switchFittingSize") != [r["width"], r["height"]]:
+        failures.append(f"{context}: switch does not use its fitting size")
     inks = g.get("inks") or {}
-    if not g.get("highlighted"):
-        # Resting row: the solid On capsule is label ink; Off's word is label ink, like the title.
-        key = "fill" if expected_on else "text"
-        if inks.get(key) != inks.get("label") or inks.get("title") != inks.get("label"):
-            failures.append(f"{context}: unhighlighted capsule must use label ink ({key})")
-    r, t, w = g["stateRect"], g["titleRect"], g["wordRect"]
-    if r["x"] < t["x"] + t["width"] + 15.5 or r["x"] + r["width"] > g["x"] + g["width"] - 16.5:
-        failures.append(f"{context}: state capsule overlaps the title or the row edge")
-    if w["x"] < r["x"] + 2 or w["x"] + w["width"] > r["x"] + r["width"] - 2:
-        failures.append(f"{context}: state word is not inside its capsule")
-    mid = round((g["y"] + g["height"] / 2) * scale)
-    row_bg = img.getpixel((round((r["x"] - 8) * scale), mid))
-    inside = img.getpixel((round((r["x"] + 4) * scale), mid))
-
-    def strongest(rect, background):
-        crop = img.crop(tuple(round(v * scale) for v in (rect["x"], rect["y"],
-                                                        rect["x"] + rect["width"], rect["y"] + rect["height"])))
-        return max(ratio(p, background) for p in pixels(crop))
-    word, title, fill = strongest(w, inside), strongest(t, row_bg), ratio(inside, row_bg)
-    report.append(f"{context}: word {g.get('label')} contrast={word:.2f}:1 (on its capsule); "
-                  f"title={title:.2f}:1; capsule fill vs row={fill:.2f}:1")
-    # The word must be about as legible as the title.
-    if word + 1e-6 < 0.9 * title:
-        failures.append(f"{context}: state word {word:.2f}:1 is fainter than the title {title:.2f}:1")
-    # Only On is filled: visibly when On, not at all for the shipped outline Off.
-    # Under the highlight the white On capsule is as visible as the title's own
-    # selected-text ink (yellow accent: about 2.4:1 for both), so judge it against that.
-    if expected_on and fill + 1e-6 < min(3, 0.9 * title):
-        failures.append(f"{context}: On capsule fill is not visible ({fill:.2f}:1, title {title:.2f}:1)")
-    if not expected_on and g.get("offStyle") == "A" and fill > 1.15:
-        failures.append(f"{context}: Off capsule (outline) looks filled ({fill:.2f}:1)")
+    if not g.get("highlighted") and inks.get("title") != inks.get("label"):
+        failures.append(f"{context}: resting title must use label ink")
 
 
 def selection_profile(img, fresh, x_left, y_from, y_to, scale):
@@ -150,8 +116,8 @@ for geometry_path in geometry_paths:
         g = gs["1-login"]
         s = imgs["0-fresh"].width / menu["screenWidth"]
         box = lambda x, y, w, h: tuple(round(v * s) for v in (x, y, x + w, y + h))
-        # Exclude the state word: after a click it is supposed to differ.
-        word_x = min(v["stateRect"]["x"] for v in gs.values())
+        # Exclude the switch: after a click it is supposed to differ.
+        word_x = min(v["switchRect"]["x"] for v in gs.values())
         login = box(g["x"] + 6, g["y"] + 2, word_x - g["x"] - 14, g["height"] - 4)
         qy = menu["y"] + menu["height"] - 6 - g["height"]
         quit = box(g["x"] + 6, qy + 2, g["width"] - 12, g["height"] - 4)
@@ -160,27 +126,30 @@ for geometry_path in geometry_paths:
         if hovered < 0.3 or not g.get("highlighted"):
             failures.append(f"{case} {path}: hovering did not highlight Launch at Login")
         for phase in ("0-fresh", "1-login"):
-            check_state_text(case, path, phase, imgs[phase], gs[phase], s, case.endswith("-on"))
+            check_switch(case, path, phase, imgs[phase], gs[phase], s, case.endswith("-on"))
         after = "3-left" if path == "click-stay" else "2-after"
         if path == "click-stay":
+            log = (root / f"{case}-{path}-app.log").read_text()
+            if log.count("KRADO_CI real login row click: fake state=") != 1:
+                failures.append(f"{case}: click must toggle exactly once")
             stayed = changed(crop["0-fresh"], crop["2-after"])
             if stayed < 0.3 or not gs["2-after"].get("highlighted"):
                 failures.append(f"{case}: click-stay lost highlight while pointer stayed still")
             for key in ("x", "y", "width", "height"):
                 if gs["2-after"][key] != g[key]:
                     failures.append(f"{case}: click changed row geometry: {key}")
-            check_state_text(case, path, "2-after", imgs["2-after"], gs["2-after"], s, not case.endswith("-on"))
+            check_switch(case, path, "2-after", imgs["2-after"], gs["2-after"], s, not case.endswith("-on"))
             # Independently compare the visible word to a fresh hover in the flipped state.
             target_case = case.rsplit("-", 1)[0] + ("-off" if case.endswith("-on") else "-on")
             target_g = evidence(target_case, "slow-to-quit", "1-login")
             target_img = Image.open(root / f"{target_case}-slow-to-quit-1-login.png").convert("RGB")
             def word(im, geo):
-                c = geo["stateRect"]
+                c = geo["switchRect"]
                 return im.crop(box(c["x"], c["y"], c["width"], c["height"]))
             if changed(word(imgs["2-after"], gs["2-after"]), word(target_img, target_g)) > 0.02:
-                failures.append(f"{case}: clicked word differs from fresh flipped state")
+                failures.append(f"{case}: clicked switch differs from fresh flipped state")
             report.append(f"{case}: click-stay highlight={stayed:.2f}; state={gs['2-after'].get('state')}")
-        check_state_text(case, path, after, imgs[after], gs[after], s,
+        check_switch(case, path, after, imgs[after], gs[after], s,
                         case.endswith("-on") != (path == "click-stay"))
         stuck = changed(crop["0-fresh"], crop[after])
         if stuck > 0.02 or gs[after].get("highlighted"):

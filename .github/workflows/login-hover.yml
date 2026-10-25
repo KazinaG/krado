@@ -1,7 +1,7 @@
 name: Login row hover
 
 # Real menu, real pointer: the Launch at Login row must lose its highlight when the
-# pointer or keyboard moves on, retain highlight after a click, and show the On/Off state as a word.
+# pointer or keyboard moves on, retain highlight after a click, and show the On/Off state with an Apple mini switch.
 on:
   push:
     paths:
@@ -10,6 +10,9 @@ on:
       - Sources/KradoCore/LoginRow*.swift
       - scripts/login-hover*
       - scripts/check-login-hover.py
+      - Sources/KradoCore/StatusAppearance.swift
+      - scripts/status-rows*
+      - scripts/check-status-rows.py
       - .github/workflows/login-hover.yml
   workflow_dispatch:
 
@@ -42,4 +45,26 @@ jobs:
         with:
           name: login-hover-${{ matrix.os }}
           path: login-hover/
+          if-no-files-found: error
+
+  # Kazina 10/26 03:33: Status rows that only inform cannot be chosen and never highlight.
+  status-rows:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-26]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - run: python3 -m venv "$RUNNER_TEMP/venv" && "$RUNNER_TEMP/venv/bin/pip" install --quiet Pillow
+      - name: Put the pointer on the Status rows of the real menu and judge
+        run: |
+          export PATH="$RUNNER_TEMP/venv/bin:$PATH"
+          bash scripts/status-rows.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: status-rows-${{ matrix.os }}
+          path: status-rows/
           if-no-files-found: error

@@ -53,22 +53,27 @@ A main-run-loop timer also checks trust every three seconds. Once trusted, attem
 The standard NSMenu always shows the ステータス / 起動 / krado section headings.
 Display-name rows appear only when two or more displays are connected.
 Quit follows a separator without a heading. Status rows use standard attributed
-secondary lines and palette SF Symbols.
+secondary lines and palette SF Symbols. Information-only rows are disabled and
+AppKit dims them without a hover highlight: the drag-monitor row always, and
+Accessibility once permission is granted. Accessibility is enabled only while
+permission is needed, because choosing it opens the setup guide (`StatusRowPolicy`;
+real-menu CI `status-rows`).
 
-Launch at Login uses a custom menu view with a leading `power` image, the title,
-and the state word inside a capsule at the trailing edge: On, Off or Needs approval
-(オン / オフ / 承認待ち), 10 pt medium in a 16 pt capsule with 8 pt padding, right-aligned
-17 points from the row edge. Only On is filled (label ink with the menu background
-ink as text; white with #1C1C1E text while highlighted). Off and Needs approval are an
-outline in the title's ink (style A). Styles B (faint fill) and C (outline and faint
-fill) exist only behind the CI hook `KRADO_CI_LOGIN_OFF_STYLE` for comparison shots
-(`login-row-styles` workflow). On and Off share one capsule width, so toggling never
-resizes it. The title stays the same and the state reads as a value, not as an
-action (Apple's guidance for toggled menu items). Approval's hint appears below the
-row. VoiceOver gets label "<title>、<state>" and value <state>. The row's width fits
-the title and the widest capsule, is set once before the menu opens, and is not
-reset during a toggle. ServiceManagement status is refreshed on opening and after
-toggling.
+Launch at Login uses a normal-height custom menu row with a leading `power` image,
+the menu-font title and Apple's `NSSwitch` at the trailing edge (`controlSize = .mini`).
+Apple HIG [Toggles](https://developer.apple.com/design/human-interface-guidelines/toggles)
+(macOS): “Within a grouped form, consider using a mini switch to control the setting
+in a single row. The height of a mini switch is similar to the height of buttons and
+other controls, resulting in rows that have a consistent height.” The switch uses
+Apple's default rendering and its own fitting size, centred vertically and aligned
+17 points from the right edge. The row width fits the title, gap and switch, with
+the native minimum width, and is set once before opening. The row owns all clicks,
+so clicking the switch or the rest of the row toggles once and keeps the menu open.
+Refresh sets the switch from ServiceManagement state: Enabled and Needs approval
+are on; Disabled and Unavailable are off. The approval hint remains below the row.
+The switch follows the row's enabled state and is not a separate accessibility
+element. VoiceOver keeps label "<title>、<state>" and value <state> (On, Off or Needs
+approval). Status is refreshed on opening and after toggling.
 
 AppKit draws no selection under a custom menu view (NSMenuItem.view: the view is
 responsible for all drawing). The row therefore does not paint a colour of its own:
@@ -79,8 +84,8 @@ each side, full row height, corner radius 7 points on macOS 26 and 4 before
 value). Content is drawn in a subview above the material. Real-menu CI
 (`check-login-hover.py`) compares the row's highlight with Quit's highlight in the
 same menu for colour, corner and edges, in every appearance and accent, and checks
-that only On's capsule is filled. `LoginRowPresentation`, `LoginRowLayout`,
-`LoginRowStyle` and `LoginBadgeMetrics` keep these rules pure and tested.
+the Apple mini switch's class, size, geometry and state. `LoginRowPresentation`,
+`LoginRowLayout` and `LoginRowStyle` keep the semantic rules pure and tested.
 
 The custom row keeps the menu open on a click and monitors Return/Enter/Space
 for keyboard activation. AppKit owns the menu highlight. If AppKit drops its
@@ -120,7 +125,7 @@ An invalidated window, screen reload, permission loss, or disabled tap clears th
 
 ## Open at login
 
-The app uses `ServiceManagement.SMAppService.mainApp`. Launch at Login is **off by default**: krado never registers itself. The welcome/permission guide offers it as one optional button (`LoginItemPolicy.onboardingOffer`): **Launch krado at Login** when it can be registered, **Open Login Items Settings…** while macOS waits for approval, a hint when krado is outside Applications, and a confirmation when it is already on. After Accessibility is granted the guide stays open (with **Done**) only while the button is still useful; otherwise it closes itself. The menu's Launch at Login row (power icon and a state capsule) does the same registration. Registration/unregistration failures are retained as localized menu errors and never crash the app. The menu refreshes service status when opened: `.enabled` is shown as on, `.requiresApproval` shows a distinct approval state and hint and opens `SMAppService.openSystemSettingsLoginItems()`, `.notRegistered` is off, and `.notFound` is treated as off.
+The app uses `ServiceManagement.SMAppService.mainApp`. Launch at Login is **off by default**: krado never registers itself. The welcome/permission guide offers it as one optional button (`LoginItemPolicy.onboardingOffer`): **Launch krado at Login** when it can be registered, **Open Login Items Settings…** while macOS waits for approval, a hint when krado is outside Applications, and a confirmation when it is already on. After Accessibility is granted the guide stays open (with **Done**) only while the button is still useful; otherwise it closes itself. The menu's Launch at Login row (power icon and a mini switch) does the same registration. Registration/unregistration failures are retained as localized menu errors and never crash the app. The menu refreshes service status when opened: `.enabled` is shown as on, `.requiresApproval` shows a distinct approval state and hint and opens `SMAppService.openSystemSettingsLoginItems()`, `.notRegistered` is off, and `.notFound` is treated as off.
 
 Registration is offered only if `Bundle.main.bundlePath` is inside `/Applications/` or the current user's `~/Applications/` and not under `/AppTranslocation/` (quarantined downloads may run translocated). Otherwise the guide and menu say **Move krado to Applications to launch at login**; an existing registration can still be turned off. `LoginItemPolicy` keeps these pure decisions in KradoCore, normalizes `..`, checks folder boundaries, and is tested without ServiceManagement.
 

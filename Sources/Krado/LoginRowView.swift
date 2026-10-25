@@ -13,13 +13,12 @@ final class LoginRowView: NSView {
     private let icon = NSImageView()
     private var title = ""
     private var stateText = ""
-    private var onOffTexts: [String] = []
     private var enabled = true
     private var state: LoginItemState = .disabled
     private var highlight = LoginRowStyle.Highlight()
     private var pointerTracking: NSTrackingArea?
     private(set) var isDrawnHighlighted = false
-    private var offStyle = LoginRowStyle.shippedOffStyle
+    private let loginSwitch = NSSwitch()
 
     private static var rowHeight: CGFloat {
         if #available(macOS 26, *) { return 24 }
@@ -49,8 +48,6 @@ final class LoginRowView: NSView {
         return CGFloat(LoginRowStyle.selectionCornerRadius(macOS26OrLater: false))
     }
 
-    private static var badgeFont: NSFont { .systemFont(ofSize: CGFloat(LoginBadgeMetrics.fontSize), weight: .medium) }
-
     init(activate: @escaping () -> Void) {
         self.activate = activate
         // The menu sizes itself from this initial width; 260/259 match the native row (CI menu-shots).
@@ -75,10 +72,12 @@ final class LoginRowView: NSView {
         icon.imageScaling = .scaleProportionallyUpOrDown
         icon.setAccessibilityElement(false)
         content.addSubview(icon)
-        #if KRADO_CI_HOOKS
-        if let raw = ProcessInfo.processInfo.environment["KRADO_CI_LOGIN_OFF_STYLE"],
-           let style = LoginRowStyle.OffStyle(rawValue: raw) { offStyle = style }
-        #endif
+        // The row owns every click; the switch only displays refreshed login state.
+        switch LoginRowStyle.switchSize {
+        case .mini: loginSwitch.controlSize = .mini
+        }
+        loginSwitch.setAccessibilityElement(false)
+        content.addSubview(loginSwitch)
         // The enclosing menu item supplies the action and accessibility metadata.
         setAccessibilityElement(false)
     }
@@ -98,27 +97,20 @@ final class LoginRowView: NSView {
         return image
     }
 
-    private func capsuleWidth(for text: String) -> CGFloat {
-        func width(_ t: String) -> Double { Double((t as NSString).size(withAttributes: [.font: Self.badgeFont]).width) }
-        return CGFloat(LoginBadgeMetrics.capsuleWidth(textWidth: width(text), onOffTextWidths: onOffTexts.map(width)))
-    }
-
-    /// `onOffTexts` are the localized On and Off words (one shared capsule width);
-    /// `allStateTexts` are every state word; the row is sized for the widest capsule.
-    func update(title: String, stateText: String, onOffTexts: [String], allStateTexts: [String],
-                state: LoginItemState, enabled: Bool) {
+    func update(title: String, stateText: String, state: LoginItemState, enabled: Bool) {
         self.title = title
         self.stateText = stateText
-        self.onOffTexts = onOffTexts
         self.enabled = enabled
         self.state = state
+        loginSwitch.state = LoginRowStyle.switchIsOn(for: state) ? .on : .off
+        loginSwitch.isEnabled = enabled
         // Size once, before menu tracking. Never reset the frame while toggling:
         // AppKit owns the stretched width of its view item.
         if window == nil {
             let font = NSFont.menuFont(ofSize: 0)
             let titleWidth = Double((title as NSString).size(withAttributes: [.font: font]).width)
             let rowWidth = LoginRowLayout.width(titleX: Double(Self.titleX), titleWidth: titleWidth,
-                                                stateWidths: (allStateTexts + [stateText]).map { Double(capsuleWidth(for: $0)) },
+                                                switchWidth: Double(loginSwitch.fittingSize.width),
                                                 minimum: Double(Self.nativeWidth))
             let size = NSSize(width: rowWidth, height: Self.rowHeight)
             if frame.size != size { setFrameSize(size) }
@@ -216,6 +208,9 @@ final class LoginRowView: NSView {
         content.frame = bounds
         let size = Self.iconSize
         icon.frame = NSRect(x: Self.iconX, y: (bounds.height - size) / 2, width: size, height: size)
+        let fitting = loginSwitch.fittingSize
+        loginSwitch.frame = NSRect(x: CGFloat(LoginRowLayout.switchX(rowMaxX: Double(bounds.maxX), switchWidth: Double(fitting.width))),
+                                  y: (bounds.height - fitting.height) / 2, width: fitting.width, height: fitting.height)
     }
 
     // AppKit redraws this view when the item's highlight changes; the selection's
@@ -240,32 +235,8 @@ final class LoginRowView: NSView {
         let titleSize = (title as NSString).size(withAttributes: attributes)
         (title as NSString).draw(at: NSPoint(x: Self.titleX, y: (bounds.height - titleSize.height) / 2), withAttributes: attributes)
 
-        // The state word inside a capsule at the trailing edge; solid only when On.
-        let style = LoginRowStyle.capsule(state: state, highlighted: highlighted, enabled: enabled, offStyle: offStyle)
-        let width = capsuleWidth(for: stateText)
-        let height = CGFloat(LoginBadgeMetrics.height)
-        let capsule = NSRect(x: CGFloat(LoginRowLayout.stateX(rowMaxX: Double(bounds.maxX), stateWidth: Double(width))),
-                             y: ((bounds.height - height) / 2).rounded(), width: width, height: height)
-        if let fill = style.fill {
-            Self.color(fill).withAlphaComponent(CGFloat(style.fillAlpha)).setFill()
-            NSBezierPath(roundedRect: capsule, xRadius: height / 2, yRadius: height / 2).fill()
-        }
-        if let ring = style.ring {
-            let stroke = CGFloat(LoginBadgeMetrics.strokeWidth)
-            let outline = NSBezierPath(roundedRect: capsule.insetBy(dx: stroke / 2, dy: stroke / 2),
-                                       xRadius: (height - stroke) / 2, yRadius: (height - stroke) / 2)
-            outline.lineWidth = stroke
-            Self.color(ring).setStroke()
-            outline.stroke()
-        }
-        let textAttributes: [NSAttributedString.Key: Any] = [.font: Self.badgeFont, .foregroundColor: Self.color(style.text)]
-        let textSize = (stateText as NSString).size(withAttributes: textAttributes)
-        let wordRect = NSRect(x: CGFloat(LoginBadgeMetrics.textX(capsuleMinX: Double(capsule.minX), capsuleWidth: Double(width),
-                                                                  textWidth: Double(textSize.width))),
-                              y: capsule.minY + (height - textSize.height) / 2, width: textSize.width, height: textSize.height)
-        (stateText as NSString).draw(at: wordRect.origin, withAttributes: textAttributes)
         #if KRADO_CI_HOOKS
-        writeCIEvidence(highlighted: highlighted, capsule: capsule, wordRect: wordRect, foreground: foreground, style: style)
+        writeCIEvidence(highlighted: highlighted, foreground: foreground)
         print("KRADO_CI draw login label=\(stateText) highlighted=\(highlighted) frame=\(frame)")
         #endif
     }
@@ -275,16 +246,11 @@ final class LoginRowView: NSView {
         case .label: return .labelColor
         case .disabled: return .disabledControlTextColor
         case .selectedText: return .selectedMenuItemTextColor
-        case .onFillText: return .windowBackgroundColor
-        case .badgeInk:
-            let c = LoginRowStyle.badgeInk
-            return NSColor(srgbRed: c.r / 255, green: c.g / 255, blue: c.b / 255, alpha: 1)
         }
     }
 
     #if KRADO_CI_HOOKS
-    private func writeCIEvidence(highlighted: Bool, capsule: NSRect, wordRect: NSRect, foreground: NSColor,
-                                 style: LoginRowStyle.Capsule) {
+    private func writeCIEvidence(highlighted: Bool, foreground: NSColor) {
         guard let path = ProcessInfo.processInfo.environment["KRADO_CI_LOGIN_GEOMETRY"], let window else { return }
         let screenTop = NSScreen.screens[0].frame.maxY
         func screenRect(_ local: NSRect) -> [String: Double] {
@@ -296,10 +262,34 @@ final class LoginRowView: NSView {
             return [Double(c.redComponent) * 255, Double(c.greenComponent) * 255, Double(c.blueComponent) * 255, Double(c.alphaComponent)]
         }
         var evidence: [String: Any] = screenRect(content.bounds)
-        evidence["stateRect"] = screenRect(capsule)
-        evidence["wordRect"] = screenRect(wordRect)
-        let titleWidth = (title as NSString).size(withAttributes: [.font: NSFont.menuFont(ofSize: 0)]).width
-        evidence["titleRect"] = screenRect(NSRect(x: Self.titleX, y: wordRect.minY, width: titleWidth, height: wordRect.height))
+        func sizeName(_ size: NSControl.ControlSize) -> String {
+            switch size {
+            case .mini: return "mini"
+            case .small: return "small"
+            case .regular: return "regular"
+            case .large: return "large"
+            @unknown default: return "unknown"
+            }
+        }
+        let fitting = loginSwitch.fittingSize
+        let switchState = loginSwitch.state == .on ? "on" : "off"
+        evidence["switchClass"] = String(describing: type(of: loginSwitch))
+        evidence["switchControlSize"] = sizeName(loginSwitch.controlSize)
+        evidence["switchState"] = switchState
+        evidence["switchEnabled"] = loginSwitch.isEnabled
+        evidence["switchRect"] = screenRect(loginSwitch.frame)
+        evidence["switchFittingSize"] = [fitting.width, fitting.height]
+        var sizes: [String: [CGFloat]] = [:]
+        for size: NSControl.ControlSize in [.mini, .small, .regular] {
+            let sample = NSSwitch()
+            sample.controlSize = size
+            sizes[sizeName(size)] = [sample.fittingSize.width, sample.fittingSize.height]
+        }
+        evidence["nsSwitchFittingSizes"] = sizes
+        print("KRADO_CI login switch controlSize=\(sizeName(loginSwitch.controlSize)) state=\(switchState) fitting=\(fitting.width)x\(fitting.height)")
+        let titleSize = (title as NSString).size(withAttributes: [.font: NSFont.menuFont(ofSize: 0)])
+        evidence["titleRect"] = screenRect(NSRect(x: Self.titleX, y: (content.bounds.height - titleSize.height) / 2,
+                                                 width: titleSize.width, height: titleSize.height))
         evidence["selectionRect"] = screenRect(selection.frame)
         evidence["selectionRadius"] = Double(Self.selectionRadius)
         evidence["selectionVisible"] = !selection.isHidden
@@ -307,14 +297,7 @@ final class LoginRowView: NSView {
         evidence["selfPaintedHighlight"] = false
         evidence["label"] = stateText
         evidence["state"] = state == .enabled ? "on" : state == .needsApproval ? "approval" : "off"
-        evidence["offStyle"] = offStyle.rawValue
-        evidence["drawsStateText"] = !stateText.isEmpty
-        evidence["drawsStateCapsule"] = true
-        evidence["capsuleSolid"] = style.isSolid
-        evidence["capsuleRing"] = style.ring != nil
-        var inks: [String: Any] = ["title": rgba(foreground), "label": rgba(.labelColor), "text": rgba(Self.color(style.text))]
-        if let fill = style.fill { inks["fill"] = rgba(Self.color(fill)); inks["fillAlpha"] = style.fillAlpha }
-        evidence["inks"] = inks
+        evidence["inks"] = ["title": rgba(foreground), "label": rgba(.labelColor)]
         evidence["menuItemHighlighted"] = enclosingMenuItem?.isHighlighted == true
         evidence["pointerInsideSinceClick"] = highlight.pointerInsideSinceClick
         evidence["nativeBadge"] = enclosingMenuItem?.badge != nil

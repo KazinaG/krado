@@ -66,11 +66,11 @@ capture_login() {
         osascript -e 'tell application "System Events" to tell process "krado" to get {name, description, value, value of attribute "AXMenuItemMarkChar"} of every menu item of menu 1 of menu bar item 1 of last menu bar' >> "$stem-launch.txt" 2>&1 || true
     fi
     if [[ "$variant" == A || "$variant" == P ]]; then
-        # Permission and monitor rows are enabled; headers/separators are skipped.
-        # Setup is visible only without permission. The next Down should reach login
-        # in A; P records whether AppKit skips the custom view instead.
-        local downs=3
-        if ! grep -q 'Accessibility trusted: true' "$stem-launch.txt"; then downs=4; fi
+        # Only choosable rows take keyboard focus: the monitor row never, the permission
+        # row and Setup only without permission; headers/separators are skipped. The next
+        # Down should reach login in A; P records whether AppKit skips the custom view instead.
+        local downs=1
+        if ! grep -q 'Accessibility trusted: true' "$stem-launch.txt"; then downs=3; fi
         echo "KRADO_CI keyboard Down count=$downs, intended row=Launch at Login" >> "$stem-launch.txt"
         for ((i=0; i<downs; i++)); do
             osascript -e 'tell application "System Events" to key code 125'

@@ -47,6 +47,20 @@ for spec in light-blue:Light: dark-blue:Dark: light-yellow:Light:2 dark-graphite
             sleep 5
             "$RUNNER_TEMP/login-hover-windows" "$app_pid" "$out/$case-windows.txt" > "$out/$case-menu.json"
             mouse away; shot "$path-0-fresh"
+            # Plain full-menu crops for owner review, alongside untouched full-screen evidence.
+            if [[ "$appearance_case" == light-blue || "$appearance_case" == dark-blue ]]; then
+                python3 - "$out/$case-$path-0-fresh.png" "$out/$case-menu.json" <<'PY_CROP'
+import json, sys
+from pathlib import Path
+from PIL import Image
+source = Path(sys.argv[1])
+menu = json.load(open(sys.argv[2]))
+image = Image.open(source)
+scale = image.width / menu['screenWidth']
+x, y, w, h = (menu[k] for k in ('x', 'y', 'width', 'height'))
+image.crop(tuple(round(v * scale) for v in (x, y, x + w, y + h))).save(source.with_name(source.stem + '-menu.png'))
+PY_CROP
+            fi
             mouse login; shot "$path-1-login"
             mouse "$path"; shot "$path-2-after"
             if [[ "$path" == click-stay ]]; then
