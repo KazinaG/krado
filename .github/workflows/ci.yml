@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: scripts/check-changelog-headings.sh
 
   tests:
@@ -44,7 +44,7 @@ jobs:
       CLANG_MODULE_CACHE_PATH: ${{ github.workspace }}/.build/module-cache
       SWIFT_MODULECACHE_PATH: ${{ github.workspace }}/.build/module-cache
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: swift test --disable-keychain
       - run: swift build --disable-keychain
       - run: swift build --disable-keychain -Xswiftc -DKRADO_LOGIN_SWITCH_PROBE -Xswiftc -DKRADO_CI_HOOKS
