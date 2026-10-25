@@ -76,4 +76,67 @@ import Testing
         #expect(abs(a - b) <= 1)
         #expect(abs(a - (300 - LoginRowLayout.trailingInset)) <= 1)
     }
+
+    // Kazina 10/26 01:53: the state word sits in a capsule, filled only when On.
+    @Test func onlyOnIsSolid() {
+        for style in LoginRowStyle.OffStyle.allCases {
+            for highlighted in [false, true] {
+                #expect(LoginRowStyle.capsule(state: .enabled, highlighted: highlighted, enabled: true, offStyle: style).isSolid)
+                for state in [LoginItemState.disabled, .unavailable, .needsApproval] {
+                    for enabled in [true, false] {
+                        let capsule = LoginRowStyle.capsule(state: state, highlighted: highlighted, enabled: enabled, offStyle: style)
+                        #expect(!capsule.isSolid, "\(style) \(state) highlighted=\(highlighted) enabled=\(enabled)")
+                        // Something must still draw the capsule.
+                        #expect(capsule.ring != nil || capsule.fill != nil)
+                    }
+                }
+            }
+        }
+    }
+
+    @Test func shippedOffIsOutlineOnly() {
+        #expect(LoginRowStyle.shippedOffStyle == .outline)
+        for highlighted in [false, true] {
+            let off = LoginRowStyle.capsule(state: .disabled, highlighted: highlighted, enabled: true)
+            #expect(off.fill == nil)
+            #expect(off.ring == LoginRowStyle.ink(highlighted: highlighted, enabled: true))
+            #expect(off.text == LoginRowStyle.ink(highlighted: highlighted, enabled: true))
+        }
+    }
+
+    @Test func onCapsuleTextStaysLegibleWhileHighlighted() {
+        let on = LoginRowStyle.capsule(state: .enabled, highlighted: true, enabled: true)
+        #expect(on.fill == .selectedText)
+        #expect(on.text == .badgeInk)
+        #expect(LoginRowStyle.contrast(LoginRowStyle.badgeInk, LoginRowStyle.RGB(255, 255, 255)) >= 4.5)
+        let resting = LoginRowStyle.capsule(state: .enabled, highlighted: false, enabled: true)
+        #expect(resting.fill == .label)
+        #expect(resting.text == .onFillText)
+    }
+
+    @Test func faintFillsStayFaint() {
+        #expect(LoginRowStyle.faintFillAlpha < 0.5)
+        #expect(LoginRowStyle.faintFillAlphaHighlighted < 0.5)
+    }
+
+    // Native selection shape, measured on Quit in CI login-hover (1x).
+    @Test func selectionMatchesNativeRowShape() {
+        #expect(LoginRowStyle.selectionHorizontalInset == 5)
+        #expect(LoginRowStyle.selectionCornerRadius(macOS26OrLater: true) == 7)
+        #expect(LoginRowStyle.selectionCornerRadius(macOS26OrLater: false) == 4)
+    }
+
+    @Test func onAndOffShareOneCapsuleWidth() {
+        let onOff = [20.0, 21.5]
+        let on = LoginBadgeMetrics.capsuleWidth(textWidth: 20, onOffTextWidths: onOff)
+        let off = LoginBadgeMetrics.capsuleWidth(textWidth: 21.5, onOffTextWidths: onOff)
+        #expect(on == off)
+        #expect(on >= 21.5 + 2 * LoginBadgeMetrics.horizontalPadding)
+        let approval = LoginBadgeMetrics.capsuleWidth(textWidth: 40, onOffTextWidths: onOff)
+        #expect(approval >= 40 + 2 * LoginBadgeMetrics.horizontalPadding)
+        #expect(LoginBadgeMetrics.capsuleWidth(textWidth: 4, onOffTextWidths: [4]) >= LoginBadgeMetrics.height * 2)
+        #expect(abs(LoginBadgeMetrics.textX(capsuleMinX: 100, capsuleWidth: 40, textWidth: 20) - 110) < 0.01)
+        #expect(LoginRowPresentation.onOffTexts.allSatisfy { LoginRowPresentation.allStateTexts.contains($0) })
+    }
 }
+
