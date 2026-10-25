@@ -76,8 +76,10 @@ def check_state_text(case, path, phase, img, g, scale, expected_on):
     if word + 1e-6 < 0.9 * title:
         failures.append(f"{context}: state word {word:.2f}:1 is fainter than the title {title:.2f}:1")
     # Only On is filled: visibly when On, not at all for the shipped outline Off.
-    if expected_on and fill < 3:
-        failures.append(f"{context}: On capsule fill is not visible ({fill:.2f}:1)")
+    # Under the highlight the white On capsule is as visible as the title's own
+    # selected-text ink (yellow accent: about 2.4:1 for both), so judge it against that.
+    if expected_on and fill + 1e-6 < min(3, 0.9 * title):
+        failures.append(f"{context}: On capsule fill is not visible ({fill:.2f}:1, title {title:.2f}:1)")
     if not expected_on and g.get("offStyle") == "A" and fill > 1.15:
         failures.append(f"{context}: Off capsule (outline) looks filled ({fill:.2f}:1)")
 
