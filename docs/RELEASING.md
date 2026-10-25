@@ -6,7 +6,7 @@ of a published release. [CHANGELOG.md](../CHANGELOG.md) is the source of truth; 
 Distribution is a DMG attached to a GitHub Release plus a Sparkle 2 appcast. There
 is no Homebrew tap.
 
-Preparation checks for the next version are tracked in [NEXT_RELEASE.md](NEXT_RELEASE.md).
+The checks before publication are part of the [release checklist](#release-checklist).
 Do not tag or package a final candidate until its scope and verification checks are
 complete. Trial DMGs use the separate [trial build procedure](trial-build.ja.md).
 
@@ -79,15 +79,28 @@ Sparkle's tools come from the checksum-pinned Sparkle SwiftPM artifact
    `scripts/build-app.sh`; it sets both `CFBundleShortVersionString` and
    `CFBundleVersion`. Follow Semantic Versioning.
 2. Move the contents of Unreleased to `## [<version>] - <date>` in both
-   changelogs and keep a new empty `## [Unreleased]` section. Run
-   `scripts/check-changelog-headings.sh` and `swift test --disable-keychain`.
+   changelogs and keep a new empty `## [Unreleased]` section. Describe the final
+   behavior for users upgrading from the last public release, without assuming
+   familiarity with unpublished builds. Run `scripts/check-changelog-headings.sh`,
+   `swift test --disable-keychain` and `swift build --disable-keychain` on macOS; CI
+   must also pass the login-probe/CI-hook and lab-hook build configurations.
 3. Merge to `main`, then push the tag `v<version>` on that commit (maintainer
    approval required).
 4. Wait for the Release workflow. Its `render` job opens the built DMG in Finder on
    macOS 15 and 26, with default Finder settings and with Path Bar, Status Bar and
    filename extensions on; look at the `render-<os>` screenshots (nothing cut off, no
    scroll bar, labels inside their cards). The draft is only created after it passes.
-   Download the draft's DMG and check it on a Mac.
+   Download the draft's DMG and check it on a Mac, on the supported macOS versions.
+   Pure-logic tests and static renders cannot establish how other apps respond to
+   AX writes, so look at the real app:
+   - **Installer:** Finder labels, selection and bars at 1x and 2x, with Path Bar,
+     Status Bar and filename extensions both visible and hidden.
+   - **Menu:** actual Light/Dark menus, keyboard navigation, multiple displays and
+     VoiceOver.
+   - **Launch at Login:** run the login-toggle and login-hover checks, and confirm
+     real macOS registration and approval states in both languages.
+   - **Window motion:** near/far moves, growth/shrinkage, horizontal/vertical
+     stretches, screen edges, apps with minimum sizes and Reduce Motion.
 5. **Gatekeeper first launch (quarantined download).** The
    [Gatekeeper workflow](../.github/workflows/gatekeeper.yml) runs after every Release
    run on the DMG it built: it copies `krado.app` out of the image, adds a Safari-style

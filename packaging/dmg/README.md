@@ -4,8 +4,8 @@ The window that opens with `krado-<version>.dmg` has a light gradient,
 the "krado" wordmark and "Drag krado to Applications" on top, two square cards with
 144-pt icons (krado; Applications as the mint target), and a dotted arrow between them.
 The wordmark has a gradient, the background starts at white, and the destination
-card is emphasized without corner guides. Remaining release checks are in
-[`docs/NEXT_RELEASE.md`](../../docs/NEXT_RELEASE.md).
+card is emphasized without corner guides. The checks of this window before release (Finder at 1x and 2x) are in the
+[release checklist](../../docs/RELEASING.md#release-checklist).
 
 - `layout.json`: shared geometry (700 × 450 pt content plus a 32 pt title bar, 144 pt
   icons at (172, 249) and (528, 249), 248-pt cards from y 134, arrow at y 258). The

@@ -161,7 +161,8 @@ default timing function: cubic Bézier control points (0.25, 0.1), (0.25, 1.0).
 `MotionSpec.defaultTiming` solves x(t) by Newton iteration with a bisection fallback
 and returns y(t). That Show Desktop uses this curve is an assumption, not a claim
 about its implementation. Moves and shrinks take 0.26 seconds; enlargements take
-0.34 seconds. See [NEXT_RELEASE.md](NEXT_RELEASE.md) for comparison checks.
+0.34 seconds. The checks before release are in the
+[release checklist](RELEASING.md#release-checklist).
 A main-run-loop `NSScreen.displayLink(target:selector:)` (public since macOS 14)
 drives whole-point AX steps. Each callback samples elapsed wall-clock time divided
 by duration. Slow writes skip intermediate frames; they do not extend the curve.
