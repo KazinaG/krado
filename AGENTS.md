@@ -4,7 +4,7 @@
 - `Sources/Krado` = AppKit app (menu, overlay, hot keys, drag, Accessibility); `Sources/KradoCore` = pure logic, tested by `Tests/KradoCoreTests`.
 - Put new logic in `KradoCore` with a test; keep `Sources/Krado` thin.
 - UI strings: `Resources/en.lproj` and `Resources/ja.lproj` `Localizable.strings`. Change both together.
-- `docs/DECISIONS.md` holds only Kazina's own decisions. Read it before changing look or behaviour; never add inferred or agent-made decisions.
+- Kazina's own decisions are kept outside this public repository (`docs/DECISIONS.md` was removed on 2026-10-22). Ask for them before changing look or behaviour; never record inferred or agent-made decisions as hers.
 - Other docs: `docs/design.md`, `docs/RELEASING.md`, `docs/signing-and-update-test.md`.
 - Work on a `codex/<topic>` branch; get CI green, then squash into `main` (fast-forward).
 - Run on macOS (headless only): `swift test --disable-keychain` and `swift build --disable-keychain`.
