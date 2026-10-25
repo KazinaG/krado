@@ -13,7 +13,9 @@ for initial, target in [("off", "on"), ("on", "off")]:
         # Main-display captures on hosted runners use screen points at 1x/2x.
         scale = image.width / geometry["screenWidth"]
         x, y, w, h = (geometry[k] for k in ("x", "y", "width", "height"))
-        box = tuple(round(v * scale) for v in (x + w - 75, y, x + w, y + h))
+        # Up to 2 pt short of the row's right edge: that column is the menu window's
+        # border, not the switch (macOS 15 CI: 4/255 there between two fresh menus).
+        box = tuple(round(v * scale) for v in (x + w - 75, y, x + w - 2, y + h))
         switch = image.crop(box)
         switch.save(root / f"{stem}-switch.png")
         return geometry, switch

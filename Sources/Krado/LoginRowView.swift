@@ -124,6 +124,10 @@ final class LoginRowView: NSView {
         super.viewDidMoveToWindow()
         needsDisplay = true
         content.needsDisplay = true
+        // Measured in CI: on macOS 26 a switch outside a window reports a 54x24 fitting
+        // size whatever its controlSize; inside the menu window, mini reports 36x16.
+        // Lay out again once the row is in the menu window.
+        needsLayout = true
         if window == nil {
             highlight.menuDidClose()
             removeKeyMonitor()
@@ -281,9 +285,12 @@ final class LoginRowView: NSView {
         evidence["switchFittingSize"] = [fitting.width, fitting.height]
         var sizes: [String: [CGFloat]] = [:]
         for size: NSControl.ControlSize in [.mini, .small, .regular] {
+            // Measured inside the menu window (see viewDidMoveToWindow).
             let sample = NSSwitch()
             sample.controlSize = size
+            content.addSubview(sample)
             sizes[sizeName(size)] = [sample.fittingSize.width, sample.fittingSize.height]
+            sample.removeFromSuperview()
         }
         evidence["nsSwitchFittingSizes"] = sizes
         print("KRADO_CI login switch controlSize=\(sizeName(loginSwitch.controlSize)) state=\(switchState) fitting=\(fitting.width)x\(fitting.height)")
