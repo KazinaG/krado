@@ -212,14 +212,23 @@ final class LoginRowView: NSView {
         content.frame = bounds
         let size = Self.iconSize
         icon.frame = NSRect(x: Self.iconX, y: (bounds.height - size) / 2, width: size, height: size)
+        placeSwitch()
+    }
+
+    /// The switch at its own size, right-aligned and centred. Called from layout and
+    /// again before drawing: AppKit gives this menu view no layout pass once it is in
+    /// the menu window, and only there does the switch report its real size (CI).
+    private func placeSwitch() {
         let fitting = loginSwitch.fittingSize
-        loginSwitch.frame = NSRect(x: CGFloat(LoginRowLayout.switchX(rowMaxX: Double(bounds.maxX), switchWidth: Double(fitting.width))),
-                                  y: (bounds.height - fitting.height) / 2, width: fitting.width, height: fitting.height)
+        let frame = NSRect(x: CGFloat(LoginRowLayout.switchX(rowMaxX: Double(bounds.maxX), switchWidth: Double(fitting.width))),
+                           y: ((bounds.height - fitting.height) / 2).rounded(), width: fitting.width, height: fitting.height)
+        if loginSwitch.frame != frame { loginSwitch.frame = frame }
     }
 
     // AppKit redraws this view when the item's highlight changes; the selection's
     // visibility and the content follow from here.
     override func draw(_ dirtyRect: NSRect) {
+        placeSwitch()
         let highlighted = highlight.isHighlighted(menuItemHighlighted: enclosingMenuItem?.isHighlighted == true, enabled: enabled)
         if isDrawnHighlighted != highlighted || selection.isHidden == highlighted {
             isDrawnHighlighted = highlighted
