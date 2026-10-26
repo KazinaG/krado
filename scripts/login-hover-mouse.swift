@@ -1,5 +1,5 @@
 // CI only. Post real pointer and key events over krado's open menu.
-//   login-hover-mouse <login-geometry.json> <menu.json> away|login|click-row|click-switch|slow-to-quit|jump-to-quit|down|up-down
+//   login-hover-mouse <login-geometry.json> <menu.json> away|login|click-row|click-switch|slow-to-quit|jump-to-quit|down|keys-to-login [app.log]
 import CoreGraphics
 import Foundation
 
@@ -49,7 +49,19 @@ case "slow-to-quit":
     }
 case "jump-to-quit": move(quit)
 case "down": key(125)
-case "up-down": key(126); key(125)      // keyboard leaves the row and comes back
+case "keys-to-login":
+    // Pointer outside the menu, then Up from the bottom until the app logs that the
+    // keyboard selected Launch at Login (at most 15 presses).
+    move(CGPoint(x: 5, y: 500))
+    Thread.sleep(forTimeInterval: 0.3)
+    let log = CommandLine.arguments[4]
+    for _ in 0..<15 {
+        key(126)
+        Thread.sleep(forTimeInterval: 0.25)
+        let lines = (try? String(contentsOfFile: log, encoding: .utf8))?
+            .split(separator: "\n").filter { $0.contains("KRADO_CI menu willHighlight item=") } ?? []
+        if lines.last?.hasSuffix("item=login") == true { break }
+    }
 default: fatalError("unknown command \(command)")
 }
 // Long enough for the switch animation to settle.

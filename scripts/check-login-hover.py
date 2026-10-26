@@ -66,9 +66,11 @@ def check_switch(context, img, g, scale, expected_on):
     accent = g["accent"][:3]
     dist = max(abs(a - b) for a, b in zip(best, accent))
     grey_accent = chroma([round(v) for v in accent]) < 0.1  # graphite
-    if expected_on and (dist > 48 or (not grey_accent and chroma(best) < 0.3)):
+    if grey_accent:
+        return best  # graphite: the accent is gray, so colour cannot tell on from off
+    if expected_on and (dist > 48 or chroma(best) < 0.3):
         failures.append(f"{context}: on switch is not the accent colour ({best} vs {[round(v) for v in accent]})")
-    if not expected_on and not grey_accent and chroma(best) > 0.3:
+    if not expected_on and chroma(best) > 0.3:
         failures.append(f"{context}: off switch shows colour {best}")
     return best
 
@@ -80,7 +82,7 @@ for geometry_path in geometry_paths:
     case = geometry_path.name[: -len("-geometry.json")]
     menu = json.loads((root / f"{case}-menu.json").read_text())
     start_on = case.endswith("-on")
-    for path in ("slow-to-quit", "jump-to-quit", "down", "up-down", "click-row", "click-switch"):
+    for path in ("slow-to-quit", "jump-to-quit", "down", "keys-to-login", "click-row", "click-switch"):
         phases = ["0-fresh", "1-login", "2-after"] + (["3-left"] if path.startswith("click-") else [])
         imgs = {k: Image.open(root / f"{case}-{path}-{k}.png").convert("RGB") for k in phases}
         gs = {k: evidence(case, path, k) for k in phases}
@@ -133,7 +135,7 @@ for geometry_path in geometry_paths:
                 if d > 0.02:
                     failures.append(f"{case}: clicked switch differs from a fresh menu in the flipped state ({d:.2f})")
                 report.append(f"{case}: click-switch toggled once, menu open, settled-diff={d:.2f}")
-        if path == "up-down":
+        if path == "keys-to-login":
             ga = gs["2-after"]
             ring = changed(imgs["0-fresh"].crop(box(ga["switchRect"]["x"] - 4, ga["switchRect"]["y"] - 4,
                                                     ga["switchRect"]["width"] + 8, ga["switchRect"]["height"] + 8)),
@@ -143,14 +145,14 @@ for geometry_path in geometry_paths:
                 failures.append(f"{case}: keyboard focus on the row must show a focus ring at the switch ({ring:.2f})")
             if changed(crop["0-fresh"], crop["2-after"]) > 0.02:
                 failures.append(f"{case}: keyboard focus lit up the row instead of ringing the switch")
-            report.append(f"{case}: up-down focus ring changed={ring:.2f}")
+            report.append(f"{case}: keys-to-login focus ring changed={ring:.2f}")
         after = "3-left" if path.startswith("click-") else "2-after"
         if path in ("slow-to-quit", "jump-to-quit") or path.startswith("click-"):
             if changed(imgs["0-fresh"].crop(quit), imgs[after].crop(quit)) < 0.3:
                 failures.append(f"{case} {path}: Quit did not highlight")
         if path == "down" and changed(imgs["0-fresh"].crop(whole), imgs[after].crop(whole)) < 0.005:
             failures.append(f"{case}: keyboard Down highlighted nothing")
-        if gs[after].get("focusRing") and path != "up-down":
+        if gs[after].get("focusRing") and path != "keys-to-login":
             failures.append(f"{case} {path}: focus ring left on after leaving")
         report.append(f"{case} {path}: hover-change={hovered:.2f}")
 

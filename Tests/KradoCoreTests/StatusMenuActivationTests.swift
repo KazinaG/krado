@@ -8,9 +8,11 @@ import Testing
     }
 
     @Test func focusGoesBackOnlyWhenNothingOfKradoIsShowing() {
-        #expect(StatusMenuActivation.returnsFocus(previousWasKrado: false, previousStillRunning: true, kradoWindowShowing: false))
-        #expect(!StatusMenuActivation.returnsFocus(previousWasKrado: false, previousStillRunning: true, kradoWindowShowing: true))
-        #expect(!StatusMenuActivation.returnsFocus(previousWasKrado: true, previousStillRunning: true, kradoWindowShowing: false))
-        #expect(!StatusMenuActivation.returnsFocus(previousWasKrado: false, previousStillRunning: false, kradoWindowShowing: false))
+        #expect(StatusMenuActivation.returnsFocus(previousWasKrado: false, previousStillRunning: true, kradoWindowShowing: false, kradoStillActive: true))
+        #expect(!StatusMenuActivation.returnsFocus(previousWasKrado: false, previousStillRunning: true, kradoWindowShowing: true, kradoStillActive: true))
+        #expect(!StatusMenuActivation.returnsFocus(previousWasKrado: true, previousStillRunning: true, kradoWindowShowing: false, kradoStillActive: true))
+        #expect(!StatusMenuActivation.returnsFocus(previousWasKrado: false, previousStillRunning: false, kradoWindowShowing: false, kradoStillActive: true))
+        // Another app took focus after the menu closed (app switch, System Settings).
+        #expect(!StatusMenuActivation.returnsFocus(previousWasKrado: false, previousStillRunning: true, kradoWindowShowing: false, kradoStillActive: false))
     }
 }

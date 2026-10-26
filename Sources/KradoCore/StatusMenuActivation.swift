@@ -12,9 +12,11 @@ public enum StatusMenuActivation {
     public static func activatesBeforeOpening(macOS26OrLater: Bool) -> Bool { macOS26OrLater }
 
     /// Give focus back after the menu closes, unless krado was already in front, the
-    /// previous app has quit, or a krado window (guide, About, uninstall) is now showing.
+    /// previous app has quit, a krado window (guide, About, uninstall) is now showing,
+    /// or krado is no longer active (the user switched apps, or an item opened another
+    /// app such as System Settings): never undo a later activation.
     public static func returnsFocus(previousWasKrado: Bool, previousStillRunning: Bool,
-                                    kradoWindowShowing: Bool) -> Bool {
-        !previousWasKrado && previousStillRunning && !kradoWindowShowing
+                                    kradoWindowShowing: Bool, kradoStillActive: Bool) -> Bool {
+        !previousWasKrado && previousStillRunning && !kradoWindowShowing && kradoStillActive
     }
 }

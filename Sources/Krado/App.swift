@@ -221,7 +221,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard let previous, StatusMenuActivation.returnsFocus(
             previousWasKrado: previous == NSRunningApplication.current,
             previousStillRunning: !previous.isTerminated,
-            kradoWindowShowing: kradoWindowShowing
+            kradoWindowShowing: kradoWindowShowing,
+            kradoStillActive: NSApp.isActive
         ) else { return }
         NSApp.yieldActivation(to: previous)
         previous.activate()
