@@ -53,7 +53,11 @@ A main-run-loop timer also checks trust every three seconds. Once trusted, attem
 The standard NSMenu always shows the ステータス / 起動 / krado section headings.
 Display-name rows appear only when two or more displays are connected.
 Quit follows a separator without a heading. Status rows use standard attributed
-secondary lines and palette SF Symbols.
+secondary lines and palette SF Symbols. Rows that only inform are disabled
+(`isEnabled = false`, no action; the menu does not auto-enable), so they never
+highlight and AppKit dims them: the drag-monitor row always, and Accessibility once
+it is allowed. Accessibility stays enabled only while permission is needed, because
+choosing it opens the setup guide (`StatusRowPolicy`; real-menu CI `status-rows`).
 
 Launch at Login uses a custom menu view with a leading `power` image, the title,
 and the state word inside a capsule at the trailing edge: On, Off or Needs approval

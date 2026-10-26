@@ -131,8 +131,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(statusHeader)
         for item in [permissionItem, monitorItem, errorItem] { menu.addItem(item) }
         permissionItem.target = self
-        // Enabled, actionless rows preserve palette colors instead of AppKit's disabled tint.
-        monitorItem.isEnabled = true
+        // Information-only rows cannot be chosen, so they never highlight (Kazina 10/26
+        // 03:33, accepting AppKit's dimmed look). autoenablesItems is off, so isEnabled holds.
+        monitorItem.isEnabled = StatusRowPolicy.monitorRowEnabled
         errorItem.isEnabled = false
         errorItem.isHidden = true
         requestItem.title = L10n.text("Accessibility Setup…")
@@ -214,6 +215,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // The row draws from isHighlighted, which changes right after this call; redraw
         // now and once more after AppKit has moved the highlight.
         (loginToggle.view as? LoginRowView)?.menuWillHighlight(thisRow: item.map { $0 === loginToggle })
+        #if KRADO_CI_HOOKS
+        let name = item.map { $0 === permissionItem ? "permission" : $0 === monitorItem ? "monitor" : $0 === loginToggle ? "login" : "other" } ?? "none"
+        print("KRADO_CI menu willHighlight item=\(name)")
+        #endif
         loginToggle.view?.needsDisplay = true
         DispatchQueue.main.async { [weak self] in self?.loginToggle.view?.needsDisplay = true }
     }
@@ -268,6 +273,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var displayedPermissionGranted: Bool {
         #if KRADO_CI_HOOKS
         if ProcessInfo.processInfo.environment["KRADO_CI_STATE"] == "permissionNeeded" { return false }
+        if ProcessInfo.processInfo.environment["KRADO_CI_STATE"] == "permissionGranted" { return true }
         #endif
         return AXIsProcessTrusted()
     }
@@ -276,7 +282,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let state = statusState(permissionGranted: displayedPermissionGranted, tapActive: monitor.isRunning)
         let appearance = statusAppearance(for: state)
         permissionItem.action = state == .permissionNeeded ? #selector(showPermissionGuide) : nil
-        permissionItem.isEnabled = true
+        permissionItem.isEnabled = StatusRowPolicy.permissionRowEnabled(for: state)
         configureStatusRow(permissionItem, symbol: appearance.permission,
             title: "Accessibility",
             detail: state == .permissionNeeded ? "Not allowed — click to set up" : "Allowed",
@@ -394,7 +400,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         #endif
     }
 
-    @objc private func showPermissionGuide() { permissionGuide.show() }
+    @objc private func showPermissionGuide() {
+        #if KRADO_CI_HOOKS
+        print("KRADO_CI permission guide shown")
+        #endif
+        permissionGuide.show()
+    }
     @objc private func uninstall() {
         // Stop watching first so nothing reacts while permission and settings go away.
         permissionTimer?.invalidate()

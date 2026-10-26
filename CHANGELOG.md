@@ -12,6 +12,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 - The installer has a light background, square app cards, a colorful krado logo and a mint Applications card linked by a dotted arrow.
 - Launch at Login shows its state as a word in a capsule (On, Off or Needs approval) at the right of the row; only On is filled, at the same opacity as the menu text, and the capsule fades between states.
+- Status rows that only show information no longer highlight when the pointer passes over them.
 - Launch at Login highlights like the other menu items.
 - Launch at Login can be toggled without closing the menu, and VoiceOver announces its state.
 - Every window glides into its snap position the same way, including when enlarging, in about a third of a second.
