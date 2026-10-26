@@ -143,7 +143,7 @@ Tests cover 1×1 full-work-area hit tests and snap frames, 2×1/4×1 full-height
 
 The test target conditionally adds the selected compiler's bundled Testing macro directory with `-plugin-path`, working around the [Swift 6.4 CLT macro discovery issue](https://github.com/swiftlang/swift-build/issues/1870). The manifest resolves `SWIFT_EXEC` or `xcrun --find swiftc` and checks that the macro exists. No downloaded dependency or fixed Xcode install path is involved; the app and Core targets receive no extra flags. Remove the workaround once the toolchain issue is fixed. This CLT installation also emits linker warnings for nonexistent `Developer/Library/Frameworks` and `Developer/usr/lib` search directories; builds still succeed.
 
-GUI checks are intentionally left to Kazina; this implementation was not launched during development:
+GUI checks are intentionally left to the maintainer; this implementation was not launched during development:
 
 - Permission denied at startup: guide appears without a system prompt or tap; only its settings button requests the prompt once. Check one-second approval detection, All set/auto-close, closing/reopening, revocation, tap failures, and reauthorization after an ad-hoc rebuild.
 - Verify English/Japanese guide fitting, menu labels, state icons and accessibility descriptions, per-display layouts, About version, and GitHub link. Check that Launch at Login stays off until chosen, the guide button only from Applications, requiresApproval/settings, registration errors, and the move hint outside Applications or under App Translocation.

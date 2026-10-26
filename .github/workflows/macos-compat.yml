@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # macos-latest は今 macos-26（arm64）と同じイメージ。同じものを2回走らせない。
+        # macos-latest currently uses the same image as macos-26 (arm64). Avoid running it twice.
         os: [macos-latest]
     runs-on: ${{ matrix.os }}
     env:

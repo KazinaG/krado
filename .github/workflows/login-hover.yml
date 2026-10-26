@@ -16,9 +16,9 @@ on:
 permissions:
   contents: read
 
-# 同じブランチに新しい push が来たら古い実行を止める（main は止めない）。
+# Cancel older runs when a new push arrives on the same branch (except main).
 concurrency:
-  # main は実行ごとに別グループ（待ち行列でも止まらない）。
+  # Give each main run its own group so queued runs are not canceled either.
   group: login-hover-${{ github.ref == 'refs/heads/main' && github.run_id || github.ref }}
   cancel-in-progress: true
 

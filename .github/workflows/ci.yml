@@ -1,7 +1,7 @@
 name: CI
 
-# 文書だけの変更でも毎回走らせる。main は ruleset でこのワークフローの changelog と tests を
-# 必須チェックにしているので、paths で絞ると文書だけのコミットが main に入れなくなる。
+# Run on every change, including documentation-only changes. The main ruleset requires
+# this workflow's changelog and tests checks, so path filters would block documentation-only commits from main.
 on:
   push:
   pull_request:
@@ -9,9 +9,9 @@ on:
 permissions:
   contents: read
 
-# 同じブランチに新しい push が来たら古い実行を止める。main は止めずに全部最後まで走らせる。
+# Cancel older runs when a new push arrives on the same branch. Let every main run finish.
 concurrency:
-  # main は実行ごとに別グループ（待ち行列でも止まらない）。
+  # Give each main run its own group so queued runs are not canceled either.
   group: ci-${{ github.ref == 'refs/heads/main' && github.run_id || github.ref }}
   cancel-in-progress: true
 

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# 試し版・リリースの DMG が「いつもの形」かを確かめる（macOS、画面は出さない）。
-#   scripts/check-trial-dmg.sh <krado.dmg> [期待する版番号]
-# 見た目つきの窓（.DS_Store・背景・ボリュームアイコン・Applications へのリンク）、
-# bundle id、固定の「krado Self-Signed」証明書の署名要件（DR）を確かめる。
-# plain の DMG や ad-hoc 署名（DR が cdhash）なら失敗する。ad-hoc だとビルドごとに
-# アクセシビリティの許可が外れ、一覧に krado が増えるため。
+# Check that a trial or release DMG has the expected layout (macOS, headless).
+#   scripts/check-trial-dmg.sh <krado.dmg> [expected version]
+# Check the designed window (.DS_Store, background, volume icon, and Applications link),
+# bundle ID, and designated requirement (DR) for the fixed "krado Self-Signed" certificate.
+# Fail for a plain DMG or an ad-hoc signature (a cdhash-based DR). Ad-hoc signing
+# resets Accessibility permission on each build and adds duplicate krado entries.
 set -euo pipefail
 
 bundle_id="io.github.kazinag.krado"
@@ -19,18 +19,18 @@ trap 'hdiutil detach "$mnt" >/dev/null 2>&1 || hdiutil detach -force "$mnt" >/de
 
 fail() { echo "NG: $*" >&2; exit 1; }
 for f in .DS_Store .background.tiff .VolumeIcon.icns; do
-    [ -f "$mnt/$f" ] || fail "$f がない（plain の DMG。DMG_STYLE=B で作る）"
+    [ -f "$mnt/$f" ] || fail "$f is missing (plain DMG; build with DMG_STYLE=B)"
 done
-[ -L "$mnt/Applications" ] || fail "Applications へのリンクがない"
+[ -L "$mnt/Applications" ] || fail "Applications link is missing"
 app="$mnt/krado.app"
-[ -d "$app" ] || fail "krado.app がない"
+[ -d "$app" ] || fail "krado.app is missing"
 id="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Contents/Info.plist")"
-[ "$id" = "$bundle_id" ] || fail "bundle id が $id（期待 $bundle_id）"
+[ "$id" = "$bundle_id" ] || fail "bundle ID is $id (expected $bundle_id)"
 version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist")"
 if [ -n "$want_version" ] && [ "$version" != "$want_version" ]; then
-    fail "版番号が $version（期待 $want_version）"
+    fail "version is $version (expected $want_version)"
 fi
-codesign --verify --deep --strict "$app" || fail "署名の検証に失敗"
+codesign --verify --deep --strict "$app" || fail "signature verification failed"
 dr="$(codesign -d -r- "$app" 2>&1 | sed -n 's/^designated => //p')"
-[ "$dr" = "$expected_dr" ] || fail "署名要件が違う（ad-hoc か別の証明書）：$dr"
-echo "OK: krado $version / $id / 見た目つきDMG / $dr"
+[ "$dr" = "$expected_dr" ] || fail "designated requirement mismatch (ad-hoc signing or a different certificate): $dr"
+echo "OK: krado $version / $id / designed DMG / $dr"

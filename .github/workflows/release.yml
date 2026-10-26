@@ -29,7 +29,7 @@ on:
   workflow_dispatch:
     inputs:
       trial_version:
-        description: 試し版の版番号（例 0.1.7）。dryrun アーティファクトだけ作る。タグ・リリースは作らない
+        description: Trial version (e.g. 0.1.7). Creates only a dryrun artifact; no tags or releases
         required: false
 
 permissions:
