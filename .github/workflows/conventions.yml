@@ -86,7 +86,7 @@ jobs:
           .github/commitlint/node_modules/.bin/commitlint --config .github/commitlint/commitlint.config.mjs \
             --from "$base" --to HEAD --verbose
 
-      - name: PR タイトル（Conventional Commits）
+      - name: PR タイトル（squash マージで main に入る件名）
         if: github.event_name == 'pull_request'
         env:
           TITLE: ${{ github.event.pull_request.title }}
