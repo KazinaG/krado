@@ -4,6 +4,9 @@
 #   枝: Conventional Branch の目的別の頭だけ（main と dependabot/ は対象外）
 #   タグ: SemVer 2.0.0、v なし（例 1.2.3）。公開済みの v 付きタグはそのまま残す
 #   PR タイトル: 文は英語。日本語などの名前はバッククォートの中だけ（例 feat: add `出勤簿` export）
+#   お試しの後の混ざり: PR 本文に `trial: <full sha>`（Kazinaさんが試した commit）があり、その commit から head までの差に
+#     文書（docs/**・*.md）と CI の設定（.github/**）以外のファイルが1つでもあれば落とす。本文に `trial-recheck: <今の head の full sha>`
+#     （Kazinaさんがもう一度試したあと CoS 経由の OK でボットが書く）があれば通す。trial の行が無い PR はそのまま通る（10/27 Kazinaさん A）
 #   sandustry-ai-mod だけ: 同じジョブの中で構文の確かめと 107 件のテスト（1.5 秒ほど）も回す
 # 決まりはこのファイルの中身そのもの。
 # 枝の push では回さない。PR（draft を含む）で1つのジョブ「conventions」が1回だけ見る（4つのリポ共通の決まりの③）。
@@ -14,7 +17,8 @@ on:
   push:
     tags: ['**']
   pull_request:
-    types: [opened, edited, reopened, synchronize]
+    # edited: タイトルや本文（trial・trial-recheck の行）を直すとやり直す。ready_for_review: ready にした時の本文でも見る
+    types: [opened, edited, reopened, synchronize, ready_for_review]
 
 permissions:
   contents: read
@@ -131,3 +135,68 @@ jobs:
       - name: テスト（sandustry-ai-mod だけ。PR の試しマージの中身で）
         if: github.event_name == 'pull_request' && github.repository == 'KazinaG/sandustry-ai-mod'
         run: npm run check && npm test
+
+      - name: お試しの後の混ざり（trial の commit から head までの差）
+        if: github.event_name == 'pull_request'
+        env:
+          # 本文は環境変数で渡し、スクリプトの中に式を書かない（スクリプト注入を防ぐ）。本文そのものはログに出さない。
+          BODY: ${{ github.event.pull_request.body }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PYTHONUTF8: '1'
+        shell: python
+        run: |
+          # 決まり（rule.md 9章5、10/26 21:19 と 10/27 0:00 Kazinaさん A）: お試しの後に混ざった分に、文書・CI の設定以外の
+          # ファイルが1つでもあれば Kazinaさんがもう一度試す。どのファイルが関係あるかはボットが選ばない。
+          # 注意: 「Re-run」は最初のイベントの本文を使う。本文を直したら edited のやり直しを待つ。
+          import os, re, subprocess, sys
+          body = (os.environ.get("BODY") or "").replace("\r\n", "\n")
+          head = os.environ["HEAD_SHA"]
+          def lines(key):
+              return re.findall(rf"^[ \t]*{key}:[ \t]*(\S*)[ \t]*$", body, flags=re.MULTILINE | re.IGNORECASE)
+          trials = lines("trial")
+          if not trials:
+              print("trial の行が無い（お試しに出していない）ので見ない / No trial line: nothing to check.")
+              sys.exit(0)
+          trial = trials[-1].lower()  # 複数あれば最後の行（いちばん新しいお試し）
+          if not re.fullmatch(r"[0-9a-f]{40}", trial):
+              print("::error::trial の行は 40 文字の commit SHA にしてください（例 trial: 0123…）。"
+                    " / The trial line must be a full 40-character commit SHA.")
+              sys.exit(1)
+          def git(*args):
+              return subprocess.run(["git", *args], capture_output=True, text=True)
+          if git("cat-file", "-e", f"{trial}^{{commit}}").returncode != 0:
+              print(f"::error::trial の commit {trial[:12]} がこのリポジトリに見つかりません。安全のため止めます。"
+                    f" / Trial commit {trial[:12]} is not in this repository; failing closed.")
+              sys.exit(1)
+          if git("merge-base", "--is-ancestor", trial, head).returncode != 0:
+              print(f"::error::trial の commit {trial[:12]} は head {head[:12]} の祖先ではありません（枝を作り直した？）。安全のため止めます。"
+                    f" / Trial commit {trial[:12]} is not an ancestor of head {head[:12]}; failing closed.")
+              sys.exit(1)
+          # --no-renames: 移動は「元を消す＋先に足す」として両方の名前を出す（コードを docs/ へ移して抜けるのを防ぐ）
+          diff = git("diff", "--no-renames", "--name-only", "-z", trial, head)
+          if diff.returncode != 0:
+              print("::error::trial から head までの差を読めませんでした。 / Could not diff trial..head.")
+              sys.exit(1)
+          files = [f for f in diff.stdout.split("\0") if f]
+          def free(f):  # 文書と CI の設定
+              return f.startswith("docs/") or f.startswith(".github/") or f.lower().endswith(".md")
+          others = [f for f in files if not free(f)]
+          print(f"trial {trial[:12]} → head {head[:12]}: 変わったファイル {len(files)} 件、文書・CI 以外 {len(others)} 件")
+          if not others:
+              print("お試しの後の差は文書・CI の設定だけなので通す / Only docs and CI config changed since the trial.")
+              sys.exit(0)
+          rechecks = [r.lower() for r in lines("trial-recheck")]
+          if head in rechecks:
+              print(f"trial-recheck が今の head {head[:12]} を指しているので通す（Kazinaさんがもう一度試した）"
+                    f" / trial-recheck matches head {head[:12]}.")
+              sys.exit(0)
+          print("お試しの後に混ざった、文書・CI の設定以外のファイル / Files changed since the trial (not docs or CI config):")
+          for f in others[:50]:
+              print("  - " + f.encode("unicode_escape").decode("ascii"))
+          if len(others) > 50:
+              print(f"  …ほか {len(others) - 50} 件 / and {len(others) - 50} more")
+          print(f"::error::お試しの後に文書・CI の設定以外のファイルが {len(others)} 件変わりました（上の一覧）。Kazinaさんにもう一度試してもらい、"
+                f"CoS 経由の OK のあと本文に「trial-recheck: {head}」を書いてください。"
+                f" / {len(others)} non-doc file(s) changed since the trial (listed above). Kazina must re-check the trial;"
+                f" after her OK via CoS, add \"trial-recheck: {head}\" to the PR body.")
+          sys.exit(1)
