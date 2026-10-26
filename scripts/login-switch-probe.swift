@@ -1,8 +1,8 @@
 // Disposable macOS CI only (login-switch-probe.yml). Diagnoses why an NSSwitch in a
 // status-item menu row draws gray when on, and whether it animates.
 // Usage: login-switch-probe <out-dir>
-// Opens a real status-item menu twice, once without and once after NSApp.activate,
-// with several switch variants, writes <out>/<phase>.json and full-screen shots.
+// Phases: "inactive" (menu opened as krado does today) and "activate-on-open"
+// (NSApp.activate in menuWillOpen, previous app restored on close).
 import AppKit
 import SwiftUI
 
@@ -11,22 +11,32 @@ try? FileManager.default.createDirectory(atPath: out, withIntermediateDirectorie
 
 final class Model: ObservableObject { @Published var on = true }
 
+struct ToggleView: View {
+    @ObservedObject var model: Model
+    let active: ControlActiveState?
+    var body: some View {
+        let t = Toggle("", isOn: $model.on).toggleStyle(.switch).labelsHidden().controlSize(.mini)
+        if let active { t.environment(\.controlActiveState, active) } else { t }
+    }
+}
+
 @MainActor
-final class Probe: NSObject, NSApplicationDelegate {
+final class Probe: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var statusItem: NSStatusItem!
     let menu = NSMenu()
     var rows: [(String, NSView)] = []
-    let heli = NSSwitch()        // HeliPort-style: regular, real target/action
-    let mini = NSSwitch()        // krado 0.1.13 size
-    let miniOff = NSSwitch()
-    let modelPlain = Model()
-    let modelTint = Model()
+    let mini = NSSwitch()
+    let clickMini = NSSwitch()
+    let models = [Model(), Model(), Model()]
     var actions: [String] = []
+    var phaseName = ""
+    var previousApp: NSRunningApplication?
+    var log: [String: Any] = [:]
 
-    func row(_ name: String, _ control: NSView, width: CGFloat = 60, height: CGFloat = 30) {
+    func row(_ name: String, _ control: NSView, width: CGFloat, height: CGFloat) {
         let view = NSView(frame: NSRect(x: 0, y: 0, width: 260, height: 32))
         let label = NSTextField(labelWithString: name)
-        label.frame = NSRect(x: 14, y: 7, width: 150, height: 18)
+        label.frame = NSRect(x: 14, y: 7, width: 170, height: 18)
         view.addSubview(label)
         control.frame = NSRect(x: 260 - 14 - width, y: (32 - height) / 2, width: width, height: height)
         view.addSubview(control)
@@ -36,24 +46,41 @@ final class Probe: NSObject, NSApplicationDelegate {
         rows.append((name, control))
     }
 
-    @objc func switched(_ sender: NSSwitch) { actions.append("action state=\(sender.state.rawValue)") }
+    @objc func switched(_ sender: NSSwitch) {
+        actions.append("\(Date().timeIntervalSince1970) action state=\(sender.state.rawValue)")
+    }
 
     func applicationDidFinishLaunching(_ n: Notification) {
         NSApp.setActivationPolicy(.accessory)
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.button?.title = "PROBE"
-        heli.state = .on; heli.target = self; heli.action = #selector(switched(_:))
-        mini.controlSize = .mini; mini.state = .on; mini.target = self; mini.action = #selector(switched(_:))
-        miniOff.controlSize = .mini; miniOff.state = .off
-        row("nsswitch-regular-on", heli, width: 42, height: 25)
+        mini.controlSize = .mini; mini.state = .on
+        clickMini.controlSize = .mini; clickMini.state = .off
+        clickMini.target = self; clickMini.action = #selector(switched(_:))
         row("nsswitch-mini-on", mini, width: 28, height: 16)
-        row("nsswitch-mini-off", miniOff, width: 28, height: 16)
-        let plain = NSHostingView(rootView: ToggleView(model: modelPlain, tint: false))
-        let tint = NSHostingView(rootView: ToggleView(model: modelTint, tint: true))
-        row("swiftui-mini-on", plain, width: 40, height: 22)
-        row("swiftui-mini-tint-on", tint, width: 40, height: 22)
+        row("swiftui-mini-key-on", NSHostingView(rootView: ToggleView(model: models[0], active: .key)), width: 40, height: 22)
+        row("swiftui-mini-active-on", NSHostingView(rootView: ToggleView(model: models[1], active: .active)), width: 40, height: 22)
+        row("swiftui-mini-plain-on", NSHostingView(rootView: ToggleView(model: models[2], active: nil)), width: 40, height: 22)
+        row("nsswitch-mini-click", clickMini, width: 28, height: 16)
+        menu.delegate = self
         statusItem.menu = menu
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { self.phase("inactive") }
+    }
+
+    func menuWillOpen(_ menu: NSMenu) {
+        log["\(phaseName).frontmostBeforeOpen"] = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "nil"
+        if phaseName == "activate-on-open" {
+            previousApp = NSWorkspace.shared.frontmostApplication
+            NSApp.activate(ignoringOtherApps: true)
+        }
+    }
+
+    func menuDidClose(_ menu: NSMenu) {
+        log["\(phaseName).frontmostAtClose"] = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "nil"
+        if phaseName == "activate-on-open", let previousApp, previousApp != NSRunningApplication.current {
+            NSApp.yieldActivation(to: previousApp)
+            previousApp.activate()
+        }
     }
 
     func later(_ s: Double, _ f: @escaping () -> Void) {
@@ -62,16 +89,23 @@ final class Probe: NSObject, NSApplicationDelegate {
     }
 
     func phase(_ name: String) {
+        phaseName = name
+        later(0.4) { self.record("\(name)-early") }
         later(1.5) { self.record(name) }
-        later(3.0) { self.animationProbe(name) }
-        later(4.5) { self.menu.cancelTracking() }
+        later(2.5) { self.animationProbe(name) }
+        later(6.5) { self.menu.cancelTracking() }
         statusItem.button?.performClick(nil)   // returns when the menu closes
-        if name == "inactive" {
-            NSApp.activate(ignoringOtherApps: true)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { self.phase("active") }
-        } else {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { NSApp.terminate(nil) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            self.log["\(name).frontmostAfterClose"] = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "nil"
+            if name == "inactive" { self.phase("activate-on-open") } else { self.finish() }
         }
+    }
+
+    func finish() {
+        log["actions"] = actions
+        let data = try! JSONSerialization.data(withJSONObject: log, options: [.prettyPrinted, .sortedKeys])
+        try! data.write(to: URL(fileURLWithPath: "\(out)/log.json"))
+        NSApp.terminate(nil)
     }
 
     func screenRect(_ v: NSView) -> [String: Double] {
@@ -81,101 +115,66 @@ final class Probe: NSObject, NSApplicationDelegate {
         return ["x": r.minX, "y": top - r.maxY, "width": r.width, "height": r.height]
     }
 
-    func widgetDefinitions(_ v: NSView) -> [String] {
-        var found: [String] = []
-        let sel = NSSelectorFromString("widgetDefinition")
-        func walk(_ v: NSView) {
-            if v.responds(to: sel), let d = v.value(forKey: "widgetDefinition") as? [String: Any] {
-                let keys = ["widget", "kCUIPresentationStateKey", "state", "value", "size"]
-                found.append(keys.map { "\($0)=\(d[$0].map { "\($0)" } ?? "-")" }.joined(separator: " "))
-            }
-            v.subviews.forEach(walk)
-        }
-        walk(v)
-        return found
-    }
-
     func rgba(_ c: NSColor) -> [Double] {
         let s = c.usingColorSpace(.sRGB) ?? c
         return [s.redComponent, s.greenComponent, s.blueComponent, s.alphaComponent].map { Double($0) * 255 }
     }
 
+    func run(_ path: String, _ args: [String], wait: Bool = true) {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: path)
+        p.arguments = args
+        try? p.run(); if wait { p.waitUntilExit() }
+    }
+
     func record(_ name: String) {
         let shot = "\(out)/\(name).png"
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
-        p.arguments = ["-x", "-m", shot]
-        try? p.run(); p.waitUntilExit()
+        run("/usr/sbin/screencapture", ["-x", "-m", shot])
         let window = rows.first?.1.window
         var json: [String: Any] = [
             "phase": name,
             "appIsActive": NSApp.isActive,
-            "menuWindowClass": window.map { String(describing: type(of: $0)) } ?? "-",
             "menuWindowIsKey": window?.isKeyWindow ?? false,
-            "menuWindowIsMain": window?.isMainWindow ?? false,
-            "keyWindow": NSApp.keyWindow.map { String(describing: type(of: $0)) } ?? "nil",
             "controlAccentColor": rgba(.controlAccentColor),
             "screenWidth": NSScreen.screens[0].frame.width,
             "screenshot": shot,
         ]
         var controls: [String: Any] = [:]
-        for (n, v) in rows {
-            var c: [String: Any] = ["rect": screenRect(v)]
-            if let s = v as? NSSwitch {
-                c["state"] = s.state == .on ? "on" : "off"
-                c["isEnabled"] = s.isEnabled
-                c["controlSize"] = s.controlSize.rawValue
-                c["widgets"] = widgetDefinitions(s)
-            }
-            controls[n] = c
-        }
+        for (n, v) in rows { controls[n] = ["rect": screenRect(v)] }
         json["controls"] = controls
         let data = try! JSONSerialization.data(withJSONObject: json, options: [.prettyPrinted, .sortedKeys])
         try! data.write(to: URL(fileURLWithPath: "\(out)/\(name).json"))
-        print("PROBE recorded \(name) active=\(NSApp.isActive)")
     }
 
-    func animationKeys(_ v: NSView) -> [String] {
-        var keys: [String] = []
-        func walk(_ l: CALayer) {
-            keys += (l.animationKeys() ?? []).map { "\(type(of: l)):\($0)" }
-            l.sublayers?.forEach(walk)
-        }
-        if let l = v.layer { walk(l) }
-        return keys
-    }
-
-    // While the menu is tracking: set state directly vs through animator(), then read
-    // the Core Animation animations attached under each switch 30 ms later.
+    // Frame sampling around (1) mini.animator().state = .off and (2) a real mouse click
+    // on clickMini. A Python helper captures the switch rect repeatedly with timestamps.
     func animationProbe(_ name: String) {
-        miniOff.state = .on                       // direct
-        NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = 0.25
-            ctx.allowsImplicitAnimation = true
-            mini.animator().state = .off          // animator()
+        let a = screenRect(mini), c = screenRect(clickMini)
+        let spec: [String: Any] = ["animator": a, "click": c]
+        let data = try! JSONSerialization.data(withJSONObject: spec)
+        try! data.write(to: URL(fileURLWithPath: "\(out)/\(name)-frames-spec.json"))
+        run("/usr/bin/env", ["python3", "scripts/login-switch-frames.py", out, name, "animator"], wait: false)
+        later(0.6) {
+            self.log["\(name).animatorAt"] = Date().timeIntervalSince1970
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.25
+                ctx.allowsImplicitAnimation = true
+                self.mini.animator().state = .off
+            }
         }
-        withAnimation { modelTint.on = false }    // SwiftUI
-        later(0.03) {
-            let r: [String: Any] = [
-                "direct(nsswitch-mini-off->on)": self.animationKeys(self.miniOff),
-                "animator(nsswitch-mini-on->off)": self.animationKeys(self.mini),
-                "withAnimation(swiftui-mini-tint-on->off)": self.animationKeys(self.rows[4].1),
-                "actions": self.actions,
-            ]
-            let data = try! JSONSerialization.data(withJSONObject: r, options: [.prettyPrinted, .sortedKeys])
-            try! data.write(to: URL(fileURLWithPath: "\(out)/\(name)-animation.json"))
-            // Put states back for the next phase.
-            self.miniOff.state = .off; self.mini.state = .on; self.modelTint.on = true
+        later(2.0) {
+            self.run("/usr/bin/env", ["python3", "scripts/login-switch-frames.py", out, name, "click"], wait: false)
         }
-    }
-}
-
-struct ToggleView: View {
-    @ObservedObject var model: Model
-    let tint: Bool
-    var body: some View {
-        let t = Toggle("", isOn: $model.on).toggleStyle(.switch).labelsHidden().controlSize(.mini)
-        if tint { t.tint(Color(nsColor: .controlAccentColor)) } else { t }
+        later(2.6) {
+            // Real click in the middle of the switch (CGEvent, global top-left coordinates).
+            let p = CGPoint(x: c["x"]! + c["width"]! / 2, y: c["y"]! + c["height"]! / 2)
+            self.log["\(name).clickAt"] = Date().timeIntervalSince1970
+            for type in [CGEventType.mouseMoved, .leftMouseDown, .leftMouseUp] {
+                CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: p, mouseButton: .left)?.post(tap: .cghidEventTap)
+                usleep(30_000)
+            }
+        }
+        later(3.8) { self.mini.state = .on; self.clickMini.state = .off }
     }
 }
 

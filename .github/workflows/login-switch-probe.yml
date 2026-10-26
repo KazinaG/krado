@@ -7,6 +7,7 @@ on:
     paths:
       - scripts/login-switch-probe.swift
       - scripts/check-login-switch-probe.py
+      - scripts/login-switch-frames.py
       - .github/workflows/login-switch-probe.yml
   workflow_dispatch:
 
@@ -30,7 +31,7 @@ jobs:
           sw_vers
           "$RUNNER_TEMP/probe" "$PWD/probe" &
           pid=$!
-          for i in $(seq 1 60); do kill -0 $pid 2>/dev/null || break; sleep 1; done
+          for i in $(seq 1 90); do kill -0 $pid 2>/dev/null || break; sleep 1; done
           kill $pid 2>/dev/null || true
           "$RUNNER_TEMP/venv/bin/python" scripts/check-login-switch-probe.py "$PWD/probe" | tee probe/summary.txt
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
