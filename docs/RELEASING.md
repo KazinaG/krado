@@ -56,14 +56,20 @@ real update check and the uninstall file list:
 
 [`.github/workflows/release.yml`](../.github/workflows/release.yml):
 
-- **Tag `X.Y.Z` pushed:** runs the changelog check and tests, builds the DMG
+- **Tag `X.Y.Z` pushed:** first checks with `scripts/check-tag-tested.sh` that the tag
+  points at a `main` commit merged from a pull request with the same tree as that pull
+  request's head, and that the head passed `changelog` and `tests` (tests are not re-run;
+  `main` requires branches to be up to date, so the merged tree is the tested tree). Then it
+  runs the changelog check, builds the DMG
   with `scripts/make-dmg.sh`, checks that the tag matches
   `CFBundleShortVersionString`, takes the notes from the `## [<version>]` section
   of `CHANGELOG.md` (`scripts/changelog-section.sh`), signs the DMG and writes
   `appcast.xml` with Sparkle's `generate_appcast`, verifies the signature, length
   and URL, then creates a **draft** GitHub Release with the DMG and appcast.
-- **Branch push touching release files:** the same build, signing and
-  verification as a dry run; the files are kept only as a workflow artifact.
+- **Pull request touching release files, ready for review (not draft):** the same build,
+  signing and verification as a dry run, without re-running the tests (the pull request's
+  CI runs them); the files are kept only as a workflow artifact. Branch pushes do not run it.
+- **Trial build started by hand (`trial_version`):** runs the tests too.
 - **Runs started by Dependabot** (`github.actor == 'dependabot[bot]'`): Actions
   secrets are not available, so the signing steps are skipped. The ad-hoc signed DMG is
   still built, checked and rendered, and kept only as the `unsigned` workflow artifact.

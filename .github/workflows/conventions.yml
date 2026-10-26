@@ -1,13 +1,17 @@
 # コミット・枝の名前・タグの決まりを確かめる（4つのリポジトリで同じファイル）。
-#   コミット: Conventional Commits 1.0.0 を commitlint（@commitlint/config-conventional）で
+#   コミット: Conventional Commits 1.0.0 を commitlint（@commitlint/config-conventional）で。PR の枝の中のすべてのコミットの件名も
+#     PR タイトルと同じく英語（日本語はバッククォートの中だけ。.github/commitlint/commitlint.config.mjs）。本文は自由
 #   枝: Conventional Branch の目的別の頭だけ（main と dependabot/ は対象外）
 #   タグ: SemVer 2.0.0、v なし（例 1.2.3）。公開済みの v 付きタグはそのまま残す
+#   PR タイトル: 文は英語。日本語などの名前はバッククォートの中だけ（例 feat: add `出勤簿` export）
+#   sandustry-ai-mod だけ: 同じジョブの中で構文の確かめと 107 件のテスト（1.5 秒ほど）も回す
 # 決まりはこのファイルの中身そのもの。
+# 枝の push では回さない。PR（draft を含む）で1つのジョブ「conventions」が1回だけ見る（4つのリポ共通の決まりの③）。
+# push で回るのはタグだけ。
 name: conventions
 
 on:
   push:
-    branches-ignore: [main]
     tags: ['**']
   pull_request:
     types: [opened, edited, reopened, synchronize]
@@ -21,9 +25,9 @@ concurrency:
 
 jobs:
   check:
-    # push は conventions、PR はタイトルだけを見る pr-title（head が変わるたびにも走らせ、必須チェックにできるようにする）。名前を分けて、
-    # 片方の skipped がもう片方の結果を上書きしないようにする。
-    name: ${{ github.event_name == 'pull_request' && 'pr-title' || 'conventions' }}
+    # PR では枝の名前・コミット・タイトルをこの1つのジョブで見る（必須チェック名は conventions）。
+    # edited（タイトルや本文の直し）でも回す。ジョブを skip すると skipped＝成功が前の失敗を上書きするため。
+    name: conventions
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -33,9 +37,9 @@ jobs:
           persist-credentials: false
 
       - name: 枝の名前（Conventional Branch）
-        if: github.event_name == 'push' && github.ref_type == 'branch' && !startsWith(github.ref_name, 'dependabot/')
+        if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'dependabot/')
         env:
-          BRANCH: ${{ github.ref_name }}
+          BRANCH: ${{ github.head_ref }}
         run: |
           # https://conventionalbranch.org/v1.1.0/spec.json の grammar.regex から、目的別の頭だけを残したもの
           re='^(feature|feat|bugfix|fix|hotfix|release|chore)/[a-z0-9]+(\.[a-z0-9]+)*(-[a-z0-9]+(\.[a-z0-9]+)*)*$'
@@ -66,6 +70,33 @@ jobs:
           fi
           echo "タグ OK: $TAG"
 
+      - name: PR タイトルの言語（文は英語、日本語はバッククォートの中だけ）
+        if: github.event_name == 'pull_request'
+        env:
+          # タイトルは環境変数で渡し、スクリプトの中に式を書かない（スクリプト注入を防ぐ。
+          # https://docs.github.com/en/actions/reference/security/secure-use の「intermediate environment variable」）
+          TITLE: ${{ github.event.pull_request.title }}
+          PYTHONUTF8: '1'
+        shell: python
+        run: |
+          # バッククォート（`）で囲んだ部分を除き、残りに ASCII 以外の文字があれば落とす。
+          # 例: 「feat: add `出勤簿` export」は通り、「feat: 出勤簿を追加」は止まる。
+          # 閉じていないバッククォートは囲みとみなさず、安全側に倒して落とす。
+          # タイトルそのものはログに出さない（::から始まるワークフローコマンドとして読まれないように）。
+          import os, sys
+          title = os.environ["TITLE"]
+          how = ("直し方: 文は英語で書く。日本語の名前は `出勤簿` のようにバッククォートで囲む"
+                 "（例 feat: add `出勤簿` export）。PR のタイトルを直すと、このチェックは自動でやり直される。")
+          if title.count("`") % 2:
+              print("::error::PR タイトルのバッククォート（`）が閉じていません。" + how)
+              sys.exit(1)
+          bad = list(dict.fromkeys(c for c in "".join(title.split("`")[0::2]) if ord(c) > 0x7F))
+          if bad:
+              shown = "、".join(f"「{c}」(U+{ord(c):04X})" for c in bad[:20]) + (f" ほか{len(bad) - 20}種" if len(bad) > 20 else "")
+              print(f"::error::PR タイトルのバッククォートの外に英語以外の文字があります: {shown}。" + how)
+              sys.exit(1)
+          print("PR タイトルの言語 OK（バッククォートの外は ASCII だけ）")
+
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         if: github.ref_type != 'tag'
         with:
@@ -78,13 +109,16 @@ jobs:
         run: npm ci --prefix .github/commitlint --no-fund --no-audit
 
       - name: コミット（Conventional Commits 1.0.0）
-        if: github.event_name == 'push' && github.ref_type == 'branch'
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          # この枝が main から分かれた後のコミットすべて（PR のコミット範囲と同じ）。
+          # PR の head が main から分かれた後のコミットすべて（PR のコミット範囲と同じ）。
           # merge・revert・fixup! などは commitlint の既定で対象外。
-          base=$(git merge-base origin/main HEAD)
+          base=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
           .github/commitlint/node_modules/.bin/commitlint --config .github/commitlint/commitlint.config.mjs \
-            --from "$base" --to HEAD --verbose
+            --from "$base" --to "$HEAD_SHA" --verbose
 
       - name: PR タイトル（squash マージで main に入る件名）
         if: github.event_name == 'pull_request'
@@ -93,3 +127,7 @@ jobs:
         run: |
           printf '%s\n' "$TITLE" | .github/commitlint/node_modules/.bin/commitlint \
             --config .github/commitlint/commitlint.config.mjs --verbose
+
+      - name: テスト（sandustry-ai-mod だけ。PR の試しマージの中身で）
+        if: github.event_name == 'pull_request' && github.repository == 'KazinaG/sandustry-ai-mod'
+        run: npm run check && npm test

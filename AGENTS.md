@@ -9,8 +9,10 @@
 - Run on macOS (headless only): `swift test --disable-keychain` and `swift build --disable-keychain`.
 - CI (`.github/workflows/ci.yml`) also runs `swift build --disable-keychain -Xswiftc -DKRADO_LOGIN_SWITCH_PROBE -Xswiftc -DKRADO_CI_HOOKS` and `swift build --disable-keychain -Xswiftc -DKRADO_LAB_HOOKS`.
 - CodeQL code scanning (`.github/workflows/codeql.yml`, advanced setup) runs on pushes to `main` and weekly; Swift is built with `swift build` because default setup's Swift autobuild needs an Xcode project.
-- Flow: trunk-based, using GitHub Flow steps. Cut a short-lived branch, open a PR, and merge once CI and the Codex review pass. Naming and tag rules live in `.github/workflows/conventions.yml`. A newer push to the same branch cancels the older CI run (not on `main`).
-- Write commit subjects and PR titles in English.
+- Flow: trunk-based, using GitHub Flow steps. Cut a short-lived branch, open a PR, and merge once the required checks pass. Branch pushes run nothing on GitHub; check on the Mac first. Every PR (drafts too) runs `conventions` (branch name, commits, PR title, in one job) and CI (`changelog`, `tests`). Ready-for-review PRs also run Login row hover and the Release dry run when their files change. A newer push to the same PR cancels the older run.
+- `main` requires: `changelog`, `tests`, `conventions`, `codex-verdict`, and the branch up to date with `main` (strict). So nothing is re-run on `main` after a merge.
+- `codex-verdict` (`.github/workflows/codex-verdict.yml`) turns the Codex review state of the head commit into a commit status. Codex reviews when a PR opens or becomes ready, not on later pushes or Dependabot PRs: comment `@codex review` on the PR for those. If Codex has not answered after 1 hour, ask the maintainer each time; never bypass the ruleset.
+- Write commit subjects and PR titles in English. Japanese names may appear only inside backticks (e.g. feat: add `出勤簿` export); the `conventions` check rejects any other non-ASCII character.
 - Changelog: edit `CHANGELOG.md` and `CHANGELOG.ja.md` together; check with `scripts/check-changelog-headings.sh`.
 - Trial DMGs for the maintainer: only via `docs/trial-build.ja.md` (Release workflow `trial_version`, then `scripts/check-trial-dmg.sh`). Never a local plain or ad-hoc DMG.
 - Bump the patch number for every trial DMG the maintainer checks; never reuse a version. Check a real update from the trial only before releases changing updating or signing (see `docs/RELEASING.md`).

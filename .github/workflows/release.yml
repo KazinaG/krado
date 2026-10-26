@@ -3,17 +3,23 @@ name: Release
 # A pushed X.Y.Z tag builds, signs, and attaches the DMG and appcast to a DRAFT
 # GitHub Release. Nothing reaches users until the draft is published:
 # SUFeedURL uses releases/latest/download/, which ignores drafts and prereleases.
-# Branch pushes that touch release files run the same pipeline as a dry run
-# (build + sign + verify) and keep the files only as a workflow artifact.
+# Pull requests that touch release files and are ready for review (skipped while draft) run the
+# same pipeline as a dry run (build + sign + verify) and keep the files only as a workflow artifact.
+# Branch pushes do not run it.
 # Every run also opens the built DMG in Finder on macOS 15 and 26 (render job) and keeps
 # screenshots of the real window; a draft release is only created after that passes.
 # Runs started by Dependabot get no Actions secrets, so they skip only the signing steps
 # (code signing, Sparkle signing and the checks that need them) and still build an unsigned
 # DMG and render it. Such runs never reach draft-release (tags only, and never Dependabot).
+# Tests are not re-run here for tags and pull requests: a tag must point at a main commit that a
+# merged pull request brought in with the same tree its required tests passed on (main requires
+# branches to be up to date, so the squash tree equals the tested tree). Pull request dry runs rely
+# on that pull request's CI. Trial builds started by hand still run the tests (no PR guarantees them).
 on:
   push:
     tags: ['[0-9]+.[0-9]+.[0-9]+']
-    branches: ['**']
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - .github/workflows/release.yml
       - scripts/build-app.sh
@@ -24,11 +30,6 @@ on:
       - scripts/check-trial-dmg.sh
       - Package.swift
       - Package.resolved
-  pull_request:
-    paths:
-      - .github/workflows/release.yml
-      - scripts/make-dmg.sh
-      - packaging/dmg/**
   workflow_dispatch:
     inputs:
       trial_version:
@@ -44,7 +45,12 @@ concurrency:
 
 jobs:
   build:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: macos-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: read
     env:
       CLANG_MODULE_CACHE_PATH: ${{ github.workspace }}/.build/module-cache
       SWIFT_MODULECACHE_PATH: ${{ github.workspace }}/.build/module-cache
@@ -70,7 +76,15 @@ jobs:
       - name: Check changelogs
         run: scripts/check-changelog-headings.sh
 
-      - name: Test
+      - name: Check the tag commit is on main and passed its pull request checks
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+        run: scripts/check-tag-tested.sh "$GITHUB_REPOSITORY" "$SHA"
+
+      - name: Test (trial builds started by hand only)
+        if: github.event_name == 'workflow_dispatch'
         run: swift test --disable-keychain
 
       - name: Import code-signing certificate (temporary keychain)
@@ -232,7 +246,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: ${{ github.ref_type == 'tag' && 'release' || github.actor == 'dependabot[bot]' && 'unsigned' || 'dryrun' }}
           path: built
@@ -256,7 +270,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: release
           path: release
