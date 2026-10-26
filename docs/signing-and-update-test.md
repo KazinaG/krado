@@ -48,10 +48,9 @@ signing key secret (`SPARKLE_ED_PRIVATE_KEY`), and the same code-signing certifi
 This URL ignores drafts and pre-releases. Once the real release is published,
 Sparkle compares `CFBundleVersion`, which `build-app.sh` sets to the version number.
 
-The trial on the Mac is expected to be `0.1.13` while the latest public release is
-`v0.1.5`, so the next public release must be `0.1.14` or higher. Bump the default
-`version="${KRADO_VERSION:-…}"` in `scripts/build-app.sh` to that number before tagging.
-New tags use `X.Y.Z` without `v`; leave all published v-prefixed tags unchanged.
+A public release must have a higher number than the trial installed on the Mac.
+Bump the default `version="${KRADO_VERSION:-…}"` in `scripts/build-app.sh` to that
+number before tagging.
 
 Every trial DMG the maintainer checks must bump the patch number `x.y.Z`; never
 reuse a number. This real update check is required only before a release changing

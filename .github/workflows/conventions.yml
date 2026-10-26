@@ -2,7 +2,7 @@
 #   コミット: Conventional Commits 1.0.0 を commitlint（@commitlint/config-conventional）で
 #   枝: Conventional Branch の目的別の頭だけ（main と dependabot/ は対象外）
 #   タグ: SemVer 2.0.0、v なし（例 1.2.3）。公開済みの v 付きタグはそのまま残す
-# 決まりの説明は AGENTS.md（または CONTRIBUTING.md）にある。
+# 決まりはこのファイルの中身そのもの。
 name: conventions
 
 on:
@@ -86,7 +86,7 @@ jobs:
           .github/commitlint/node_modules/.bin/commitlint --config .github/commitlint/commitlint.config.mjs \
             --from "$base" --to HEAD --verbose
 
-      - name: PR タイトル（squash マージではこれが main のコミットになる）
+      - name: PR タイトル（squash マージで main に入る件名）
         if: github.event_name == 'pull_request'
         env:
           TITLE: ${{ github.event.pull_request.title }}
