@@ -6,7 +6,7 @@
 - UI strings: `Resources/en.lproj` and `Resources/ja.lproj` `Localizable.strings`. Change both together.
 - `docs/DECISIONS.md` holds only the maintainer's own decisions. Read it before changing look or behaviour; never add inferred or agent-made decisions.
 - Other docs: `docs/design.md`, `docs/RELEASING.md`, `docs/signing-and-update-test.md`.
-- Use Conventional Branch prefixes `feature/`, `feat/`, `bugfix/`, `fix/`, `hotfix/`, `release/`, `chore/` plus lowercase words joined by hyphens; no tool prefixes. `main` and `dependabot/` are exempt.
+- Use Conventional Branch prefixes `feature/`, `feat/`, `bugfix/`, `fix/`, `hotfix/`, `release/`, `chore/` plus lowercase letters, digits and hyphens (dots only in version numbers, e.g. `release/0.1.14`); no tool prefixes. `main` and `dependabot/` are exempt.
 - Use Conventional Commits 1.0.0, with lowercase English subjects; CI job `conventions` checks branches, commits (commitlint with `@commitlint/config-conventional`, merge-base with `origin/main`..HEAD), and tags in `.github/workflows/conventions.yml`. Get CI green, then fast-forward `main`.
 - New release tags use SemVer 2.0.0 `X.Y.Z` without `v`; published `v0.1.0` through `v0.1.5` stay unchanged.
 - Run on macOS (headless only): `swift test --disable-keychain` and `swift build --disable-keychain`.

@@ -10,7 +10,7 @@ on:
     branches-ignore: [main]
     tags: ['**']
   pull_request:
-    types: [opened, edited, reopened]
+    types: [opened, edited, reopened, synchronize]
 
 permissions:
   contents: read
@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   check:
-    # push は conventions、PR はタイトルだけを見る pr-title。名前を分けて、
+    # push は conventions、PR はタイトルだけを見る pr-title（head が変わるたびにも走らせ、必須チェックにできるようにする）。名前を分けて、
     # 片方の skipped がもう片方の結果を上書きしないようにする。
     name: ${{ github.event_name == 'pull_request' && 'pr-title' || 'conventions' }}
     runs-on: ubuntu-24.04
