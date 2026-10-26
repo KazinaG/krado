@@ -207,8 +207,7 @@ final class LoginRowView: NSView {
     private var keyTap: CFMachPort?
     private var keyTapSource: CFRunLoopSource?
     // One toggle per physical press: the tap can deliver the same key down twice.
-    private var keyArmed = true
-    private var lastKeyDownTime: CGEventTimestamp = 0
+    private var keyGate = KeyPressGate()
 
     private func installKeyMonitor() {
         guard keyTap == nil else { return }
@@ -225,7 +224,7 @@ final class LoginRowView: NSView {
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         keyTap = tap
         keyTapSource = source
-        keyArmed = true
+        keyGate.rearm()
     }
 
     private func removeKeyMonitor() {
@@ -244,10 +243,9 @@ final class LoginRowView: NSView {
             if let keyTap { CGEvent.tapEnable(tap: keyTap, enable: true) }
             return
         }
-        if kind == CGEventType.keyUp.rawValue { keyArmed = true; return }
-        guard kind == CGEventType.keyDown.rawValue, keyArmed, !isRepeat, time != lastKeyDownTime else { return }
-        lastKeyDownTime = time
-        if activateFromKeyboard(keyCode: keyCode, hasModifiers: hasModifiers) { keyArmed = false }
+        if kind == CGEventType.keyUp.rawValue { keyGate.keyUp(); return }
+        guard kind == CGEventType.keyDown.rawValue, keyGate.admit(isRepeat: isRepeat, time: time) else { return }
+        if activateFromKeyboard(keyCode: keyCode, hasModifiers: hasModifiers) { keyGate.handled() }
     }
 
     fileprivate func activateFromKeyboard(keyCode: UInt16, hasModifiers: Bool) -> Bool {
