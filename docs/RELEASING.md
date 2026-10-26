@@ -1,8 +1,6 @@
 # Releasing krado
 
-The first public release was v0.1.0 (2026-10-19). Never move or rewrite the tag
-of a published release. From the next release, tags use SemVer 2.0.0 `X.Y.Z`
-without `v`; published `v0.1.0` through `v0.1.5` remain unchanged. [CHANGELOG.md](../CHANGELOG.md) is the source of truth; keep the Japanese translation's `## [...]` headings byte-identical.
+The first public release was v0.1.0 (2026-10-19). [CHANGELOG.md](../CHANGELOG.md) is the source of truth; keep the Japanese translation's `## [...]` headings byte-identical.
 
 Distribution is a DMG attached to a GitHub Release plus a Sparkle 2 appcast. There
 is no Homebrew tap.
