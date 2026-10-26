@@ -2,6 +2,7 @@
 #   コミット: Conventional Commits 1.0.0 を commitlint（@commitlint/config-conventional）で
 #   枝: Conventional Branch の目的別の頭だけ（main と dependabot/ は対象外）
 #   タグ: SemVer 2.0.0、v なし（例 1.2.3）。公開済みの v 付きタグはそのまま残す
+#   PR タイトル: 文は英語。日本語などの名前はバッククォートの中だけ（例 feat: add `出勤簿` export）
 # 決まりはこのファイルの中身そのもの。
 name: conventions
 
@@ -65,6 +66,33 @@ jobs:
             [ "$TAG" = "$version" ] || { echo "::error::タグ $TAG と $manifest の version $version が違います。"; exit 1; }
           fi
           echo "タグ OK: $TAG"
+
+      - name: PR タイトルの言語（文は英語、日本語はバッククォートの中だけ）
+        if: github.event_name == 'pull_request'
+        env:
+          # タイトルは環境変数で渡し、スクリプトの中に式を書かない（スクリプト注入を防ぐ。
+          # https://docs.github.com/en/actions/reference/security/secure-use の「intermediate environment variable」）
+          TITLE: ${{ github.event.pull_request.title }}
+          PYTHONUTF8: '1'
+        shell: python
+        run: |
+          # バッククォート（`）で囲んだ部分を除き、残りに ASCII 以外の文字があれば落とす。
+          # 例: 「feat: add `出勤簿` export」は通り、「feat: 出勤簿を追加」は止まる。
+          # 閉じていないバッククォートは囲みとみなさず、安全側に倒して落とす。
+          # タイトルそのものはログに出さない（::から始まるワークフローコマンドとして読まれないように）。
+          import os, sys
+          title = os.environ["TITLE"]
+          how = ("直し方: 文は英語で書く。日本語の名前は `出勤簿` のようにバッククォートで囲む"
+                 "（例 feat: add `出勤簿` export）。PR のタイトルを直すと、このチェックは自動でやり直される。")
+          if title.count("`") % 2:
+              print("::error::PR タイトルのバッククォート（`）が閉じていません。" + how)
+              sys.exit(1)
+          bad = list(dict.fromkeys(c for c in "".join(title.split("`")[0::2]) if ord(c) > 0x7F))
+          if bad:
+              shown = "、".join(f"「{c}」(U+{ord(c):04X})" for c in bad[:20]) + (f" ほか{len(bad) - 20}種" if len(bad) > 20 else "")
+              print(f"::error::PR タイトルのバッククォートの外に英語以外の文字があります: {shown}。" + how)
+              sys.exit(1)
+          print("PR タイトルの言語 OK（バッククォートの外は ASCII だけ）")
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         if: github.ref_type != 'tag'
