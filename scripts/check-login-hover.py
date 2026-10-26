@@ -119,9 +119,9 @@ def check_on_opacity(context, img, g, scale, row_bg):
         failures.append(f"{context}: On ring ({a_edge:.2f}) and fill ({a_fill:.2f}) differ in opacity")
 
 
-def check_fade(case, path):
+def check_fade(case, path, log_path=None):
     """Kazina 10/26 03:14: the toggle cross-fades over 150 ms through in-between values."""
-    log = (root / f"{case}-{path}-app.log").read_text(errors="replace")
+    log = (log_path or root / f"{case}-{path}-app.log").read_text(errors="replace")
     samples = []
     for line in log.splitlines():
         if line.startswith("KRADO_CI login fade "):
@@ -252,6 +252,24 @@ for geometry_path in geometry_paths:
         if path == "slow-to-quit":
             check_native_selection(case, imgs, gs, menu, s)
         report.append(f"{case} {path}: hover={hovered:.2f}; after-leaving={stuck:.2f}")
+
+# Kazina 10/26 20:43: Down arrows to Launch at Login, then Return toggles it exactly once,
+# with the same 150 ms fade as a click (real menu, posted key events).
+key_logs = sorted((root / "fade").glob("fade-*-key-app.log"))
+if len(key_logs) < 2:
+    failures.append(f"expected Off and On keyboard cases, found {[p.name for p in key_logs]}")
+for log_path in key_logs:
+    case = log_path.name[: -len("-app.log")]
+    text = log_path.read_text(errors="replace")
+    toggles = text.count("KRADO_CI real login row click: fake state=")
+    steps = (root / "fade" / f"{case}.log").read_text(errors="replace")
+    by = next((l.split("=", 1)[1] for l in steps.splitlines() if l.startswith("toggled-by=")), "missing")
+    report.append(f"{case}: toggles={toggles} toggled-by={by} "
+                  f"key-lines={[l for l in text.splitlines() if l.startswith('KRADO_CI login key ')]}")
+    if toggles != 1 or by != "CGEvent Return":
+        failures.append(f"{case}: Return on Launch at Login must toggle once (toggles={toggles}, by={by})")
+    else:
+        check_fade(case, "keyboard", log_path)
 
 (root / "report.txt").write_text("\n".join(report + failures) + "\n")
 print("\n".join(report))

@@ -90,8 +90,11 @@ same menu for colour, corner and edges, in every appearance and accent, and chec
 that only On's capsule is filled. `LoginRowPresentation`, `LoginRowLayout`,
 `LoginRowStyle` and `LoginBadgeMetrics` keep these rules pure and tested.
 
-The custom row keeps the menu open on a click and monitors Return/Enter/Space
-for keyboard activation. AppKit owns the menu highlight. If AppKit drops its
+The custom row keeps the menu open on a click. Return/Enter/Space on the
+keyboard-highlighted row toggles it once with the same fade: menu-item views get no
+key events and menu tracking bypasses local NSEvent monitors, so a Carbon raw
+key-down handler on the event dispatcher target, installed while the menu is open,
+handles them (real-menu CI `login-hover` fade-*-key). AppKit owns the menu highlight. If AppKit drops its
 custom-view highlight after mouse-up, a bounded pointer-since-click state keeps
 the row highlighted. Mouse exit, another menu item being highlighted (including
 keyboard navigation), menu close or view detachment clears that state. Another

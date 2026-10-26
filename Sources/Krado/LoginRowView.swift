@@ -1,5 +1,26 @@
 import AppKit
+import Carbon.HIToolbox
 import KradoCore
+
+/// Carbon raw key-down handler for the open menu; `userData` is the LoginRowView.
+private func loginRowKeyDown(_ call: EventHandlerCallRef?, _ event: EventRef?,
+                             _ userData: UnsafeMutableRawPointer?) -> OSStatus {
+    guard let event, let userData else { return OSStatus(eventNotHandledErr) }
+    var code: UInt32 = 0
+    var modifiers: UInt32 = 0
+    GetEventParameter(event, EventParamName(kEventParamKeyCode), EventParamType(typeUInt32),
+                      nil, MemoryLayout<UInt32>.size, nil, &code)
+    GetEventParameter(event, EventParamName(kEventParamKeyModifiers), EventParamType(typeUInt32),
+                      nil, MemoryLayout<UInt32>.size, nil, &modifiers)
+    let hasModifiers = modifiers & UInt32(cmdKey | optionKey | controlKey | shiftKey) != 0
+    let row = UInt(bitPattern: userData)
+    let handled = MainActor.assumeIsolated { () -> Bool in
+        guard let pointer = UnsafeMutableRawPointer(bitPattern: row) else { return false }
+        let view = Unmanaged<LoginRowView>.fromOpaque(pointer).takeUnretainedValue()
+        return view.activateFromKeyboard(keyCode: UInt16(code), hasModifiers: hasModifiers)
+    }
+    return handled ? noErr : OSStatus(eventNotHandledErr)
+}
 
 /// The Launch at Login row: a custom menu view, so a click toggles without closing
 /// the menu. AppKit draws no highlight under custom views, so the row shows the
@@ -176,35 +197,47 @@ final class LoginRowView: NSView {
         if window == nil { fade.finish() }
     }
 
-    // Custom menu views lose AppKit's keyboard activation. While the menu is open,
-    // Return, Enter or Space toggles the row when the keyboard has highlighted it.
-    private var keyMonitor: Any?
+    // Custom menu views lose AppKit's keyboard activation: a view in a menu item gets no
+    // keyboard events, and menu tracking consumes key events before NSApplication.sendEvent,
+    // so neither keyDown nor a local NSEvent monitor sees Return while the menu is open
+    // (Apple, "Views in Menu Items"; NSEvent.addLocalMonitorForEvents). A Carbon handler on
+    // the event dispatcher target still receives raw key downs during menu tracking. While
+    // the keyboard has highlighted the row, Return, Enter or Space toggles it once.
+    private var keyHandler: EventHandlerRef?
 
     private func installKeyMonitor() {
-        guard keyMonitor == nil else { return }
-        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let self, self.handlesActivationKey(event) else { return event }
-            self.activate()
-            self.needsDisplay = true
-            return nil
-        }
+        guard keyHandler == nil else { return }
+        var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventRawKeyDown))
+        InstallEventHandler(GetEventDispatcherTarget(), loginRowKeyDown, 1, &spec,
+                            Unmanaged.passUnretained(self).toOpaque(), &keyHandler)
     }
 
     private func removeKeyMonitor() {
-        if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
-        keyMonitor = nil
+        if let keyHandler { RemoveEventHandler(keyHandler) }
+        keyHandler = nil
     }
 
-    private func handlesActivationKey(_ event: NSEvent) -> Bool {
-        guard enabled, window != nil, enclosingMenuItem?.isHighlighted == true else { return false }
-        let mods = event.modifierFlags.intersection([.command, .option, .control, .shift])
-        guard mods.isEmpty else { return false }
+    fileprivate func activateFromKeyboard(keyCode: UInt16, hasModifiers: Bool) -> Bool {
+        let handled = handlesActivationKey(keyCode: keyCode, hasModifiers: hasModifiers)
+        #if KRADO_CI_HOOKS
+        print("KRADO_CI login key code=\(keyCode) handled=\(handled)")
+        #endif
+        guard handled else { return false }
+        activate()
+        needsDisplay = true
+        return true
+    }
+
+    private func handlesActivationKey(keyCode: UInt16, hasModifiers: Bool) -> Bool {
+        guard enabled, window != nil, enclosingMenuItem?.isHighlighted == true, !hasModifiers else { return false }
         // 36 Return, 76 keypad Enter, 49 Space
-        return [36, 76, 49].contains(event.keyCode)
+        return [36, 76, 49].contains(keyCode)
     }
 
     override func keyDown(with event: NSEvent) {
-        if handlesActivationKey(event) { activate(); needsDisplay = true } else { super.keyDown(with: event) }
+        let mods = !event.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty
+        if activateFromKeyboard(keyCode: event.keyCode, hasModifiers: mods) { return }
+        super.keyDown(with: event)
     }
 
     // Clicks belong to the row, not to the selection or content subviews.
