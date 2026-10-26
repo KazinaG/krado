@@ -36,6 +36,8 @@ def evidence(case, path, phase):
 
 
 WORDS = {"on": "オン", "off": "オフ"}  # the CI menu runs in Japanese
+# Kazina 10/27 choice C: unlit On word vs 0.9 x title gets 0.02 for measurement error.
+UNLIT_ON_WORD_TOLERANCE = 0.02
 
 
 def check_state_text(case, path, phase, img, g, scale, expected_on):
@@ -73,8 +75,11 @@ def check_state_text(case, path, phase, img, g, scale, expected_on):
     report.append(f"{context}: word {g.get('label')} contrast={word:.2f}:1 (on its capsule); "
                   f"title={title:.2f}:1; capsule fill vs row={fill:.2f}:1")
     # The word must be about as legible as the title.
-    if word + 1e-6 < 0.9 * title:
-        failures.append(f"{context}: state word {word:.2f}:1 is fainter than the title {title:.2f}:1")
+    bound = 0.9 * title
+    tolerance = UNLIT_ON_WORD_TOLERANCE if expected_on and not g.get("highlighted") else 0.0
+    if word + 1e-6 + tolerance < bound:
+        failures.append(f"{context}: state word {word:.3f}:1 is fainter than the title {title:.3f}:1 "
+                        f"(bound 0.9 x title = {bound:.3f}, tolerance {tolerance:.2f})")
     # Only On is filled: visibly when On, not at all for the shipped outline Off.
     # Under the highlight the white On capsule is as visible as the title's own
     # selected-text ink (yellow accent: about 2.4:1 for both), so judge it against that.
