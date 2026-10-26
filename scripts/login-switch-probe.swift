@@ -59,8 +59,11 @@ final class Probe: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc func statusClicked(_ sender: Any?) {
         previousApp = NSWorkspace.shared.frontmostApplication
         log["\(phaseName).frontmostBeforeOpen"] = previousApp?.bundleIdentifier ?? "nil"
-        NSApp.activate()
+        // macOS 14+ cooperative NSApp.activate() left the app inactive on macOS 26 (run
+        // 40292873921), so this phase uses the older forced activation.
+        NSApp.activate(ignoringOtherApps: true)
         log["\(phaseName).isActiveAfterActivateCall"] = NSApp.isActive
+        log["\(phaseName).frontmostAfterActivateCall"] = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "nil"
         statusItem.menu = menu
         statusItem.button?.performClick(nil)   // tracks until the menu closes
         statusItem.menu = nil
@@ -68,6 +71,7 @@ final class Probe: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func menuWillOpen(_ menu: NSMenu) {
         log["\(phaseName).isActiveAtMenuWillOpen"] = NSApp.isActive
+        log["\(phaseName).frontmostAtMenuWillOpen"] = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "nil"
     }
 
     func menuDidClose(_ menu: NSMenu) {

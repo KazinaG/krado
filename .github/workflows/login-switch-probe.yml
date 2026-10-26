@@ -29,6 +29,10 @@ jobs:
         run: |
           swiftc scripts/login-switch-probe.swift -o "$RUNNER_TEMP/probe"
           sw_vers
+          # A normal app in front, so returning focus after the menu closes can be checked.
+          open -a TextEdit && sleep 3
+          osascript -e 'tell application "TextEdit" to make new document' -e 'tell application "TextEdit" to activate' || true
+          sleep 2
           "$RUNNER_TEMP/probe" "$PWD/probe" &
           pid=$!
           for i in $(seq 1 90); do kill -0 $pid 2>/dev/null || break; sleep 1; done
