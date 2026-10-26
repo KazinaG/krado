@@ -64,10 +64,10 @@ and the state word inside a capsule at the trailing edge: On, Off or Needs appro
 (オン / オフ / 承認待ち), 10 pt medium in a 16 pt capsule with 8 pt padding, right-aligned
 17 points from the row edge. Only On is filled (label ink with the menu background
 ink as text; white with #1C1C1E text while highlighted). On's fill and outline are one
-shape in the title's ink at the opacity the system gives it (`labelColor`'s 85 % at
-rest, the opaque selected text while highlighted), so the edge is never darker than
-the fill and On is as visible as the title with every accent; Off's outline uses the
-same ink at the same opacity. A toggle while
+shape in the title's ink at 85 % at rest (the opacity of `labelColor`) and 100 %
+while highlighted (the selected text's own), so the edge is never darker than the
+fill and On is as visible as the title with every accent; Off's outline uses the same
+ink at the same opacity. A toggle while
 the menu is open cross-fades the old and new capsule over 150 ms (Core Animation's
 default curve); it is opacity only, so it also runs with Reduce Motion (Apple HIG,
 Accessibility: replace motion with fades). Off and Needs approval are an

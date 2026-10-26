@@ -148,22 +148,24 @@ import Testing
             let off = LoginRowStyle.capsule(state: .disabled, highlighted: highlighted, enabled: true)
             let title = LoginRowStyle.ink(highlighted: highlighted, enabled: true)
             #expect(on.fill == title && on.ring == title, "highlighted=\(highlighted)")
-            #expect(on.fillAlpha == 1 && on.ringAlpha == 1, "highlighted=\(highlighted)")
-            #expect(off.ring == on.fill && off.ringAlpha == nil, "highlighted=\(highlighted)")
+            let alpha = highlighted ? 1.0 : 0.85
+            #expect(on.fillAlpha == alpha && on.ringAlpha == alpha, "highlighted=\(highlighted)")
+            #expect(off.ring == on.fill && off.ringAlpha == on.fillAlpha, "highlighted=\(highlighted)")
             #expect(on.fillAndRingShareOpacity)
             #expect(on.isSolid)
         }
-        #expect(LoginRowStyle.onOpacity == 1)
+        #expect(LoginRowStyle.restOpacity == 0.85)
         // Only the opacity changed: same capsule size and type as 0.1.12.
         #expect(LoginBadgeMetrics.fontSize == 10 && LoginBadgeMetrics.height == 16 && LoginBadgeMetrics.horizontalPadding == 8)
     }
 
     // Kazina 10/26 03:19 "両方オフは完璧": Off stays style A, no fill and an outline only.
-    @Test func offStaysOutlineOnlyWithTheInkAsGiven() {
+    // 21:55: its outline at On's opacity.
+    @Test func offStaysOutlineOnlyAtOnsOpacity() {
         for highlighted in [false, true] {
             let off = LoginRowStyle.capsule(state: .disabled, highlighted: highlighted, enabled: true)
             #expect(off.fill == nil && off.fillAlpha == 0)
-            #expect(off.ring != nil && off.ringAlpha == nil)
+            #expect(off.ring != nil && off.ringAlpha == LoginRowStyle.onOpacity(highlighted: highlighted))
             #expect(!off.isSolid && !off.fillAndRingShareOpacity)
         }
     }

@@ -61,7 +61,7 @@ public enum LoginRowStyle {
             self.fill = fill; self.fillAlpha = fillAlpha; self.ring = ring; self.ringAlpha = ringAlpha; self.text = text
         }
         /// The solid fill that means On. Faint fills (style B/C) are not "filled".
-        public var isSolid: Bool { fill != nil && fillAlpha >= LoginRowStyle.onOpacity }
+        public var isSolid: Bool { fill != nil && fillAlpha >= LoginRowStyle.restOpacity }
         /// On draws its fill and ring as one shape at one opacity, so the edge is
         /// never darker than the fill (Kazina 10/26 03:22).
         public var fillAndRingShareOpacity: Bool {
@@ -69,12 +69,13 @@ public enum LoginRowStyle {
         }
     }
 
-    /// On's fill and ring, and Off's outline: the title's ink at the opacity the system
-    /// gives it, so they are exactly as strong as the title (Kazina 10/26 21:55 "オンの塗りと
-    /// オフの枠を同じ濃さに"). That is labelColor's own 85 % at rest (216/255 in CI) and the
-    /// opaque selected-menu-item text while highlighted, where 85 % made the yellow accent's
-    /// On fainter than the title (2.14:1 against 2.42:1). 1 = the ink's own opacity.
-    public static let onOpacity = 1.0
+    /// On's fill and ring, and Off's outline, share one opacity of the title's ink, so they
+    /// are equally strong (Kazina 10/26 03:22, and 21:55 "オンの塗りとオフの枠を同じ濃さに").
+    /// At rest 85 %, the opacity of Apple's labelColor (Kazina 03:28; 216/255 in CI).
+    /// While highlighted 100 %, the opacity of the selected-menu-item text itself: 85 % made
+    /// the yellow accent's On fainter than the title (2.14:1 against 2.42:1).
+    public static let restOpacity = 0.85
+    public static func onOpacity(highlighted: Bool) -> Double { highlighted ? 1 : restOpacity }
 
     /// Faint fill of style B/C: under the highlight it is lighter so the word stays legible.
     public static let faintFillAlpha = 0.12
@@ -84,7 +85,8 @@ public enum LoginRowStyle {
                                offStyle: OffStyle = shippedOffStyle) -> Capsule {
         if state == .enabled && enabled {
             let ink = ink(highlighted: highlighted, enabled: enabled)
-            return Capsule(fill: ink, fillAlpha: onOpacity, ring: ink, ringAlpha: onOpacity,
+            let alpha = onOpacity(highlighted: highlighted)
+            return Capsule(fill: ink, fillAlpha: alpha, ring: ink, ringAlpha: alpha,
                            text: highlighted ? .badgeInk : .onFillText)
         }
         // Off, Needs approval and any disabled row: never solid.
@@ -92,7 +94,9 @@ public enum LoginRowStyle {
         let faint = highlighted ? faintFillAlphaHighlighted : faintFillAlpha
         switch offStyle {
         case .outline:
-            return Capsule(fill: nil, fillAlpha: 0, ring: ink, text: ink)
+            // The outline at On's opacity (Kazina 10/26 21:55), only while the row is enabled.
+            return Capsule(fill: nil, fillAlpha: 0, ring: ink,
+                           ringAlpha: enabled ? onOpacity(highlighted: highlighted) : nil, text: ink)
         case .faintFill:
             return Capsule(fill: ink, fillAlpha: faint, ring: nil, text: ink)
         case .outlineAndFaintFill:

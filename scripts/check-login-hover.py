@@ -101,15 +101,15 @@ def coverage(pixel, background, ink):
 
 
 def check_on_opacity(context, img, g, scale, row_bg):
-    """Kazina 10/26 03:22 and 21:55: On's fill and ring share one opacity, the title ink's
-    own (labelColor 85 % at rest, opaque selected text while highlighted). Read from the
-    app's evidence and from the pixels: fill and top edge coverage both equal that."""
+    """Kazina 10/26 03:22, 03:28 and 21:55: On's fill and ring share one opacity, 85 % at
+    rest and 100 % while highlighted. Read from the app's evidence and from the pixels:
+    fill and top edge coverage both equal that."""
     inks = g.get("inks") or {}
-    if inks.get("fillAlpha") != 1 or inks.get("ringAlpha") != 1 or g.get("fillAndRingShareOpacity") is not True:
-        failures.append(f"{context}: On fill/ring must use the ink's own opacity "
+    want = 1.0 if g.get("highlighted") else 0.85
+    if inks.get("fillAlpha") != want or inks.get("ringAlpha") != want or g.get("fillAndRingShareOpacity") is not True:
+        failures.append(f"{context}: On fill/ring opacity must both be {want} "
                         f"(fill={inks.get('fillAlpha')}, ring={inks.get('ringAlpha')})")
     base = inks.get("fill") or [255, 255, 255, 1]
-    want = base[3] if len(base) > 3 else 1
     ink = [round(v) for v in base[:3]]
     r = g["stateRect"]
     mid = round((g["y"] + g["height"] / 2) * scale)
@@ -145,13 +145,13 @@ def check_fade(case, path, log_path=None):
 
 
 def check_off_outline(context, img, g, scale, row_bg, title):
-    """Kazina 10/26 21:55: Off's outline is as strong as On's fill, the title ink at its own
-    opacity, and as visible as the title (same threshold as On). Read on the straight top edge."""
+    """Kazina 10/26 21:55: Off's outline is as strong as On's fill (the title ink at the same
+    opacity) and as visible as the title (same threshold as On). Read on the straight top edge."""
     inks = g.get("inks") or {}
     ring = inks.get("ring") or inks.get("text") or [255, 255, 255, 1]
-    if inks.get("ring") != inks.get("title") or "ringAlpha" in inks:
-        failures.append(f"{context}: Off outline must be the title ink as the system gives it (inks={inks})")
-    want = ring[3] if len(ring) > 3 else 1
+    want = 1.0 if g.get("highlighted") else 0.85
+    if inks.get("ring") != inks.get("title") or inks.get("ringAlpha") != want:
+        failures.append(f"{context}: Off outline must be the title ink at On's opacity {want} (inks={inks})")
     r = g["stateRect"]
     edge = img.getpixel((round((r["x"] + 9) * scale), round(r["y"] * scale)))
     a_edge = coverage(edge, row_bg, [round(v) for v in ring[:3]])
