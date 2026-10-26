@@ -1,0 +1,9 @@
+{
+  "name": "commit-conventions",
+  "private": true,
+  "description": "CI だけで使う commitlint（.github/workflows/conventions.yml）",
+  "devDependencies": {
+    "@commitlint/cli": "21.2.4",
+    "@commitlint/config-conventional": "21.2.4"
+  }
+}

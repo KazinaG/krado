@@ -1,0 +1,95 @@
+# コミット・枝の名前・タグの決まりを確かめる（4つのリポジトリで同じファイル）。
+#   コミット: Conventional Commits 1.0.0 を commitlint（@commitlint/config-conventional）で
+#   枝: Conventional Branch の目的別の頭だけ（main と dependabot/ は対象外）
+#   タグ: SemVer 2.0.0、v なし（例 1.2.3）。公開済みの v 付きタグはそのまま残す
+# 決まりの説明は AGENTS.md（または CONTRIBUTING.md）にある。
+name: conventions
+
+on:
+  push:
+    branches-ignore: [main]
+    tags: ['**']
+  pull_request:
+    types: [opened, edited, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: conventions-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    # push は conventions、PR はタイトルだけを見る pr-title。名前を分けて、
+    # 片方の skipped がもう片方の結果を上書きしないようにする。
+    name: ${{ github.event_name == 'pull_request' && 'pr-title' || 'conventions' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # origin/main からの全コミットを読むため（浅い clone では範囲が欠ける）
+          persist-credentials: false
+
+      - name: 枝の名前（Conventional Branch）
+        if: github.event_name == 'push' && github.ref_type == 'branch' && !startsWith(github.ref_name, 'dependabot/')
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          # https://conventionalbranch.org/v1.1.0/spec.json の grammar.regex から、目的別の頭だけを残したもの
+          re='^(feature|feat|bugfix|fix|hotfix|release|chore)/[a-z0-9]+(\.[a-z0-9]+)*(-[a-z0-9]+(\.[a-z0-9]+)*)*$'
+          if [[ ! "$BRANCH" =~ $re ]]; then
+            echo "::error::枝の名前「$BRANCH」は決まりに合いません。feat/・fix/・chore/ など目的別の頭＋小文字・数字・ハイフンで（例 fix/header-bug）。codex/ などの頭は使いません。"
+            exit 1
+          fi
+          echo "枝の名前 OK: $BRANCH"
+
+      - name: タグ（SemVer 2.0.0、v なし）
+        if: github.event_name == 'push' && github.ref_type == 'tag'
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          # https://semver.org/spec/v2.0.0.html の推奨正規表現（\d を [0-9] に、(?: を ( に直しただけ）
+          re='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?(\+([0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*))?$'
+          if [[ ! "$TAG" =~ $re ]]; then
+            echo "::error::タグ「$TAG」は SemVer 2.0.0 の v なしの形ではありません（例 1.2.3）。"
+            exit 1
+          fi
+          # Chrome 拡張の manifest がある場合: version は数字と点だけなので、プレリリース・ビルド情報は使えない。
+          # https://developer.chrome.com/docs/extensions/reference/manifest/version
+          manifest=$(git ls-files -z '*manifest*.json' | xargs -0 -r grep -l '"manifest_version"' | head -1)
+          if [ -n "$manifest" ]; then
+            [[ "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::Chrome 拡張のタグは数字3つだけ（例 1.2.3）。-beta.1 などは使えません。"; exit 1; }
+            version=$(node -p 'JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).version' "$manifest")
+            [ "$TAG" = "$version" ] || { echo "::error::タグ $TAG と $manifest の version $version が違います。"; exit 1; }
+          fi
+          echo "タグ OK: $TAG"
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: github.ref_type != 'tag'
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: .github/commitlint/package-lock.json
+
+      - name: commitlint を入れる
+        if: github.ref_type != 'tag'
+        run: npm ci --prefix .github/commitlint --no-fund --no-audit
+
+      - name: コミット（Conventional Commits 1.0.0）
+        if: github.event_name == 'push' && github.ref_type == 'branch'
+        run: |
+          # この枝が main から分かれた後のコミットすべて（PR のコミット範囲と同じ）。
+          # merge・revert・fixup! などは commitlint の既定で対象外。
+          base=$(git merge-base origin/main HEAD)
+          .github/commitlint/node_modules/.bin/commitlint --config .github/commitlint/commitlint.config.mjs \
+            --from "$base" --to HEAD --verbose
+
+      - name: PR タイトル（squash マージではこれが main のコミットになる）
+        if: github.event_name == 'pull_request'
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          printf '%s\n' "$TITLE" | .github/commitlint/node_modules/.bin/commitlint \
+            --config .github/commitlint/commitlint.config.mjs --verbose
