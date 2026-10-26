@@ -1,6 +1,6 @@
 // CI only. Post real pointer and key events over krado's open menu.
 //   login-hover-mouse <login-geometry.json> <menu.json> away|login|click-stay|slow-to-quit|jump-to-quit|down
-//                     |click-left|click-capsule|click-right
+//                     |click-left|click-capsule|click-right|return
 import CoreGraphics
 import Foundation
 
@@ -49,6 +49,10 @@ case "click-left", "click-capsule", "click-right":
         CGEvent(mouseEventSource: source, mouseType: type, mouseCursorPosition: p, mouseButton: .left)!
             .post(tap: .cghidEventTap)
         Thread.sleep(forTimeInterval: 0.1)
+    }
+case "return":
+    for down in [true, false] {
+        CGEvent(keyboardEventSource: source, virtualKey: 36, keyDown: down)!.post(tap: .cghidEventTap)
     }
 case "jump-to-quit": move(quit)
 case "down":

@@ -89,5 +89,46 @@ for where in click-left click-capsule click-right; do
     fi
 done
 cleanup
+# Screen video of the 150 ms cross-fade in the real open menu (Kazina 10/26 19:52):
+# Off→On and On→Off, by a click on the row and by Down arrows + Return. One toggle per
+# launch, because macOS 26 CI may not redraw a second toggle in the same open menu.
+fade_out="$out/fade"; mkdir -p "$fade_out"
+sw_vers > "$fade_out/sw_vers.txt"
+for start in off on; do
+    for how in click key; do
+        case="fade-$start-$how"
+        geo="$fade_out/$case.geo.json"
+        rm -f "$geo"
+        NSUnbufferedIO=YES KRADO_CI_LOGIN_FAKE="$start" KRADO_CI_OPEN_MENU=1 \
+            KRADO_CI_LOGIN_GEOMETRY="$geo" \
+            dist/krado.app/Contents/MacOS/krado -AppleLanguages '(ja)' -AppleLocale ja_JP > "$fade_out/$case-app.log" 2>&1 &
+        app_pid=$!
+        sleep 5
+        "$RUNNER_TEMP/login-hover-windows" "$app_pid" "$fade_out/$case-windows.txt" > "$fade_out/$case-menu.json"
+        fmouse() { "$RUNNER_TEMP/login-hover-mouse" "$geo" "$fade_out/$case-menu.json" "$1" >> "$fade_out/$case.log"; }
+        if [[ "$how" == click ]]; then
+            fmouse login
+        else
+            fmouse away
+            # Down until the keyboard highlight reaches Launch at Login (at most 8 rows).
+            for ((i = 0; i < 8; i++)); do
+                fmouse down
+                if python3 -c 'import json,sys; sys.exit(0 if json.load(open(sys.argv[1])).get("menuItemHighlighted") else 1)' "$geo"; then
+                    echo "downs=$((i + 1))" >> "$fade_out/$case.log"; break
+                fi
+            done
+        fi
+        cp "$geo" "$fade_out/$case-before.geo.json"
+        screencapture -x -m "$fade_out/$case-before.png" || true
+        screencapture -v -V 3 -x "$fade_out/$case.mov" &
+        rec=$!
+        sleep 1
+        python3 -c "import time; print(time.time())" > "$fade_out/$case-trigger.txt"
+        if [[ "$how" == click ]]; then fmouse click-stay; else fmouse return; fi
+        wait "$rec" || true
+        screencapture -x -m "$fade_out/$case-after.png" || true
+        cleanup
+    done
+done
 python3 scripts/check-login-hover.py "$out"
 exit "$anywhere_failed"
