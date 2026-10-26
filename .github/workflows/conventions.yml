@@ -1,5 +1,6 @@
 # コミット・枝の名前・タグの決まりを確かめる（4つのリポジトリで同じファイル）。
-#   コミット: Conventional Commits 1.0.0 を commitlint（@commitlint/config-conventional）で
+#   コミット: Conventional Commits 1.0.0 を commitlint（@commitlint/config-conventional）で。PR の枝の中のすべてのコミットの件名も
+#     PR タイトルと同じく英語（日本語はバッククォートの中だけ。.github/commitlint/commitlint.config.mjs）。本文は自由
 #   枝: Conventional Branch の目的別の頭だけ（main と dependabot/ は対象外）
 #   タグ: SemVer 2.0.0、v なし（例 1.2.3）。公開済みの v 付きタグはそのまま残す
 #   PR タイトル: 文は英語。日本語などの名前はバッククォートの中だけ（例 feat: add `出勤簿` export）
