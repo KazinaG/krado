@@ -122,6 +122,8 @@ jobs:
         run: scripts/check-trial-dmg.sh "$(ls "$RELEASE_DIR"/krado-*.dmg | head -1)"
 
       - name: Show signature
+        # Ad-hoc builds have no certificate-based designated requirement to show.
+        if: env.UNSIGNED != 'true'
         run: |
           codesign -dv --verbose=2 dist/krado.app 2>&1 | grep -E '^(Identifier|Authority|TeamIdentifier|Signature)'
           codesign -d -r- dist/krado.app 2>&1 | grep '^designated'
