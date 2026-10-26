@@ -69,10 +69,12 @@ public enum LoginRowStyle {
         }
     }
 
-    /// On's fill and ring: 85 % in Light, Dark and while highlighted (Kazina 10/26 03:28,
-    /// "どこも 85%"), the opacity of Apple's labelColor (measured in CI: 216/255 in
-    /// Light and Dark on macOS 26). Size and type stay as they were.
-    public static let onOpacity = 0.85
+    /// On's fill and ring, and Off's outline: the title's ink at the opacity the system
+    /// gives it, so they are exactly as strong as the title (Kazina 10/26 21:55 "オンの塗りと
+    /// オフの枠を同じ濃さに"). That is labelColor's own 85 % at rest (216/255 in CI) and the
+    /// opaque selected-menu-item text while highlighted, where 85 % made the yellow accent's
+    /// On fainter than the title (2.14:1 against 2.42:1). 1 = the ink's own opacity.
+    public static let onOpacity = 1.0
 
     /// Faint fill of style B/C: under the highlight it is lighter so the word stays legible.
     public static let faintFillAlpha = 0.12
@@ -81,9 +83,9 @@ public enum LoginRowStyle {
     public static func capsule(state: LoginItemState, highlighted: Bool, enabled: Bool,
                                offStyle: OffStyle = shippedOffStyle) -> Capsule {
         if state == .enabled && enabled {
-            return highlighted
-                ? Capsule(fill: .selectedText, fillAlpha: onOpacity, ring: .selectedText, ringAlpha: onOpacity, text: .badgeInk)
-                : Capsule(fill: .label, fillAlpha: onOpacity, ring: .label, ringAlpha: onOpacity, text: .onFillText)
+            let ink = ink(highlighted: highlighted, enabled: enabled)
+            return Capsule(fill: ink, fillAlpha: onOpacity, ring: ink, ringAlpha: onOpacity,
+                           text: highlighted ? .badgeInk : .onFillText)
         }
         // Off, Needs approval and any disabled row: never solid.
         let ink = ink(highlighted: highlighted, enabled: enabled)

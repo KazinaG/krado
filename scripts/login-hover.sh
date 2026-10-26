@@ -23,7 +23,7 @@ shot() {
     cp "$out/$case-geometry.json" "$out/$case-$1.json"
 }
 # case: name, appearance (Light/Dark), accent (AppleAccentColor; empty = default blue)
-for spec in light-blue:Light: dark-blue:Dark: light-yellow:Light:2 dark-graphite:Dark:-1 light-pink:Light:6; do
+for spec in light-blue:Light: dark-blue:Dark: light-yellow:Light:2 dark-yellow:Dark:2 dark-graphite:Dark:-1 light-pink:Light:6; do
     IFS=: read -r case appearance accent <<< "$spec"
     args=(-AppleLanguages '(ja)' -AppleLocale ja_JP)
     # Menu-bar menus follow the system appearance, so switch the runner itself.

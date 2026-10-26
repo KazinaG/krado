@@ -139,18 +139,21 @@ import Testing
         #expect(LoginRowPresentation.onOffTexts.allSatisfy { LoginRowPresentation.allStateTexts.contains($0) })
     }
 
-    // Kazina 10/26 03:22 "オン時に枠だけ濃さが違うのは絶対にやめた方がいい" and 03:28 "どこも 85%":
-    // On's fill and ring are one opacity, 0.85, resting (Light and Dark share the rule) and highlighted.
-    @Test func onFillAndRingAreBoth85Percent() {
+    // Kazina 10/26 03:22 "オン時に枠だけ濃さが違うのは絶対にやめた方がいい", and 21:55 "オンの塗りと
+    // オフの枠を同じ濃さに": On's fill and ring, and Off's outline, are the title's ink at the
+    // system's own opacity, resting and highlighted.
+    @Test func onFillAndRingAndOffOutlineShareTheTitleInk() {
         for highlighted in [false, true] {
             let on = LoginRowStyle.capsule(state: .enabled, highlighted: highlighted, enabled: true)
-            #expect(on.fill != nil && on.ring == on.fill, "highlighted=\(highlighted)")
-            #expect(on.fillAlpha == 0.85, "highlighted=\(highlighted)")
-            #expect(on.ringAlpha == 0.85, "highlighted=\(highlighted)")
+            let off = LoginRowStyle.capsule(state: .disabled, highlighted: highlighted, enabled: true)
+            let title = LoginRowStyle.ink(highlighted: highlighted, enabled: true)
+            #expect(on.fill == title && on.ring == title, "highlighted=\(highlighted)")
+            #expect(on.fillAlpha == 1 && on.ringAlpha == 1, "highlighted=\(highlighted)")
+            #expect(off.ring == on.fill && off.ringAlpha == nil, "highlighted=\(highlighted)")
             #expect(on.fillAndRingShareOpacity)
             #expect(on.isSolid)
         }
-        #expect(LoginRowStyle.onOpacity == 0.85)
+        #expect(LoginRowStyle.onOpacity == 1)
         // Only the opacity changed: same capsule size and type as 0.1.12.
         #expect(LoginBadgeMetrics.fontSize == 10 && LoginBadgeMetrics.height == 16 && LoginBadgeMetrics.horizontalPadding == 8)
     }

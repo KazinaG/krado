@@ -367,8 +367,8 @@ final class LoginRowView: NSView {
     }
 
     /// One capsule and its word at `opacity` (1 when not fading). On's fill and ring
-    /// are drawn as one shape in a transparency layer at 85 %, so the ring is exactly
-    /// as dark as the fill.
+    /// are drawn as one shape in a transparency layer at the title ink's own opacity,
+    /// so the ring is exactly as dark as the fill and Off's outline.
     @discardableResult
     private func drawCapsule(state: LoginItemState, text: String, highlighted: Bool,
                              opacity: Double) -> (LoginRowStyle.Capsule, NSRect, NSRect) {
@@ -386,9 +386,13 @@ final class LoginRowView: NSView {
         let cg = NSGraphicsContext.current?.cgContext
         cg?.saveGState()
         if style.fillAndRingShareOpacity, let fill = style.fill {
-            cg?.setAlpha(CGFloat(style.fillAlpha * opacity))
+            // The ink's own opacity times onOpacity, on one layer so the ring is never
+            // darker than the fill.
+            let system = Self.color(fill)
+            let inkAlpha = Double((system.usingColorSpace(.sRGB) ?? system).alphaComponent)
+            cg?.setAlpha(CGFloat(style.fillAlpha * inkAlpha * opacity))
             cg?.beginTransparencyLayer(auxiliaryInfo: nil)
-            let ink = Self.color(fill).withAlphaComponent(1)
+            let ink = system.withAlphaComponent(1)
             ink.setFill(); solid.fill()
             ink.setStroke(); outline.stroke()
             cg?.endTransparencyLayer()

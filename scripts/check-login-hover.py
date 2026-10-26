@@ -78,7 +78,9 @@ def check_state_text(case, path, phase, img, g, scale, expected_on):
     # Only On is filled: visibly when On, not at all for the shipped outline Off.
     # Under the highlight the white On capsule is as visible as the title's own
     # selected-text ink (yellow accent: about 2.4:1 for both), so judge it against that.
-    if expected_on and fill + 1e-6 < min(3, 0.9 * title):
+    # Kazina 10/26 21:55: at least as visible as the title (0.03 for rounding), up to
+    # WCAG 1.4.11's 3:1 for non-text state indicators.
+    if expected_on and fill + 0.03 < min(3, title):
         failures.append(f"{context}: On capsule fill is not visible ({fill:.2f}:1, title {title:.2f}:1)")
     if not expected_on and g.get("offStyle") == "A" and fill > 1.15:
         failures.append(f"{context}: Off capsule (outline) looks filled ({fill:.2f}:1)")
@@ -87,6 +89,8 @@ def check_state_text(case, path, phase, img, g, scale, expected_on):
         failures.append(f"{context}: Off must be an outline without fill (inks={inks})")
     if expected_on:
         check_on_opacity(context, img, g, scale, row_bg)
+    elif g.get("offStyle") == "A":
+        check_off_outline(context, img, g, scale, row_bg, title)
 
 
 def coverage(pixel, background, ink):
@@ -97,14 +101,15 @@ def coverage(pixel, background, ink):
 
 
 def check_on_opacity(context, img, g, scale, row_bg):
-    """Kazina 10/26 03:22 and 03:28: On's fill and ring share one opacity, 85 %, in Light,
-    Dark and while highlighted. Read from the app's evidence and from the pixels: the
-    fill's coverage over the row and the top edge's coverage must both be 0.85."""
+    """Kazina 10/26 03:22 and 21:55: On's fill and ring share one opacity, the title ink's
+    own (labelColor 85 % at rest, opaque selected text while highlighted). Read from the
+    app's evidence and from the pixels: fill and top edge coverage both equal that."""
     inks = g.get("inks") or {}
-    if inks.get("fillAlpha") != 0.85 or inks.get("ringAlpha") != 0.85 or g.get("fillAndRingShareOpacity") is not True:
-        failures.append(f"{context}: On fill/ring opacity must both be 0.85 "
+    if inks.get("fillAlpha") != 1 or inks.get("ringAlpha") != 1 or g.get("fillAndRingShareOpacity") is not True:
+        failures.append(f"{context}: On fill/ring must use the ink's own opacity "
                         f"(fill={inks.get('fillAlpha')}, ring={inks.get('ringAlpha')})")
     base = inks.get("fill") or [255, 255, 255, 1]
+    want = base[3] if len(base) > 3 else 1
     ink = [round(v) for v in base[:3]]
     r = g["stateRect"]
     mid = round((g["y"] + g["height"] / 2) * scale)
@@ -113,8 +118,8 @@ def check_on_opacity(context, img, g, scale, row_bg):
     edge = img.getpixel((round((r["x"] + 9) * scale), round(r["y"] * scale)))
     a_fill, a_edge = coverage(inside, row_bg, ink), coverage(edge, row_bg, ink)
     report.append(f"{context}: On coverage fill={a_fill:.3f} edge={a_edge:.3f} (ink {ink} over {row_bg})")
-    if abs(a_fill - 0.85) > 0.04:
-        failures.append(f"{context}: On fill looks {a_fill:.2f} opaque, not 0.85")
+    if abs(a_fill - want) > 0.04:
+        failures.append(f"{context}: On fill looks {a_fill:.2f} opaque, not {want:.2f}")
     if abs(a_edge - a_fill) > 0.04:
         failures.append(f"{context}: On ring ({a_edge:.2f}) and fill ({a_fill:.2f}) differ in opacity")
 
@@ -137,6 +142,26 @@ def check_fade(case, path, log_path=None):
         failures.append(f"{case} {path}: cross-fade opacities do not add up to 1")
     if not done or not 0.15 <= done[0]["t"] <= 0.4 or any(s["t"] >= 0.15 for s in middle):
         failures.append(f"{case} {path}: fade must take 150 ms (done at {done[0]['t'] if done else None})")
+
+
+def check_off_outline(context, img, g, scale, row_bg, title):
+    """Kazina 10/26 21:55: Off's outline is as strong as On's fill, the title ink at its own
+    opacity, and as visible as the title (same threshold as On). Read on the straight top edge."""
+    inks = g.get("inks") or {}
+    ring = inks.get("ring") or inks.get("text") or [255, 255, 255, 1]
+    if inks.get("ring") != inks.get("title") or "ringAlpha" in inks:
+        failures.append(f"{context}: Off outline must be the title ink as the system gives it (inks={inks})")
+    want = ring[3] if len(ring) > 3 else 1
+    r = g["stateRect"]
+    edge = img.getpixel((round((r["x"] + 9) * scale), round(r["y"] * scale)))
+    a_edge = coverage(edge, row_bg, [round(v) for v in ring[:3]])
+    contrast = ratio(edge, row_bg)
+    report.append(f"{context}: Off outline coverage={a_edge:.3f} (want {want:.2f}) "
+                  f"contrast={contrast:.2f}:1 title={title:.2f}:1")
+    if abs(a_edge - want) > 0.04:
+        failures.append(f"{context}: Off outline looks {a_edge:.2f} opaque, not {want:.2f}")
+    if contrast + 0.03 < min(3, title):
+        failures.append(f"{context}: Off outline is not visible ({contrast:.2f}:1, title {title:.2f}:1)")
 
 
 def selection_profile(img, fresh, x_left, y_from, y_to, scale):
