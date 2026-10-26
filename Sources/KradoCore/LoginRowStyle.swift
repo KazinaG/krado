@@ -29,31 +29,44 @@ public enum LoginRowStyle {
         case label, disabled, selectedText
     }
 
-    /// One ink for the title and the state word, like a native menu row:
-    /// the state is read from the word, not from colour or a mark.
+    /// One ink for the title, like a native menu row.
     public static func ink(highlighted: Bool, enabled: Bool) -> Ink {
         !enabled ? .disabled : highlighted ? .selectedText : .label
     }
+
+    public enum SwitchSize: String, Sendable { case mini }
+    public static let switchSize: SwitchSize = .mini
+    public static func switchIsOn(for state: LoginItemState) -> Bool {
+        state == .enabled || state == .needsApproval
+    }
+
+    /// The custom row's selection, measured against native rows (Quit) in CI
+    /// login-hover at 1x: 5 pt in from each side, full row height, corner radius
+    /// 7 pt on macOS 26 (best fit of the antialiased corner, 1x) and 4 pt before. AppKit does not publish these.
+    public static let selectionHorizontalInset: Double = 5
+    public static func selectionCornerRadius(macOS26OrLater: Bool) -> Double {
+        macOS26OrLater ? 7 : 4
+    }
+
 }
 
 /// Horizontal layout of the Launch at Login row, in points.
 public enum LoginRowLayout {
-    /// Trailing edge of the state word, inset from the row's right edge.
+    /// Trailing edge of the switch, inset from the row's right edge.
     public static let trailingInset: Double = 17
-    /// Minimum space between the title and the state word.
+    /// Minimum space between the title and the switch.
     public static let gap: Double = 16
     /// Room AppKit keeps after the trailing inset (matches native rows in CI menu-shots).
     public static let extra: Double = 32
 
-    /// Width that fits the title and the widest state word, so the frame never
+    /// Width that fits the title and the switch, so the frame never
     /// has to change while toggling.
-    public static func width(titleX: Double, titleWidth: Double, stateWidths: [Double], minimum: Double) -> Double {
-        let state = stateWidths.max() ?? 0
-        return max(minimum, (titleX + titleWidth + gap + state + trailingInset + extra).rounded(.up))
+    public static func width(titleX: Double, titleWidth: Double, switchWidth: Double, minimum: Double) -> Double {
+        return max(minimum, (titleX + titleWidth + gap + switchWidth + trailingInset + extra).rounded(.up))
     }
 
-    /// Left edge of a right-aligned state word.
-    public static func stateX(rowMaxX: Double, stateWidth: Double) -> Double {
-        (rowMaxX - trailingInset - stateWidth).rounded()
+    /// Left edge of a right-aligned switch.
+    public static func switchX(rowMaxX: Double, switchWidth: Double) -> Double {
+        rowMaxX - trailingInset - switchWidth
     }
 }

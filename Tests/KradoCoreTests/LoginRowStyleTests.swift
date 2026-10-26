@@ -46,7 +46,7 @@ import Testing
         #expect(highlight.isHighlighted(menuItemHighlighted: true, enabled: true))
     }
 
-    @Test func titleAndStateWordShareOneInk() {
+    @Test func titleAndIconShareOneInk() {
         #expect(LoginRowStyle.ink(highlighted: false, enabled: true) == .label)
         #expect(LoginRowStyle.ink(highlighted: true, enabled: true) == .selectedText)
         #expect(LoginRowStyle.ink(highlighted: false, enabled: false) == .disabled)
@@ -54,26 +54,42 @@ import Testing
         #expect(LoginRowStyle.ink(highlighted: true, enabled: false) == .disabled)
     }
 
-    @Test func rowFitsTheWidestStateWordWithoutOverlap() {
+    @Test func rowFitsSwitchWithoutOverlap() {
         let titleX = 39.0, titleWidth = 96.0
-        let words = [28.0, 30.0, 48.0] // e.g. オン, オフ, 承認待ち
-        let width = LoginRowLayout.width(titleX: titleX, titleWidth: titleWidth, stateWidths: words, minimum: 260)
-        for word in words {
-            let x = LoginRowLayout.stateX(rowMaxX: width, stateWidth: word)
+        let widths = [28.0, 30.0, 48.0] // Representative fitting widths.
+        let rowWidth = LoginRowLayout.width(titleX: titleX, titleWidth: titleWidth, switchWidth: widths.max()!, minimum: 260)
+        #expect(rowWidth >= 260)
+        for switchWidth in widths {
+            let x = LoginRowLayout.switchX(rowMaxX: rowWidth, switchWidth: switchWidth)
             #expect(x >= titleX + titleWidth + LoginRowLayout.gap - 0.5)
-            #expect(x + word <= width - LoginRowLayout.trailingInset + 0.5)
+            #expect(x + switchWidth <= rowWidth - LoginRowLayout.trailingInset + 0.5)
         }
-        // A long title grows the row instead of colliding with the state word.
-        let long = LoginRowLayout.width(titleX: titleX, titleWidth: 300, stateWidths: words, minimum: 260)
+        // A long title grows the row instead of colliding with the switch.
+        let long = LoginRowLayout.width(titleX: titleX, titleWidth: 300, switchWidth: widths.max()!, minimum: 260)
         #expect(long > 260)
-        #expect(LoginRowLayout.stateX(rowMaxX: long, stateWidth: 48) >= titleX + 300 + LoginRowLayout.gap - 0.5)
+        #expect(LoginRowLayout.switchX(rowMaxX: long, switchWidth: 48) >= titleX + 300 + LoginRowLayout.gap - 0.5)
     }
 
-    @Test func stateWordIsRightAligned() {
-        // Words of different widths end at the same trailing edge.
-        let a = LoginRowLayout.stateX(rowMaxX: 300, stateWidth: 20) + 20
-        let b = LoginRowLayout.stateX(rowMaxX: 300, stateWidth: 40) + 40
-        #expect(abs(a - b) <= 1)
-        #expect(abs(a - (300 - LoginRowLayout.trailingInset)) <= 1)
+    @Test func switchIsRightAligned() {
+        // Switches of different widths end at the same trailing edge.
+        let a = LoginRowLayout.switchX(rowMaxX: 300, switchWidth: 20) + 20
+        let b = LoginRowLayout.switchX(rowMaxX: 300, switchWidth: 40) + 40
+        #expect(a == b)
+        #expect(a == 300 - LoginRowLayout.trailingInset)
+    }
+
+    // Native selection shape, measured on Quit in CI login-hover (1x).
+    @Test func selectionMatchesNativeRowShape() {
+        #expect(LoginRowStyle.selectionHorizontalInset == 5)
+        #expect(LoginRowStyle.selectionCornerRadius(macOS26OrLater: true) == 7)
+        #expect(LoginRowStyle.selectionCornerRadius(macOS26OrLater: false) == 4)
+    }
+
+    @Test func switchUsesMiniAndReflectsRequestedLoginState() {
+        #expect(LoginRowStyle.switchSize == .mini)
+        #expect(LoginRowStyle.switchIsOn(for: .enabled))
+        #expect(LoginRowStyle.switchIsOn(for: .needsApproval))
+        #expect(!LoginRowStyle.switchIsOn(for: .disabled))
+        #expect(!LoginRowStyle.switchIsOn(for: .unavailable))
     }
 }

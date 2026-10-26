@@ -4,8 +4,9 @@ import Foundation
 
 let data = try Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[1]))
 let row = try JSONSerialization.jsonObject(with: data) as! [String: Any]
-let point = CGPoint(x: (row["x"] as! Double) + 80,
-                    y: (row["y"] as! Double) + (row["height"] as! Double) / 2)
+let switchRect = row["switchRect"] as! [String: Any]
+let point = CGPoint(x: (switchRect["x"] as! Double) + (switchRect["width"] as! Double) / 2,
+                    y: (switchRect["y"] as! Double) + (switchRect["height"] as! Double) / 2)
 let source = CGEventSource(stateID: .hidSystemState)
 func post(_ type: CGEventType, _ location: CGPoint) {
     CGEvent(mouseEventSource: source, mouseType: type, mouseCursorPosition: location,
@@ -19,5 +20,5 @@ if CommandLine.arguments.contains("click") {
     post(.leftMouseUp, point)
     Thread.sleep(forTimeInterval: 0.2)
 }
-// Compare both images without hover highlighting or a pointer over the badge.
+// Compare both images without hover highlighting or a pointer over the switch.
 post(.mouseMoved, CGPoint(x: 5, y: 500))
