@@ -10,7 +10,7 @@ out = Path(sys.argv[1])
 def chroma(px):
     h, l, s = colorsys.rgb_to_hls(*(v / 255 for v in px[:3]))
     return s * (1 - abs(2 * l - 1))
-for phase in ("inactive-early", "inactive", "activate-on-open-early", "activate-on-open"):
+for phase in ("inactive-early", "inactive", "activate-before-open-early", "activate-before-open"):
     p = out / f"{phase}.json"
     if not p.exists(): print(f"{phase}: missing"); continue
     j = json.loads(p.read_text())
@@ -20,6 +20,7 @@ for phase in ("inactive-early", "inactive", "activate-on-open-early", "activate-
     print(f"== {phase}: appIsActive={j['appIsActive']} menuWindowIsKey={j['menuWindowIsKey']} accent={[round(v) for v in acc]}")
     for name, c in sorted(j["controls"].items()):
         r = c["rect"]
+        if not r: print(f"  {name}: not on screen (menu not open)"); continue
         box = tuple(round(v * scale) for v in (r["x"], r["y"], r["x"] + r["width"], r["y"] + r["height"]))
         crop = img.crop(box)
         best = max(crop.getdata(), key=chroma)
@@ -29,7 +30,7 @@ for phase in ("inactive-early", "inactive", "activate-on-open-early", "activate-
         print(f"  {name}: most-saturated={best} chroma={chroma(best):.2f} maxdiff={dist:.0f} -> {verdict}")
 log = json.loads((out / "log.json").read_text()) if (out / "log.json").exists() else {}
 print("log:", json.dumps(log, indent=1))
-for phase in ("inactive", "activate-on-open"):
+for phase in ("inactive", "activate-before-open"):
     for kind in ("animator", "click"):
         f = out / f"{phase}-{kind}-frames.json"
         if not f.exists(): print(f"{phase} {kind}: no frames"); continue
