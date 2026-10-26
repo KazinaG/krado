@@ -86,7 +86,7 @@ Sparkle's tools come from the checksum-pinned Sparkle SwiftPM artifact
    familiarity with unpublished builds. Run `scripts/check-changelog-headings.sh`,
    `swift test --disable-keychain` and `swift build --disable-keychain` on macOS; CI
    must also pass the login-probe/CI-hook and lab-hook build configurations.
-3. Merge to `main`, then push the tag `X.Y.Z` on that commit (maintainer
+3. Merge the pull request to `main`, then push the tag `X.Y.Z` on that commit (maintainer
    approval required).
 4. Wait for the Release workflow. Its `render` job opens the built DMG in Finder on
    macOS 15 and 26, with default Finder settings and with Path Bar, Status Bar and
