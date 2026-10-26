@@ -25,7 +25,10 @@ jobs:
   analyze:
     name: analyze (${{ matrix.language }})
     # Only Swift needs macOS. The other languages run on Linux without a build.
-    runs-on: ${{ matrix.language == 'swift' && 'macos-latest' || 'ubuntu-latest' }}
+    # Swift uses the Intel runner: the CodeQL tracer is x86_64 only, so on Apple Silicon it runs
+    # the whole build under Rosetta, which took over 25 minutes without finishing.
+    # https://github.com/github/codeql-action/issues/3978#issuecomment-4259404015
+    runs-on: ${{ matrix.language == 'swift' && 'macos-26-intel' || 'ubuntu-latest' }}
     timeout-minutes: ${{ matrix.language == 'swift' && 45 || 10 }}
     permissions:
       actions: read
@@ -48,9 +51,7 @@ jobs:
         with:
           persist-credentials: false
 
-      # Resolve packages before the CodeQL tracer starts. The tracer runs the build under
-      # Rosetta (x86_64), which makes SwiftPM fetching and manifest work very slow.
-      # https://github.com/github/codeql-action/issues/3978#issuecomment-4259404015
+      # Resolve packages before the CodeQL tracer starts, so fetching runs untraced.
       - name: Resolve packages (Swift, untraced)
         if: matrix.language == 'swift'
         env:
@@ -69,7 +70,7 @@ jobs:
           CLANG_MODULE_CACHE_PATH: ${{ github.workspace }}/.build/module-cache
           SWIFT_MODULECACHE_PATH: ${{ github.workspace }}/.build/module-cache
         run: |
-          swift build --disable-keychain --arch arm64
+          swift build --disable-keychain
 
       - uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
         with:
