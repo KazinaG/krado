@@ -92,9 +92,10 @@ that only On's capsule is filled. `LoginRowPresentation`, `LoginRowLayout`,
 
 The custom row keeps the menu open on a click. Return/Enter/Space on the
 keyboard-highlighted row toggles it once with the same fade: menu-item views get no
-key events and menu tracking bypasses local NSEvent monitors, so a Carbon raw
-key-down handler on the event dispatcher target, installed while the menu is open,
-handles them (real-menu CI `login-hover` fade-*-key). AppKit owns the menu highlight. If AppKit drops its
+key events and menu tracking bypasses local NSEvent monitors and Carbon handlers, so
+a listen-only event tap on krado's own key events (`CGEvent.tapCreateForPid`,
+Accessibility permission) runs while the menu is open (real-menu CI `login-hover`
+fade-*-key). AppKit owns the menu highlight. If AppKit drops its
 custom-view highlight after mouse-up, a bounded pointer-since-click state keeps
 the row highlighted. Mouse exit, another menu item being highlighted (including
 keyboard navigation), menu close or view detachment clears that state. Another

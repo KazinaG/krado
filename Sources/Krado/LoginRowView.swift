@@ -1,25 +1,23 @@
 import AppKit
-import Carbon.HIToolbox
 import KradoCore
 
-/// Carbon raw key-down handler for the open menu; `userData` is the LoginRowView.
-private func loginRowKeyDown(_ call: EventHandlerCallRef?, _ event: EventRef?,
-                             _ userData: UnsafeMutableRawPointer?) -> OSStatus {
-    guard let event, let userData else { return OSStatus(eventNotHandledErr) }
-    var code: UInt32 = 0
-    var modifiers: UInt32 = 0
-    GetEventParameter(event, EventParamName(kEventParamKeyCode), EventParamType(typeUInt32),
-                      nil, MemoryLayout<UInt32>.size, nil, &code)
-    GetEventParameter(event, EventParamName(kEventParamKeyModifiers), EventParamType(typeUInt32),
-                      nil, MemoryLayout<UInt32>.size, nil, &modifiers)
-    let hasModifiers = modifiers & UInt32(cmdKey | optionKey | controlKey | shiftKey) != 0
+/// Key events for this process, seen before menu tracking consumes them; `userData` is
+/// the LoginRowView. Listen-only: the event always continues unchanged.
+private func loginRowKeyTap(_ proxy: CGEventTapProxy, _ type: CGEventType, _ event: CGEvent,
+                            _ userData: UnsafeMutableRawPointer?) -> Unmanaged<CGEvent>? {
+    guard let userData else { return Unmanaged.passUnretained(event) }
     let row = UInt(bitPattern: userData)
-    let handled = MainActor.assumeIsolated { () -> Bool in
-        guard let pointer = UnsafeMutableRawPointer(bitPattern: row) else { return false }
+    let kind = type.rawValue
+    let code = UInt16(truncatingIfNeeded: event.getIntegerValueField(.keyboardEventKeycode))
+    let isRepeat = event.getIntegerValueField(.keyboardEventAutorepeat) != 0
+    let hasModifiers = !event.flags.intersection([.maskCommand, .maskAlternate, .maskControl, .maskShift]).isEmpty
+    let time = event.timestamp
+    MainActor.assumeIsolated {
+        guard let pointer = UnsafeMutableRawPointer(bitPattern: row) else { return }
         let view = Unmanaged<LoginRowView>.fromOpaque(pointer).takeUnretainedValue()
-        return view.activateFromKeyboard(keyCode: UInt16(code), hasModifiers: hasModifiers)
+        view.keyTapEvent(kind: kind, keyCode: code, hasModifiers: hasModifiers, isRepeat: isRepeat, time: time)
     }
-    return handled ? noErr : OSStatus(eventNotHandledErr)
+    return Unmanaged.passUnretained(event)
 }
 
 /// The Launch at Login row: a custom menu view, so a click toggles without closing
@@ -198,23 +196,58 @@ final class LoginRowView: NSView {
     }
 
     // Custom menu views lose AppKit's keyboard activation: a view in a menu item gets no
-    // keyboard events, and menu tracking consumes key events before NSApplication.sendEvent,
-    // so neither keyDown nor a local NSEvent monitor sees Return while the menu is open
-    // (Apple, "Views in Menu Items"; NSEvent.addLocalMonitorForEvents). A Carbon handler on
-    // the event dispatcher target still receives raw key downs during menu tracking. While
-    // the keyboard has highlighted the row, Return, Enter or Space toggles it once.
-    private var keyHandler: EventHandlerRef?
+    // keyboard events (Apple, "Views in Menu Items"), and menu tracking consumes key events
+    // before NSApplication.sendEvent, so local NSEvent monitors never see them (Apple,
+    // NSEvent.addLocalMonitorForEvents). In CI on macOS 15 and 26, Return in the open menu
+    // reached no keyDown, NSEvent monitor, Carbon handler or NSMenu key-equivalent hook,
+    // only an event tap. So while the menu is open, a listen-only tap on this process's own
+    // key events (CGEvent.tapCreateForPid) toggles the keyboard-highlighted row once per
+    // press of Return, Enter or Space. Like the drag monitor it needs the Accessibility
+    // permission krado already asks for; without it the tap is not created.
+    private var keyTap: CFMachPort?
+    private var keyTapSource: CFRunLoopSource?
+    // One toggle per physical press: the tap can deliver the same key down twice.
+    private var keyArmed = true
+    private var lastKeyDownTime: CGEventTimestamp = 0
 
     private func installKeyMonitor() {
-        guard keyHandler == nil else { return }
-        var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventRawKeyDown))
-        InstallEventHandler(GetEventDispatcherTarget(), loginRowKeyDown, 1, &spec,
-                            Unmanaged.passUnretained(self).toOpaque(), &keyHandler)
+        guard keyTap == nil else { return }
+        let mask = CGEventMask(1 << CGEventType.keyDown.rawValue) | CGEventMask(1 << CGEventType.keyUp.rawValue)
+        guard let tap = CGEvent.tapCreateForPid(pid: getpid(), place: .headInsertEventTap, options: .listenOnly,
+                                                eventsOfInterest: mask, callback: loginRowKeyTap,
+                                                userInfo: Unmanaged.passUnretained(self).toOpaque()) else {
+            #if KRADO_CI_HOOKS
+            print("KRADO_CI login key tap unavailable")
+            #endif
+            return
+        }
+        let source = CFMachPortCreateRunLoopSource(nil, tap, 0)
+        CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
+        keyTap = tap
+        keyTapSource = source
+        keyArmed = true
     }
 
     private func removeKeyMonitor() {
-        if let keyHandler { RemoveEventHandler(keyHandler) }
-        keyHandler = nil
+        if let keyTapSource { CFRunLoopRemoveSource(CFRunLoopGetMain(), keyTapSource, .commonModes) }
+        if let keyTap {
+            CGEvent.tapEnable(tap: keyTap, enable: false)
+            CFMachPortInvalidate(keyTap)
+        }
+        keyTap = nil
+        keyTapSource = nil
+    }
+
+    fileprivate func keyTapEvent(kind: UInt32, keyCode: UInt16, hasModifiers: Bool, isRepeat: Bool,
+                                 time: CGEventTimestamp) {
+        if kind == CGEventType.tapDisabledByTimeout.rawValue || kind == CGEventType.tapDisabledByUserInput.rawValue {
+            if let keyTap { CGEvent.tapEnable(tap: keyTap, enable: true) }
+            return
+        }
+        if kind == CGEventType.keyUp.rawValue { keyArmed = true; return }
+        guard kind == CGEventType.keyDown.rawValue, keyArmed, !isRepeat, time != lastKeyDownTime else { return }
+        lastKeyDownTime = time
+        if activateFromKeyboard(keyCode: keyCode, hasModifiers: hasModifiers) { keyArmed = false }
     }
 
     fileprivate func activateFromKeyboard(keyCode: UInt16, hasModifiers: Bool) -> Bool {
