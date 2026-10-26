@@ -1,18 +1,19 @@
 name: CI
 
-# Run on every change, including documentation-only changes. The main ruleset requires
-# this workflow's changelog and tests checks, so path filters would block documentation-only commits from main.
+# Runs on every pull request, drafts included (the Mac cannot be checked on the Linux box, so
+# drafts get the fast tests and builds here), and on documentation-only changes too: the main
+# ruleset requires this workflow's changelog and tests checks, so path filters would block them.
+# Not on branch pushes or on main: main requires branches to be up to date (strict), so what lands
+# on main is exactly the tree these checks passed on (shared CI rule, Kazina 2026-10-26).
 on:
-  push:
   pull_request:
 
 permissions:
   contents: read
 
-# Cancel older runs when a new push arrives on the same branch. Let every main run finish.
+# Cancel older runs when a new push arrives on the same pull request.
 concurrency:
-  # Give each main run its own group so queued runs are not canceled either.
-  group: ci-${{ github.ref == 'refs/heads/main' && github.run_id || github.ref }}
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
