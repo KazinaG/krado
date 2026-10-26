@@ -28,6 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var monitor: DragMonitor!
     private var hotKeys: HotKeys!
     private var statusItem: NSStatusItem!
+    private var menu: NSMenu!
     private let permissionItem = NSMenuItem(title: "", action: #selector(showPermissionGuide), keyEquivalent: "")
     private let monitorItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
     private let errorItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
@@ -125,6 +126,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func buildMenu() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         let menu = NSMenu()
+        self.menu = menu
         menu.autoenablesItems = false
         menu.delegate = self
         let statusHeader = NSMenuItem.sectionHeader(title: L10n.text("Status"))
@@ -180,7 +182,52 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(.separator())
         addAction(L10n.text("Quit krado"), "xmark.rectangle", #selector(quit), to: menu)
         Self.keepImagesVisible(in: menu)
+        if Self.activatesBeforeOpening {
+            // The menu is attached only while it is open (statusButtonClicked).
+            statusItem.button?.target = self
+            statusItem.button?.action = #selector(statusButtonClicked)
+        } else {
+            statusItem.menu = menu
+        }
+    }
+
+    private static var activatesBeforeOpening: Bool {
+        if #available(macOS 26, *) { return StatusMenuActivation.activatesBeforeOpening(macOS26OrLater: true) }
+        return StatusMenuActivation.activatesBeforeOpening(macOS26OrLater: false)
+    }
+
+    /// macOS 26: activate krado, then open the menu, so its Launch at Login switch is
+    /// drawn active (accent colour) rather than inactive gray (StatusMenuActivation).
+    /// Activating while the menu opens closes it, so it happens before.
+    @objc private func statusButtonClicked() {
+        let previous = NSWorkspace.shared.frontmostApplication
+        // The cooperative NSApp.activate() left krado inactive on macOS 26 CI (run
+        // 40292873921); the same forced activation the permission guide uses works.
+        NSApp.activate(ignoringOtherApps: true)
+        #if KRADO_CI_HOOKS
+        print("KRADO_CI status menu activate previous=\(previous?.bundleIdentifier ?? "nil")")
+        #endif
         statusItem.menu = menu
+        statusItem.button?.performClick(nil) // tracks the menu until it closes
+        statusItem.menu = nil
+        // After the chosen item's action, which may open a krado window.
+        DispatchQueue.main.async { [weak self] in self?.returnFocus(to: previous) }
+    }
+
+    private func returnFocus(to previous: NSRunningApplication?) {
+        let kradoWindowShowing = NSApp.windows.contains {
+            $0.isVisible && $0.canBecomeKey && $0.level.rawValue < NSWindow.Level.statusBar.rawValue
+        }
+        guard let previous, StatusMenuActivation.returnsFocus(
+            previousWasKrado: previous == NSRunningApplication.current,
+            previousStillRunning: !previous.isTerminated,
+            kradoWindowShowing: kradoWindowShowing
+        ) else { return }
+        NSApp.yieldActivation(to: previous)
+        previous.activate()
+        #if KRADO_CI_HOOKS
+        print("KRADO_CI status menu returned focus to=\(previous.bundleIdentifier ?? "nil")")
+        #endif
     }
 
     /// macOS 27 hides SF Symbol menu-item images by default for apps linked on the
@@ -213,7 +260,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menu(_ menu: NSMenu, willHighlight item: NSMenuItem?) {
         // The row draws from isHighlighted, which changes right after this call; redraw
         // now and once more after AppKit has moved the highlight.
-        (loginToggle.view as? LoginRowView)?.menuWillHighlight(thisRow: item.map { $0 === loginToggle })
+        (loginToggle.view as? LoginRowView)?.menuWillHighlight(thisRow: item.map { $0 === loginToggle },
+                                                               byKeyboard: NSApp.currentEvent?.type == .keyDown)
         #if KRADO_CI_HOOKS
         let name = item.map { $0 === permissionItem ? "permission" : $0 === monitorItem ? "monitor" : $0 === loginToggle ? "login" : "other" } ?? "none"
         print("KRADO_CI menu willHighlight item=\(name)")
@@ -445,7 +493,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         monitor.cancelDrag()
         hotKeys?.resetResizeAnchor()
         screens.reload()
-        guard let menu = statusItem.menu else { return }
+        guard let menu else { return }
         displayItems.forEach { menu.removeItem($0) }
         displayItems = DisplayRowsPolicy.showsRows(for: screens.screens) ? screens.screens.map { screen in
             let layout = screen.geometry.layout

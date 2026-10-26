@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Disposable macOS CI only. Opens krado's real menu and moves the real pointer:
-# Launch at Login → Quit (slow and in one jump), and keyboard Down while the pointer
-# rests on the row. Screenshots go to login-hover/; check-login-hover.py judges them.
+# Launch at Login → Quit (slow and in one jump), keyboard Down and Up/Down while the
+# pointer rests on the row, a click on the title (must do nothing) and a click on the
+# switch (toggles, menu stays open). Screenshots go to login-hover/;
+# check-login-hover.py judges them.
 set -euo pipefail
 [[ "$(uname -s)" == Darwin ]] || { echo "error: needs a macOS CI desktop" >&2; exit 1; }
 out="$PWD/login-hover"; mkdir -p "$out"
@@ -38,7 +40,7 @@ for spec in light-blue:Light: dark-blue:Dark: light-yellow:Light:2 dark-graphite
     appearance_case=$case
     for state in off on; do
         case="$appearance_case-$state"
-        for path in slow-to-quit jump-to-quit down click-stay; do
+        for path in slow-to-quit jump-to-quit down up-down click-row click-switch; do
             rm -f "$out/$case-geometry.json"
             NSUnbufferedIO=YES KRADO_CI_LOGIN_FAKE="$state" KRADO_CI_OPEN_MENU=1 \
                 KRADO_CI_LOGIN_GEOMETRY="$out/$case-geometry.json" \
@@ -63,8 +65,7 @@ PY_CROP
             fi
             mouse login; shot "$path-1-login"
             mouse "$path"; shot "$path-2-after"
-            if [[ "$path" == click-stay ]]; then
-                grep -q 'KRADO_CI real login row click: fake state=' "$out/$case-$path-app.log"
+            if [[ "$path" == click-row || "$path" == click-switch ]]; then
                 mouse jump-to-quit; shot "$path-3-left"
             fi
             cleanup

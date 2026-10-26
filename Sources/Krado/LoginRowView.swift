@@ -1,24 +1,24 @@
 import AppKit
 import KradoCore
 
-/// The Launch at Login row: a custom menu view, so a click toggles without closing
-/// the menu. AppKit draws no highlight under custom views, so the row shows the
-/// system selection material (NSVisualEffectView .selection, emphasized) in the
-/// native row's shape, and draws its content in a view above it.
+/// The Launch at Login row: a custom menu view with a leading icon, the title and
+/// Apple's NSSwitch. Only the switch can be pressed (maintainer 2026-10-26 17:17); the
+/// rest of the row ignores clicks and never highlights. A click on the switch is
+/// handled by NSSwitch itself, so it animates, and the menu stays open because a view
+/// item does not close the menu. When the login state changes otherwise (keyboard,
+/// failed registration), the switch moves through `animator()`, which Apple documents
+/// as the way to animate NSSwitch.state.
 @MainActor
 final class LoginRowView: NSView {
     private let activate: () -> Void
-    private let selection = NSVisualEffectView()
     private let content = LoginRowContentView()
     private let icon = NSImageView()
     private var title = ""
     private var stateText = ""
     private var enabled = true
     private var state: LoginItemState = .disabled
-    private var highlight = LoginRowStyle.Highlight()
-    private var pointerTracking: NSTrackingArea?
-    private(set) var isDrawnHighlighted = false
-    private let loginSwitch = NSSwitch()
+    private var focus = LoginRowStyle.KeyboardFocus()
+    private let loginSwitch = LoginSwitch()
 
     private static var rowHeight: CGFloat {
         if #available(macOS 26, *) { return 24 }
@@ -43,27 +43,11 @@ final class LoginRowView: NSView {
         return 42
     }
 
-    private static var selectionRadius: CGFloat {
-        if #available(macOS 26, *) { return CGFloat(LoginRowStyle.selectionCornerRadius(macOS26OrLater: true)) }
-        return CGFloat(LoginRowStyle.selectionCornerRadius(macOS26OrLater: false))
-    }
-
     init(activate: @escaping () -> Void) {
         self.activate = activate
         // The menu sizes itself from this initial width; 260/259 match the native row (CI menu-shots).
         super.init(frame: NSRect(x: 0, y: 0, width: Self.nativeWidth, height: Self.rowHeight))
         autoresizingMask = [.width]
-        // The same material and emphasis AppKit uses for a selected menu row; only the
-        // shape (inset and corner radius) is ours, matched to native rows in CI.
-        selection.material = .selection
-        selection.state = .active
-        selection.blendingMode = .behindWindow
-        selection.isEmphasized = true
-        selection.maskImage = Self.selectionMask(radius: Self.selectionRadius)
-        selection.isHidden = true
-        selection.autoresizingMask = [.width, .height]
-        selection.setAccessibilityElement(false)
-        addSubview(selection)
         content.row = self
         content.autoresizingMask = [.width, .height]
         content.setAccessibilityElement(false)
@@ -72,37 +56,35 @@ final class LoginRowView: NSView {
         icon.imageScaling = .scaleProportionallyUpOrDown
         icon.setAccessibilityElement(false)
         content.addSubview(icon)
-        // The row owns every click; the switch only displays refreshed login state.
         switch LoginRowStyle.switchSize {
         case .mini: loginSwitch.controlSize = .mini
         }
+        loginSwitch.target = self
+        loginSwitch.action = #selector(switchClicked)
+        loginSwitch.focusRingType = .none // the row draws the ring for keyboard focus
         loginSwitch.setAccessibilityElement(false)
-        content.addSubview(loginSwitch)
+        // Above the content view so it receives its own clicks.
+        addSubview(loginSwitch)
         // The enclosing menu item supplies the action and accessibility metadata.
         setAccessibilityElement(false)
     }
 
     required init?(coder: NSCoder) { nil }
 
-    /// A resizable rounded-rect mask, the documented way to round an NSVisualEffectView.
-    private static func selectionMask(radius: CGFloat) -> NSImage {
-        let edge = radius * 2 + 1
-        let image = NSImage(size: NSSize(width: edge, height: edge), flipped: false) { rect in
-            NSColor.black.setFill()
-            NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius).fill()
-            return true
-        }
-        image.capInsets = NSEdgeInsets(top: radius, left: radius, bottom: radius, right: radius)
-        image.resizingMode = .stretch
-        return image
-    }
-
     func update(title: String, stateText: String, state: LoginItemState, enabled: Bool) {
         self.title = title
         self.stateText = stateText
         self.enabled = enabled
         self.state = state
-        loginSwitch.state = LoginRowStyle.switchIsOn(for: state) ? .on : .off
+        let target: NSControl.StateValue = LoginRowStyle.switchIsOn(for: state) ? .on : .off
+        if loginSwitch.state != target {
+            if window != nil {
+                // Visible: slide to the new state (Apple: NSSwitch.state via animator()).
+                loginSwitch.animator().state = target
+            } else {
+                loginSwitch.state = target
+            }
+        }
         loginSwitch.isEnabled = enabled
         // Size once, before menu tracking. Never reset the frame while toggling:
         // AppKit owns the stretched width of its view item.
@@ -116,26 +98,31 @@ final class LoginRowView: NSView {
             if frame.size != size { setFrameSize(size) }
         }
         needsLayout = true
-        needsDisplay = true
+        content.needsDisplay = true
+    }
+
+    @objc private func switchClicked() {
+        // NSSwitch has already moved itself; the refresh that follows confirms or
+        // animates it back if registration did not take.
+        activate()
         content.needsDisplay = true
     }
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        needsDisplay = true
         content.needsDisplay = true
         // Measured in CI: on macOS 26 a switch outside a window reports a 54x24 fitting
         // size whatever its controlSize; inside the menu window, mini reports 36x16.
         // Lay out again once the row is in the menu window.
         needsLayout = true
         if window == nil {
-            highlight.menuDidClose()
+            focus.menuDidClose()
             removeKeyMonitor()
         } else { installKeyMonitor() }
     }
 
     // Custom menu views lose AppKit's keyboard activation. While the menu is open,
-    // Return, Enter or Space toggles the row when the keyboard has highlighted it.
+    // Return, Enter or Space toggles when the keyboard has selected the row.
     private var keyMonitor: Any?
 
     private func installKeyMonitor() {
@@ -143,7 +130,7 @@ final class LoginRowView: NSView {
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self, self.handlesActivationKey(event) else { return event }
             self.activate()
-            self.needsDisplay = true
+            self.content.needsDisplay = true
             return nil
         }
     }
@@ -162,53 +149,33 @@ final class LoginRowView: NSView {
     }
 
     override func keyDown(with event: NSEvent) {
-        if handlesActivationKey(event) { activate(); needsDisplay = true } else { super.keyDown(with: event) }
+        if handlesActivationKey(event) { activate(); content.needsDisplay = true } else { super.keyDown(with: event) }
     }
 
-    // Clicks belong to the row, not to the selection or content subviews.
+    // Only the switch takes clicks. Elsewhere the row swallows them without acting,
+    // so the menu neither toggles nor closes.
     override func hitTest(_ point: NSPoint) -> NSView? {
         let local = superview.map { convert(point, from: $0) } ?? point
-        return bounds.contains(local) ? self : nil
+        guard bounds.contains(local) else { return nil }
+        return loginSwitch.frame.contains(local) ? loginSwitch : self
     }
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-
     override func mouseDown(with event: NSEvent) {}
+    override func mouseUp(with event: NSEvent) {}
 
-    override func mouseUp(with event: NSEvent) {
-        guard enabled, bounds.contains(convert(event.locationInWindow, from: nil)) else { return }
-        highlight.clickedInside()
-        activate()
-        needsDisplay = true
-    }
-
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-        if let pointerTracking { removeTrackingArea(pointerTracking) }
-        let area = NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self)
-        addTrackingArea(area)
-        pointerTracking = area
-    }
-
-    override func mouseExited(with event: NSEvent) {
-        highlight.mouseExited()
-        needsDisplay = true
-    }
-
-    func menuWillHighlight(thisRow: Bool?) {
-        highlight.menuWillHighlight(thisRow: thisRow)
-        needsDisplay = true
+    func menuWillHighlight(thisRow: Bool?, byKeyboard: Bool) {
+        focus.menuWillHighlight(thisRow: thisRow, byKeyboard: byKeyboard)
+        content.needsDisplay = true
     }
 
     func menuDidClose() {
-        highlight.menuDidClose()
-        needsDisplay = true
+        focus.menuDidClose()
+        content.needsDisplay = true
     }
 
     override func layout() {
         super.layout()
-        let inset = CGFloat(LoginRowStyle.selectionHorizontalInset)
-        selection.frame = bounds.insetBy(dx: inset, dy: 0)
         content.frame = bounds
         let size = Self.iconSize
         icon.frame = NSRect(x: Self.iconX, y: (bounds.height - size) / 2, width: size, height: size)
@@ -225,22 +192,12 @@ final class LoginRowView: NSView {
         if loginSwitch.frame != frame { loginSwitch.frame = frame }
     }
 
-    // AppKit redraws this view when the item's highlight changes; the selection's
-    // visibility and the content follow from here.
-    override func draw(_ dirtyRect: NSRect) {
-        placeSwitch()
-        let highlighted = highlight.isHighlighted(menuItemHighlighted: enclosingMenuItem?.isHighlighted == true, enabled: enabled)
-        if isDrawnHighlighted != highlighted || selection.isHidden == highlighted {
-            isDrawnHighlighted = highlighted
-            selection.isHidden = !highlighted
-        }
-        content.needsDisplay = true
-    }
-
     fileprivate func drawContent() {
-        let highlighted = isDrawnHighlighted
+        placeSwitch()
+        let look = LoginRowStyle.switchLook(state: state, enabled: enabled, pressed: loginSwitch.isPressed,
+                                            keyboardFocused: focus.isFocused)
         let bounds = content.bounds
-        let foreground = Self.color(LoginRowStyle.ink(highlighted: highlighted, enabled: enabled))
+        let foreground = Self.color(look.titleInk)
         icon.contentTintColor = foreground
 
         let font = NSFont.menuFont(ofSize: 0)
@@ -248,9 +205,18 @@ final class LoginRowView: NSView {
         let titleSize = (title as NSString).size(withAttributes: attributes)
         (title as NSString).draw(at: NSPoint(x: Self.titleX, y: (bounds.height - titleSize.height) / 2), withAttributes: attributes)
 
+        if look.focusRing {
+            // The system keyboard focus ring around the switch, not a row highlight.
+            NSGraphicsContext.saveGraphicsState()
+            NSFocusRingPlacement.only.set()
+            let r = loginSwitch.frame
+            NSBezierPath(roundedRect: r, xRadius: r.height / 2, yRadius: r.height / 2).fill()
+            NSGraphicsContext.restoreGraphicsState()
+        }
+
         #if KRADO_CI_HOOKS
-        writeCIEvidence(highlighted: highlighted, foreground: foreground)
-        print("KRADO_CI draw login label=\(stateText) highlighted=\(highlighted) frame=\(frame)")
+        writeCIEvidence(look: look, foreground: foreground)
+        print("KRADO_CI draw login label=\(stateText) focusRing=\(look.focusRing) frame=\(frame)")
         #endif
     }
 
@@ -258,23 +224,22 @@ final class LoginRowView: NSView {
         switch ink {
         case .label: return .labelColor
         case .disabled: return .disabledControlTextColor
-        case .selectedText: return .selectedMenuItemTextColor
         }
     }
 
     #if KRADO_CI_HOOKS
-    private func writeCIEvidence(highlighted: Bool, foreground: NSColor) {
+    private func writeCIEvidence(look: LoginRowStyle.SwitchLook, foreground: NSColor) {
         guard let path = ProcessInfo.processInfo.environment["KRADO_CI_LOGIN_GEOMETRY"], let window else { return }
         let screenTop = NSScreen.screens[0].frame.maxY
         func screenRect(_ local: NSRect) -> [String: Double] {
-            let rect = window.convertToScreen(content.convert(local, to: nil))
+            let rect = window.convertToScreen(convert(local, to: nil))
             return ["x": rect.minX, "y": screenTop - rect.maxY, "width": rect.width, "height": rect.height]
         }
         func rgba(_ color: NSColor) -> [Double] {
             let c = color.usingColorSpace(.sRGB) ?? color
             return [Double(c.redComponent) * 255, Double(c.greenComponent) * 255, Double(c.blueComponent) * 255, Double(c.alphaComponent)]
         }
-        var evidence: [String: Any] = screenRect(content.bounds)
+        var evidence: [String: Any] = screenRect(bounds)
         func sizeName(_ size: NSControl.ControlSize) -> String {
             switch size {
             case .mini: return "mini"
@@ -286,38 +251,30 @@ final class LoginRowView: NSView {
         }
         let fitting = loginSwitch.fittingSize
         let switchState = loginSwitch.state == .on ? "on" : "off"
-        evidence["switchClass"] = String(describing: type(of: loginSwitch))
+        // LoginSwitch only observes the press; the control and its drawing are NSSwitch.
+        evidence["switchClass"] = type(of: loginSwitch).superclass().map { NSStringFromClass($0) } ?? "?"
+        evidence["macOSMajor"] = ProcessInfo.processInfo.operatingSystemVersion.majorVersion
         evidence["switchControlSize"] = sizeName(loginSwitch.controlSize)
         evidence["switchState"] = switchState
         evidence["switchEnabled"] = loginSwitch.isEnabled
         evidence["switchRect"] = screenRect(loginSwitch.frame)
         evidence["switchFittingSize"] = [fitting.width, fitting.height]
-        var sizes: [String: [CGFloat]] = [:]
-        for size: NSControl.ControlSize in [.mini, .small, .regular] {
-            // Measured inside the menu window (see viewDidMoveToWindow).
-            let sample = NSSwitch()
-            sample.controlSize = size
-            content.addSubview(sample)
-            sizes[sizeName(size)] = [sample.fittingSize.width, sample.fittingSize.height]
-            sample.removeFromSuperview()
-        }
-        evidence["nsSwitchFittingSizes"] = sizes
-        print("KRADO_CI login switch controlSize=\(sizeName(loginSwitch.controlSize)) state=\(switchState) fitting=\(fitting.width)x\(fitting.height)")
+        print("KRADO_CI login switch controlSize=\(sizeName(loginSwitch.controlSize)) state=\(switchState) fitting=\(fitting.width)x\(fitting.height) appActive=\(NSApp.isActive)")
         let titleSize = (title as NSString).size(withAttributes: [.font: NSFont.menuFont(ofSize: 0)])
-        evidence["titleRect"] = screenRect(NSRect(x: Self.titleX, y: (content.bounds.height - titleSize.height) / 2,
+        evidence["titleRect"] = screenRect(NSRect(x: Self.titleX, y: (bounds.height - titleSize.height) / 2,
                                                  width: titleSize.width, height: titleSize.height))
-        evidence["selectionRect"] = screenRect(selection.frame)
-        evidence["selectionRadius"] = Double(Self.selectionRadius)
-        evidence["selectionVisible"] = !selection.isHidden
-        evidence["selectionMaterial"] = selection.material == .selection && selection.isEmphasized && selection.state == .active
+        evidence["rowHighlight"] = look.rowHighlight
+        evidence["focusRing"] = look.focusRing
         evidence["selfPaintedHighlight"] = false
+        evidence["appIsActive"] = NSApp.isActive
+        evidence["menuWindowIsKey"] = window.isKeyWindow
+        evidence["accent"] = rgba(.controlAccentColor)
         evidence["label"] = stateText
         evidence["state"] = state == .enabled ? "on" : state == .needsApproval ? "approval" : "off"
         evidence["inks"] = ["title": rgba(foreground), "label": rgba(.labelColor)]
         evidence["menuItemHighlighted"] = enclosingMenuItem?.isHighlighted == true
-        evidence["pointerInsideSinceClick"] = highlight.pointerInsideSinceClick
         evidence["nativeBadge"] = enclosingMenuItem?.badge != nil
-        evidence["highlighted"] = highlighted
+        evidence["highlighted"] = look.rowHighlight
         if let data = try? JSONSerialization.data(withJSONObject: evidence, options: [.sortedKeys]) {
             try? data.write(to: URL(fileURLWithPath: path), options: .atomic)
         }
@@ -325,7 +282,25 @@ final class LoginRowView: NSView {
     #endif
 }
 
-/// Draws the row's content above the selection material.
+/// NSSwitch that reports whether the pointer is holding it down, so the row's look
+/// model knows the pressed state. Drawing stays Apple's.
+@MainActor
+private final class LoginSwitch: NSSwitch {
+    private(set) var isPressed = false
+    override func mouseDown(with event: NSEvent) {
+        isPressed = true
+        (superview as? LoginRowView)?.setNeedsContentDisplay()
+        super.mouseDown(with: event) // tracks until mouse-up
+        isPressed = false
+        (superview as? LoginRowView)?.setNeedsContentDisplay()
+    }
+}
+
+extension LoginRowView {
+    fileprivate func setNeedsContentDisplay() { content.needsDisplay = true }
+}
+
+/// Draws the row's content: icon, title and the keyboard focus ring.
 @MainActor
 private final class LoginRowContentView: NSView {
     weak var row: LoginRowView?

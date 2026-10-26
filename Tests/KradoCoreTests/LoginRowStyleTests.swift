@@ -2,56 +2,9 @@ import Testing
 @testable import KradoCore
 
 @Suite struct LoginRowStyleTests {
-    @Test func highlightFollowsAppKitUntilAClick() {
-        let highlight = LoginRowStyle.Highlight()
-        #expect(highlight.isHighlighted(menuItemHighlighted: true, enabled: true))
-        #expect(!highlight.isHighlighted(menuItemHighlighted: false, enabled: true))
-        #expect(!highlight.isHighlighted(menuItemHighlighted: true, enabled: false))
-    }
-
-    @Test func clickStaysHighlightedAcrossAppKitMouseUpReset() {
-        var highlight = LoginRowStyle.Highlight()
-        highlight.menuWillHighlight(thisRow: true)
-        highlight.clickedInside()
-        highlight.menuWillHighlight(thisRow: nil)
-        #expect(highlight.pointerInsideSinceClick)
-        #expect(highlight.isHighlighted(menuItemHighlighted: false, enabled: true))
-        #expect(!highlight.isHighlighted(menuItemHighlighted: false, enabled: false))
-        highlight.mouseExited()
-        #expect(!highlight.isHighlighted(menuItemHighlighted: false, enabled: true))
-    }
-
-    @Test func anotherItemWinsEvenWithPointerStillInsideAndStaleAppKitBit() {
-        var highlight = LoginRowStyle.Highlight()
-        highlight.clickedInside()
-        highlight.menuWillHighlight(thisRow: false)
-        #expect(!highlight.pointerInsideSinceClick)
-        #expect(!highlight.isHighlighted(menuItemHighlighted: true, enabled: true))
-        highlight.menuWillHighlight(thisRow: nil)
-        #expect(!highlight.isHighlighted(menuItemHighlighted: false, enabled: true))
-        highlight.menuWillHighlight(thisRow: true)
-        #expect(highlight.isHighlighted(menuItemHighlighted: true, enabled: true))
-        #expect(!highlight.isHighlighted(menuItemHighlighted: false, enabled: true))
-    }
-
-    @Test func closingAndReopeningCannotReviveAClickHighlight() {
-        var highlight = LoginRowStyle.Highlight()
-        highlight.clickedInside()
-        highlight.menuDidClose()
-        #expect(!highlight.pointerInsideSinceClick)
-        #expect(!highlight.isHighlighted(menuItemHighlighted: true, enabled: true))
-        highlight.menuWillHighlight(thisRow: nil)
-        #expect(!highlight.isHighlighted(menuItemHighlighted: false, enabled: true))
-        highlight.menuWillHighlight(thisRow: true)
-        #expect(highlight.isHighlighted(menuItemHighlighted: true, enabled: true))
-    }
-
-    @Test func titleAndIconShareOneInk() {
-        #expect(LoginRowStyle.ink(highlighted: false, enabled: true) == .label)
-        #expect(LoginRowStyle.ink(highlighted: true, enabled: true) == .selectedText)
-        #expect(LoginRowStyle.ink(highlighted: false, enabled: false) == .disabled)
-        // A disabled row never shows the selection ink, even if AppKit highlights it.
-        #expect(LoginRowStyle.ink(highlighted: true, enabled: false) == .disabled)
+    @Test func titleAndIconShareOneInkAndNeverUseSelectionInk() {
+        #expect(LoginRowStyle.ink(enabled: true) == .label)
+        #expect(LoginRowStyle.ink(enabled: false) == .disabled)
     }
 
     @Test func rowFitsSwitchWithoutOverlap() {
@@ -78,18 +31,57 @@ import Testing
         #expect(a == 300 - LoginRowLayout.trailingInset)
     }
 
-    // Native selection shape, measured on Quit in CI login-hover (1x).
-    @Test func selectionMatchesNativeRowShape() {
-        #expect(LoginRowStyle.selectionHorizontalInset == 5)
-        #expect(LoginRowStyle.selectionCornerRadius(macOS26OrLater: true) == 7)
-        #expect(LoginRowStyle.selectionCornerRadius(macOS26OrLater: false) == 4)
-    }
-
     @Test func switchUsesMiniAndReflectsRequestedLoginState() {
         #expect(LoginRowStyle.switchSize == .mini)
         #expect(LoginRowStyle.switchIsOn(for: .enabled))
         #expect(LoginRowStyle.switchIsOn(for: .needsApproval))
         #expect(!LoginRowStyle.switchIsOn(for: .disabled))
         #expect(!LoginRowStyle.switchIsOn(for: .unavailable))
+    }
+
+    /// Maintainer 2026-10-26 17:16/17:17: only the switch can be pressed, the row never
+    /// lights up, and on/off, pressed, focus and disabled must all look different.
+    @Test func everySwitchStateLooksDifferentAndTheRowNeverHighlights() {
+        enum Kind: CaseIterable { case normal, pressed, focus, disabled }
+        var looks: [LoginRowStyle.SwitchLook] = []
+        for state in [LoginItemState.disabled, .enabled] {
+            for kind in Kind.allCases {
+                let look = LoginRowStyle.switchLook(state: state, enabled: kind != .disabled,
+                                                    pressed: kind == .pressed, keyboardFocused: kind == .focus)
+                #expect(!look.rowHighlight)
+                #expect(look.isOn == (state == .enabled))
+                #expect(look.pressed == (kind == .pressed))
+                #expect(look.focusRing == (kind == .focus))
+                #expect(look.isEnabled == (kind != .disabled))
+                #expect(look.titleInk == (kind == .disabled ? .disabled : .label))
+                looks.append(look)
+            }
+        }
+        // Needs approval keeps the switch on (the user asked for it) and adds the hint row.
+        let approval = LoginRowStyle.switchLook(state: .needsApproval, enabled: true, pressed: false, keyboardFocused: false)
+        #expect(approval.isOn && approval.approvalHint && !approval.rowHighlight)
+        looks.append(approval)
+        #expect(Set(looks).count == looks.count)
+    }
+
+    @Test func aDisabledSwitchShowsNeitherPressNorFocus() {
+        let look = LoginRowStyle.switchLook(state: .enabled, enabled: false, pressed: true, keyboardFocused: true)
+        #expect(!look.pressed && !look.focusRing && !look.isEnabled)
+    }
+
+    @Test func focusRingOnlyForKeyboardSelection() {
+        var focus = LoginRowStyle.KeyboardFocus()
+        focus.menuWillHighlight(thisRow: true, byKeyboard: false)
+        #expect(!focus.isFocused) // pointer hover
+        focus.menuWillHighlight(thisRow: true, byKeyboard: true)
+        #expect(focus.isFocused)
+        focus.menuWillHighlight(thisRow: nil, byKeyboard: false)
+        #expect(!focus.isFocused) // AppKit cleared the selection
+        focus.menuWillHighlight(thisRow: true, byKeyboard: true)
+        focus.menuWillHighlight(thisRow: false, byKeyboard: true)
+        #expect(!focus.isFocused) // keyboard moved on
+        focus.menuWillHighlight(thisRow: true, byKeyboard: true)
+        focus.menuDidClose()
+        #expect(!focus.isFocused)
     }
 }

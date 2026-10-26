@@ -2,36 +2,15 @@ import Foundation
 
 /// How the Launch at Login row looks. Pure so tests can pin the rules.
 public enum LoginRowStyle {
-    /// AppKit may clear its custom-view highlight on mouse-up without another
-    /// mouse move. Retain it only for the pointer that clicked this row. Moving
-    /// the menu selection elsewhere always wins, including keyboard navigation.
-    public struct Highlight: Equatable, Sendable {
-        public private(set) var pointerInsideSinceClick = false
-        private var anotherItemHighlighted = false
-
-        public init() {}
-        public mutating func clickedInside() { pointerInsideSinceClick = !anotherItemHighlighted }
-        public mutating func mouseExited() { pointerInsideSinceClick = false }
-        public mutating func menuWillHighlight(thisRow: Bool?) {
-            anotherItemHighlighted = thisRow == false
-            if anotherItemHighlighted { pointerInsideSinceClick = false }
-        }
-        public mutating func menuDidClose() {
-            pointerInsideSinceClick = false
-            anotherItemHighlighted = true
-        }
-        public func isHighlighted(menuItemHighlighted: Bool, enabled: Bool) -> Bool {
-            enabled && !anotherItemHighlighted && (menuItemHighlighted || pointerInsideSinceClick)
-        }
-    }
-
     public enum Ink: Equatable, Sendable {
-        case label, disabled, selectedText
+        case label, disabled
     }
 
-    /// One ink for the title, like a native menu row.
-    public static func ink(highlighted: Bool, enabled: Bool) -> Ink {
-        !enabled ? .disabled : highlighted ? .selectedText : .label
+    /// One ink for the title and icon, like a native menu row. The row itself never
+    /// highlights (maintainer 2026-10-26 17:17: only the switch can be pressed, the row
+    /// does not light up), so there is no selected-text ink.
+    public static func ink(enabled: Bool) -> Ink {
+        enabled ? .label : .disabled
     }
 
     public enum SwitchSize: String, Sendable { case mini }
@@ -40,14 +19,40 @@ public enum LoginRowStyle {
         state == .enabled || state == .needsApproval
     }
 
-    /// The custom row's selection, measured against native rows (Quit) in CI
-    /// login-hover at 1x: 5 pt in from each side, full row height, corner radius
-    /// 7 pt on macOS 26 (best fit of the antialiased corner, 1x) and 4 pt before. AppKit does not publish these.
-    public static let selectionHorizontalInset: Double = 5
-    public static func selectionCornerRadius(macOS26OrLater: Bool) -> Double {
-        macOS26OrLater ? 7 : 4
+    /// What the Launch at Login row shows for one state of its switch.
+    /// `pressed` is drawn by Apple's NSSwitch itself while the pointer holds it down;
+    /// everything else is set by krado.
+    public struct SwitchLook: Hashable, Sendable {
+        public let isOn: Bool
+        public let isEnabled: Bool
+        public let pressed: Bool
+        public let focusRing: Bool
+        public let rowHighlight: Bool
+        public let titleInk: Ink
+        public let approvalHint: Bool
     }
 
+    /// - Parameters:
+    ///   - pressed: the pointer is holding the switch down.
+    ///   - keyboardFocused: the keyboard (not the pointer) selected the row.
+    public static func switchLook(state: LoginItemState, enabled: Bool, pressed: Bool,
+                                  keyboardFocused: Bool) -> SwitchLook {
+        SwitchLook(isOn: switchIsOn(for: state), isEnabled: enabled,
+                   pressed: enabled && pressed, focusRing: enabled && keyboardFocused,
+                   rowHighlight: false, titleInk: ink(enabled: enabled),
+                   approvalHint: state == .needsApproval)
+    }
+
+    /// The row shows the keyboard focus ring only when a key moved the menu selection
+    /// onto it. Pointer hover, another row, or closing the menu clears it.
+    public struct KeyboardFocus: Equatable, Sendable {
+        public private(set) var isFocused = false
+        public init() {}
+        public mutating func menuWillHighlight(thisRow: Bool?, byKeyboard: Bool) {
+            isFocused = thisRow == true && byKeyboard
+        }
+        public mutating func menuDidClose() { isFocused = false }
+    }
 }
 
 /// Horizontal layout of the Launch at Login row, in points.

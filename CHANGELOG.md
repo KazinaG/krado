@@ -13,7 +13,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - The installer has a light background, square app cards, a colorful krado logo and a mint Applications card linked by a dotted arrow.
 - Launch at Login shows its state with a small switch at the right of the row.
 - Status rows that only provide information no longer highlight on hover.
-- Launch at Login highlights like the other menu items.
+- In Launch at Login only the switch can be pressed: the row no longer highlights, the switch shows the accent colour when on and slides when toggled.
+- On macOS 26, clicking the menu bar icon makes krado the active app while its menu is open, then gives focus back.
 - Launch at Login can be toggled without closing the menu, and VoiceOver announces its state.
 - Every window glides into its snap position the same way, including when enlarging, in about a third of a second.
 - Windows snap immediately when Reduce Motion is enabled.
