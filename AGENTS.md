@@ -11,6 +11,7 @@
 - New release tags use SemVer 2.0.0 `X.Y.Z` without `v`; published `v0.1.0` through `v0.1.5` stay unchanged.
 - Run on macOS (headless only): `swift test --disable-keychain` and `swift build --disable-keychain`.
 - CI (`.github/workflows/ci.yml`) also runs `swift build --disable-keychain -Xswiftc -DKRADO_LOGIN_SWITCH_PROBE -Xswiftc -DKRADO_CI_HOOKS` and `swift build --disable-keychain -Xswiftc -DKRADO_LAB_HOOKS`.
+- CodeQL code scanning (`.github/workflows/codeql.yml`, advanced setup) runs on pushes to `main` and weekly; Swift is built with `swift build` because default setup's Swift autobuild needs an Xcode project.
 - CI runs on every push, docs-only included: `main` requires the CI jobs `changelog` and `tests` (repository ruleset), so a commit reaches `main` only after CI is green on a branch at the same SHA. A newer push to the same branch cancels the older CI run (not on `main`).
 - Changelog: edit `CHANGELOG.md` and `CHANGELOG.ja.md` together; check with `scripts/check-changelog-headings.sh`.
 - Trial DMGs for the maintainer: only via `docs/trial-build.ja.md` (Release workflow `trial_version`, then `scripts/check-trial-dmg.sh`). Never a local plain or ad-hoc DMG.
