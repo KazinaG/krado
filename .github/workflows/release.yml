@@ -1,6 +1,6 @@
 name: Release
 
-# A pushed v* tag builds, signs, and attaches the DMG and appcast to a DRAFT
+# A pushed X.Y.Z tag builds, signs, and attaches the DMG and appcast to a DRAFT
 # GitHub Release. Nothing reaches users until the draft is published:
 # SUFeedURL uses releases/latest/download/, which ignores drafts and prereleases.
 # Branch pushes that touch release files run the same pipeline as a dry run
@@ -9,7 +9,7 @@ name: Release
 # screenshots of the real window; a draft release is only created after that passes.
 on:
   push:
-    tags: ['v*']
+    tags: ['[0-9]+.[0-9]+.[0-9]+']
     branches: ['**']
     paths:
       - .github/workflows/release.yml
@@ -55,18 +55,11 @@ jobs:
         env:
           TRIAL_VERSION: ${{ github.event_name == 'workflow_dispatch' && github.ref_type != 'tag' && inputs.trial_version || '' }}
         run: |
-          # v1.2.3 = release (appcast.xml). v1.2.3-test = update-test build B: a draft
-          # pre-release with appcast-test.xml, which releases/latest never serves.
-          if [ "$GITHUB_REF_TYPE" = tag ] && [[ "$GITHUB_REF_NAME" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)-test$ ]]; then
-            { echo "KRADO_TEST_BUILD=1"; echo "KRADO_VERSION=${BASH_REMATCH[1]}"; echo "FEED_NAME=appcast-test.xml"; } >> "$GITHUB_ENV"
-          else
-            { echo "KRADO_TEST_BUILD=0"; echo "FEED_NAME=appcast.xml"; } >> "$GITHUB_ENV"
-            # Trial DMG for Kazina (docs/trial-build.ja.md): same signed, designed build as a
-            # release, only the version differs. Never on tags.
-            if [ -n "$TRIAL_VERSION" ]; then
-              [[ "$TRIAL_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::trial_version must look like 1.2.3"; exit 1; }
-              echo "KRADO_VERSION=$TRIAL_VERSION" >> "$GITHUB_ENV"
-            fi
+          # Trial DMG for Kazina (docs/trial-build.ja.md): same signed, designed build as a
+          # release, only the version differs. Never on tags.
+          if [ -n "$TRIAL_VERSION" ]; then
+            [[ "$TRIAL_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::trial_version must look like 1.2.3"; exit 1; }
+            echo "KRADO_VERSION=$TRIAL_VERSION" >> "$GITHUB_ENV"
           fi
 
       - name: Check changelogs
@@ -133,20 +126,18 @@ jobs:
             echo "::error::SUPublicEDKey is not a 32-byte Ed25519 public key." && exit 1
           fi
           if [ "$GITHUB_REF_TYPE" = tag ]; then
-            expected="v$version"
-            [ "$KRADO_TEST_BUILD" = 1 ] && expected="v$version-test"
+            expected="$version"
             if [ "$GITHUB_REF_NAME" != "$expected" ]; then
               echo "::error::Tag $GITHUB_REF_NAME does not match app version $version." && exit 1
             fi
             section=$version
-            [ "$KRADO_TEST_BUILD" = 1 ] && section=Unreleased
           else
             section=Unreleased
           fi
           # Same base name as the DMG, so generate_appcast embeds it as release notes.
           notes="$RELEASE_DIR/krado-$version.md"
           if [ "$section" = Unreleased ]; then
-            # Test builds and dry runs: Unreleased may be empty right after a release.
+            # Dry runs: Unreleased may be empty right after a release.
             scripts/changelog-section.sh Unreleased > "$notes" 2>/dev/null \
               || echo "Test build of krado $version. Not for general use." > "$notes"
           else
@@ -165,7 +156,7 @@ jobs:
         env:
           SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
           VERSION: ${{ steps.version.outputs.version }}
-          TAG: ${{ github.ref_type == 'tag' && github.ref_name || format('v{0}', steps.version.outputs.version) }}
+          TAG: ${{ github.ref_type == 'tag' && github.ref_name || steps.version.outputs.version }}
         run: |
           if [ -z "$SPARKLE_ED_PRIVATE_KEY" ]; then
             echo "::error::Secret SPARKLE_ED_PRIVATE_KEY is not available." && exit 1
@@ -177,16 +168,16 @@ jobs:
             --embed-release-notes \
             --maximum-deltas 0 \
             --link "https://github.com/$GITHUB_REPOSITORY" \
-            -o "$RELEASE_DIR/$FEED_NAME" \
+            -o "$RELEASE_DIR/appcast.xml" \
             "$RELEASE_DIR"
 
       - name: Verify appcast and signature
         env:
           SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
           VERSION: ${{ steps.version.outputs.version }}
-          TAG: ${{ github.ref_type == 'tag' && github.ref_name || format('v{0}', steps.version.outputs.version) }}
+          TAG: ${{ github.ref_type == 'tag' && github.ref_name || steps.version.outputs.version }}
         run: |
-          appcast="$RELEASE_DIR/$FEED_NAME"
+          appcast="$RELEASE_DIR/appcast.xml"
           dmg="$RELEASE_DIR/krado-$VERSION.dmg"
           cat "$appcast"
           # generate_appcast omits the signature when the app's SUPublicEDKey does not
@@ -207,7 +198,7 @@ jobs:
           path: |
             ${{ env.RELEASE_DIR }}/krado-${{ steps.version.outputs.version }}.dmg
             ${{ env.RELEASE_DIR }}/krado-${{ steps.version.outputs.version }}.md
-            ${{ env.RELEASE_DIR }}/${{ env.FEED_NAME }}
+            ${{ env.RELEASE_DIR }}/appcast.xml
           if-no-files-found: error
           retention-days: 7
 
@@ -260,18 +251,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.build.outputs.version }}
         run: |
-          if [[ "$GITHUB_REF_NAME" == *-test ]]; then
-            # Update-test build: draft pre-release; publishing it (as a pre-release) is a
-            # separate owner decision. releases/latest never points at a pre-release.
-            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
-              --draft --prerelease --verify-tag \
-              --title "krado $VERSION (update test)" \
-              --notes "Update test build for krado $VERSION. Not for general use." \
-              "release/krado-$VERSION.dmg" release/appcast-test.xml
-          else
-            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
-              --draft --verify-tag \
-              --title "krado $VERSION" \
-              --notes-file "release/krado-$VERSION.md" \
-              "release/krado-$VERSION.dmg" release/appcast.xml
-          fi
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+            --draft --verify-tag \
+            --title "krado $VERSION" \
+            --notes-file "release/krado-$VERSION.md" \
+            "release/krado-$VERSION.dmg" release/appcast.xml

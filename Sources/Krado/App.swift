@@ -491,13 +491,7 @@ struct KradoApp {
     }
 }
 
-/// Sparkle's documented feed hook. Normally returns nil (Info.plist's public feed); an
-/// opt-in test feed is honoured only for this repository's release assets.
-final class UpdaterDelegate: NSObject, SPUUpdaterDelegate {
-    func feedURLString(for updater: SPUUpdater) -> String? {
-        UpdaterPolicy.testFeedURL(UserDefaults.standard.string(forKey: UpdaterPolicy.testFeedDefaultsKey))
-    }
-}
+final class UpdaterDelegate: NSObject, SPUUpdaterDelegate {}
 
 #if KRADO_LOGIN_SWITCH_PROBE
 /// Evidence probe only; never part of a distributed build.

@@ -25,23 +25,4 @@ struct UpdaterPolicyTests {
     func invalidFeed(feedURL: String?) {
         #expect(!UpdaterPolicy.isConfigured(publicKey: key, feedURL: feedURL))
     }
-
-    @Test("A test feed is used only for this repository's release assets")
-    func testFeedAccepted() {
-        let url = "https://github.com/KazinaG/krado/releases/download/v0.1.1-test/appcast-test.xml"
-        #expect(UpdaterPolicy.testFeedURL(url) == url)
-    }
-
-    @Test("Anything else falls back to the public feed", arguments: [
-        nil, "", "https://github.com/KazinaG/krado/releases/latest/download/appcast.xml",
-        "https://github.com/someone/krado/releases/download/v1/appcast-test.xml",
-        "http://github.com/KazinaG/krado/releases/download/v0.1.1-test/appcast-test.xml",
-        "https://github.com.evil.example/KazinaG/krado/releases/download/v1/appcast-test.xml",
-        "https://github.com/KazinaG/krado/releases/download/../../other/appcast-test.xml",
-        "https://github.com/KazinaG/krado/releases/download/v1/appcast-test.xml?x=1",
-        "https://github.com/KazinaG/krado/releases/download/v1/appcast.xml",
-    ] as [String?])
-    func testFeedRejected(value: String?) {
-        #expect(UpdaterPolicy.testFeedURL(value) == nil)
-    }
 }

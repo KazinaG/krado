@@ -23,6 +23,10 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Snap zones divide the full screen evenly, up to 8 columns and 4 rows, while keeping each zone at least 640 × 720 points.
 - Showing or hiding the Dock or menu bar leaves the snap grid unchanged.
 
+### Removed
+
+- The opt-in test feed (`KradoTestFeedURL`). Updates always come from the public feed.
+
 ### Fixed
 
 - Launch at Login stays highlighted after clicking while the pointer remains on the row, and clears when another item is selected.

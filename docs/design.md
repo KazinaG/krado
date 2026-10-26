@@ -114,7 +114,7 @@ Registration is offered only if `Bundle.main.bundlePath` is inside `/Application
 
 ## Updates and signing
 
-Info.plist sets `SUEnableAutomaticChecks` to true, so Sparkle checks on its normal schedule and never shows its "check automatically?" prompt (Sparkle skips the prompt whenever this key is set). `SUAutomaticallyUpdate` and `SUAllowsAutomaticUpdates` are false: a found update is shown in Sparkle's standard alert, and nothing is downloaded or installed without the user choosing to. See [docs/signing-and-update-test.md](signing-and-update-test.md) for the code-signing certificate, the opt-in test feed, and the files krado leaves behind.
+Info.plist sets `SUEnableAutomaticChecks` to true, so Sparkle checks on its normal schedule and never shows its "check automatically?" prompt (Sparkle skips the prompt whenever this key is set). `SUAutomaticallyUpdate` and `SUAllowsAutomaticUpdates` are false: a found update is shown in Sparkle's standard alert, and nothing is downloaded or installed without the user choosing to. See [docs/signing-and-update-test.md](signing-and-update-test.md) for the code-signing certificate, the real update check, and the files krado leaves behind.
 
 ## Localization, branding, and distribution
 
@@ -155,6 +155,10 @@ GUI checks are intentionally left to the maintainer; this implementation was not
 v0.1 does not force apps past size constraints, verify the final applied AX frame, or recover an app's original frame after partial write failure. Full-screen/secure UI and nonstandard windows may be inaccessible or refuse movement. Those cases are skipped or reported when AX returns an error, and are not claimed to be validated by pure-logic tests.
 
 ## Motion
+
+The desired motion feel is closer to macOS Show Desktop. The current durations and
+curve below remain in `MotionSpec`. Spring behavior and distance-dependent timing
+were ideas, not confirmed decisions.
 
 The window glides from its drop frame to the zone using the public Core Animation
 default timing function: cubic Bézier control points (0.25, 0.1), (0.25, 1.0).

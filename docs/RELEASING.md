@@ -1,7 +1,8 @@
 # Releasing krado
 
 The first public release was v0.1.0 (2026-10-19). Never move or rewrite the tag
-of a published release. [CHANGELOG.md](../CHANGELOG.md) is the source of truth; keep the Japanese translation's `## [...]` headings byte-identical.
+of a published release. From the next release, tags use SemVer 2.0.0 `X.Y.Z`
+without `v`; published `v0.1.0` through `v0.1.5` remain unchanged. [CHANGELOG.md](../CHANGELOG.md) is the source of truth; keep the Japanese translation's `## [...]` headings byte-identical.
 
 Distribution is a DMG attached to a GitHub Release plus a Sparkle 2 appcast. There
 is no Homebrew tap.
@@ -50,22 +51,19 @@ the Accessibility permission survives updates. The p12 and its password are the
 Actions secrets `KRADO_SIGNING_P12_BASE64` and `KRADO_SIGNING_P12_PASSWORD`;
 `scripts/ci-signing-keychain.sh` imports them into a temporary keychain on the
 runner and deletes it at the end of the job. Never regenerate it. Details, the
-update-test feed and the uninstall file list:
+real update check and the uninstall file list:
 [signing-and-update-test.md](signing-and-update-test.md).
 
 ## Release workflow
 
 [`.github/workflows/release.yml`](../.github/workflows/release.yml):
 
-- **Tag `v<version>` pushed:** runs the changelog check and tests, builds the DMG
+- **Tag `X.Y.Z` pushed:** runs the changelog check and tests, builds the DMG
   with `scripts/make-dmg.sh`, checks that the tag matches
   `CFBundleShortVersionString`, takes the notes from the `## [<version>]` section
   of `CHANGELOG.md` (`scripts/changelog-section.sh`), signs the DMG and writes
   `appcast.xml` with Sparkle's `generate_appcast`, verifies the signature, length
   and URL, then creates a **draft** GitHub Release with the DMG and appcast.
-- **Tag `v<version>-test` pushed:** builds the update-test version with
-  `KRADO_VERSION=<version>`, writes `appcast-test.xml`, and creates a **draft
-  pre-release**. See [signing-and-update-test.md](signing-and-update-test.md).
 - **Branch push touching release files:** the same build, signing and
   verification as a dry run; the files are kept only as a workflow artifact.
 
@@ -77,14 +75,18 @@ Sparkle's tools come from the checksum-pinned Sparkle SwiftPM artifact
 
 1. Bump the default version (`version="${KRADO_VERSION:-…}"`) in
    `scripts/build-app.sh`; it sets both `CFBundleShortVersionString` and
-   `CFBundleVersion`. Follow Semantic Versioning.
+   `CFBundleVersion`. Follow Semantic Versioning 2.0.0. The trial on the Mac is expected to be
+   `0.1.13` while the latest public release is `v0.1.5`, so the next public
+   release must be `0.1.14` or higher; bump this default to that number before tagging.
+   Every trial DMG the maintainer checks bumps the patch number `x.y.Z`; never
+   reuse a number.
 2. Move the contents of Unreleased to `## [<version>] - <date>` in both
    changelogs and keep a new empty `## [Unreleased]` section. Describe the final
    behavior for users upgrading from the last public release, without assuming
    familiarity with unpublished builds. Run `scripts/check-changelog-headings.sh`,
    `swift test --disable-keychain` and `swift build --disable-keychain` on macOS; CI
    must also pass the login-probe/CI-hook and lab-hook build configurations.
-3. Merge to `main`, then push the tag `v<version>` on that commit (maintainer
+3. Merge to `main`, then push the tag `X.Y.Z` on that commit (maintainer
    approval required).
 4. Wait for the Release workflow. Its `render` job opens the built DMG in Finder on
    macOS 15 and 26, with default Finder settings and with Path Bar, Status Bar and
@@ -115,10 +117,23 @@ Sparkle's tools come from the checksum-pinned Sparkle SwiftPM artifact
    first-launch test. When signing changes, also do one real first launch on a Mac
    from a DMG downloaded in Safari.
 6. Publish the draft (maintainer approval required). Confirm
-   `releases/latest/download/appcast.xml` now serves the new feed, then verify
-   updating from an older build with **Check for Updates…**. The Gatekeeper
+   `releases/latest/download/appcast.xml` now serves the new feed. When updating
+   or signing changes, check a real update as described below. The Gatekeeper
    workflow runs again on the public DMG, downloaded without signing in.
 
 The app is signed with the self-signed certificate, not Apple Developer ID, and is
 not notarized, so macOS Gatekeeper asks users to approve the first launch (see
 the README). Sparkle's EdDSA signature is independent of Apple code signing.
+
+## When to check updating
+
+A real update check is needed only before releases changing Sparkle, appcast/feed,
+EdDSA key, code-signing certificate, or bundle id, not before every release.
+To check updating, publish the release with a version higher than the trial build
+installed on the Mac, and let that trial build receive the real update.
+The trial and release use the same Release workflow, bundle id
+`io.github.kazinag.krado`, `SUPublicEDKey`, EdDSA signing key secret, code-signing
+certificate, and `SUFeedURL` (`releases/latest/download/appcast.xml`, which ignores
+drafts and pre-releases). Sparkle compares `CFBundleVersion`, which
+`scripts/build-app.sh` sets to the version number. See the
+[real update check](signing-and-update-test.md#checking-a-real-update) for the Mac steps.

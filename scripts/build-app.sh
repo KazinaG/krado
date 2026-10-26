@@ -68,7 +68,7 @@ cat > "$bundle/Contents/Info.plist" <<'PLIST'
 </dict>
 </plist>
 PLIST
-# KRADO_VERSION exists only for update tests (e.g. a 0.1.1 test build); releases use the default.
+# KRADO_VERSION selects the workflow trial version; releases use the default.
 version="${KRADO_VERSION:-0.1.6}"
 if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     echo "error: KRADO_VERSION must look like 1.2.3" >&2

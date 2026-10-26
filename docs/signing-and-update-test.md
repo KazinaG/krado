@@ -34,31 +34,29 @@ updates because they carry a valid EdDSA signature from the release key.
   shown in Sparkle's standard alert and installs only when the user chooses
   **Install Update**. The alert offers no "install automatically" option.
 
-## Testing an update between unpublished builds
+## Checking a real update
 
-Drafts are not downloadable without signing in, and the public feed
-(`releases/latest/download/appcast.xml`) ignores drafts and pre-releases. For a test,
-the app honours one opt-in user default through Sparkle's documented
-`feedURLString(for:)` delegate:
+To check updating, publish the release with a version higher than the trial build
+installed on the Mac, and let that trial build receive the real update. Use
+**Check for Updates…** and confirm installation and the resulting version.
 
-```sh
-defaults write io.github.kazinag.krado KradoTestFeedURL \
-  "https://github.com/KazinaG/krado/releases/download/v0.1.1-test/appcast-test.xml"
-```
+The trial build and the release are built by the same Release workflow, with the
+same bundle id (`io.github.kazinag.krado`), the same `SUPublicEDKey` and EdDSA
+signing key secret (`SPARKLE_ED_PRIVATE_KEY`), and the same code-signing certificate.
+`scripts/build-app.sh` gives both the same `SUFeedURL`:
+`https://github.com/KazinaG/krado/releases/latest/download/appcast.xml`.
+This URL ignores drafts and pre-releases. Once the real release is published,
+Sparkle compares `CFBundleVersion`, which `build-app.sh` sets to the version number.
 
-Only `https://github.com/KazinaG/krado/releases/download/…/appcast-test.xml` is
-accepted; anything else is ignored and the public feed is used. The update must still
-be EdDSA-signed by the release key. Remove the override after the test:
+The trial on the Mac is expected to be `0.1.13` while the latest public release is
+`v0.1.5`, so the next public release must be `0.1.14` or higher. Bump the default
+`version="${KRADO_VERSION:-…}"` in `scripts/build-app.sh` to that number before tagging.
+New tags use `X.Y.Z` without `v`; leave all published v-prefixed tags unchanged.
 
-```sh
-defaults delete io.github.kazinag.krado KradoTestFeedURL
-```
-
-The newer version for an update test uses a `v<version>-test` tag (e.g. `v0.1.1-test`), which the
-release workflow turns into a draft **pre-release** whose feed is named
-`appcast-test.xml`. Publishing it as a pre-release (owner decision) makes its assets
-downloadable; `releases/latest` never points at a pre-release, so public users are
-not offered it. Delete the pre-release and its tag after the test.
+Every trial DMG the maintainer checks must bump the patch number `x.y.Z`; never
+reuse a number. This real update check is required only before a release changing
+updating or signing: Sparkle, appcast/feed, EdDSA key, code-signing certificate, or
+bundle id. It is not required before every release.
 
 Note: like every Sparkle app, Sparkle's installer removes the quarantine attribute
 from an update it has verified (EdDSA and code signature) before swapping it in, so
@@ -70,7 +68,7 @@ no other quarantine, TCC, or Gatekeeper handling.
 | Item | Path / where |
 | --- | --- |
 | App | `/Applications/krado.app` (or `~/Applications/krado.app`) |
-| Preferences (krado and Sparkle keys such as `SUHasLaunchedBefore`, `SULastCheckTime`, `SUSkippedVersion`, `KradoTestFeedURL`) | defaults domain `io.github.kazinag.krado` (`~/Library/Preferences/io.github.kazinag.krado.plist`) |
+| Preferences (krado and Sparkle keys such as `SUHasLaunchedBefore`, `SULastCheckTime`, `SUSkippedVersion`) | defaults domain `io.github.kazinag.krado` (`~/Library/Preferences/io.github.kazinag.krado.plist`) |
 | Sparkle downloads and installer staging | `~/Library/Caches/io.github.kazinag.krado/org.sparkle-project.Sparkle/` (`PersistentDownloads`, `Installation`) |
 | URL cache | `~/Library/Caches/io.github.kazinag.krado/` (other files) |
 | HTTP cookies / HSTS | `~/Library/HTTPStorages/io.github.kazinag.krado` and `io.github.kazinag.krado.binarycookies` |
