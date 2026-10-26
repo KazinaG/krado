@@ -73,9 +73,9 @@ Sparkle's tools come from the checksum-pinned Sparkle SwiftPM artifact
 
 1. Bump the default version (`version="${KRADO_VERSION:-…}"`) in
    `scripts/build-app.sh`; it sets both `CFBundleShortVersionString` and
-   `CFBundleVersion`. Follow Semantic Versioning 2.0.0. The trial on the Mac is expected to be
-   `0.1.13` while the latest public release is `v0.1.5`, so the next public
-   release must be `0.1.14` or higher; bump this default to that number before tagging.
+   `CFBundleVersion`. Follow Semantic Versioning 2.0.0. A public release must
+   have a higher number than the trial installed on the Mac; bump this default to
+   that number before tagging.
    Every trial DMG the maintainer checks bumps the patch number `x.y.Z`; never
    reuse a number.
 2. Move the contents of Unreleased to `## [<version>] - <date>` in both
