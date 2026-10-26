@@ -9,7 +9,7 @@
 - Work on a `codex/<topic>` branch; get CI green, then squash into `main` (fast-forward).
 - Run on macOS (headless only): `swift test --disable-keychain` and `swift build --disable-keychain`.
 - CI (`.github/workflows/ci.yml`) also runs `swift build --disable-keychain -Xswiftc -DKRADO_LOGIN_SWITCH_PROBE -Xswiftc -DKRADO_CI_HOOKS` and `swift build --disable-keychain -Xswiftc -DKRADO_LAB_HOOKS`.
-- CI skips docs-only pushes (`docs/**`, README, AGENTS.md, CONTRIBUTING.md, LICENSE): no CI run is expected for them. A newer push to the same branch cancels the older CI run (not on `main`).
+- CI runs on every push, docs-only included: `main` requires the CI jobs `changelog` and `tests` (repository ruleset), so a commit reaches `main` only after CI is green on a branch at the same SHA. A newer push to the same branch cancels the older CI run (not on `main`).
 - Changelog: edit `CHANGELOG.md` and `CHANGELOG.ja.md` together; check with `scripts/check-changelog-headings.sh`.
 - Trial DMGs for Kazina: only via `docs/trial-build.ja.md` (Release workflow `trial_version`, then `scripts/check-trial-dmg.sh`). Never a local plain or ad-hoc DMG.
 - Never touch tags, releases, signing keys, appcast, or published artifacts; publishing needs Kazina's OK.

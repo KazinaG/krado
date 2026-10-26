@@ -1,24 +1,10 @@
 name: CI
 
-# 文書だけの変更（docs/・README・AGENTS.md・CONTRIBUTING.md・LICENSE）では走らない。
-# CHANGELOG*.md は changelog ジョブが確かめるので除外しない。タグの push には paths は効かない。
+# 文書だけの変更でも毎回走らせる。main は ruleset でこのワークフローの changelog と tests を
+# 必須チェックにしているので、paths で絞ると文書だけのコミットが main に入れなくなる。
 on:
   push:
-    paths-ignore:
-      - 'docs/**'
-      - 'README.md'
-      - 'README.ja.md'
-      - 'AGENTS.md'
-      - 'CONTRIBUTING.md'
-      - 'LICENSE'
   pull_request:
-    paths-ignore:
-      - 'docs/**'
-      - 'README.md'
-      - 'README.ja.md'
-      - 'AGENTS.md'
-      - 'CONTRIBUTING.md'
-      - 'LICENSE'
 
 permissions:
   contents: read
