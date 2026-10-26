@@ -120,11 +120,29 @@ for start in off on; do
         fi
         cp "$geo" "$fade_out/$case-before.geo.json"
         screencapture -x -m "$fade_out/$case-before.png" || true
-        screencapture -v -V 3 -x "$fade_out/$case.mov" &
+        screencapture -v -V 4 -x "$fade_out/$case.mov" &
         rec=$!
         sleep 1
         python3 -c "import time; print(time.time())" > "$fade_out/$case-trigger.txt"
-        if [[ "$how" == click ]]; then fmouse click-stay; else fmouse return; fi
+        if [[ "$how" == click ]]; then
+            fmouse click-stay
+        else
+            # A posted Return first; if that did not toggle, System Events' key code 36
+            # (as menu-shots uses). The log records which one, if any, toggled.
+            fmouse return
+            if grep -q 'KRADO_CI real login row click' "$fade_out/$case-app.log"; then
+                echo "toggled-by=CGEvent Return" >> "$fade_out/$case.log"
+            else
+                python3 -c "import time; print(time.time())" >> "$fade_out/$case-trigger.txt"
+                osascript -e 'tell application "System Events" to key code 36' || true
+                sleep 0.5
+                if grep -q 'KRADO_CI real login row click' "$fade_out/$case-app.log"; then
+                    echo "toggled-by=System Events key code 36" >> "$fade_out/$case.log"
+                else
+                    echo "toggled-by=none" >> "$fade_out/$case.log"
+                fi
+            fi
+        fi
         wait "$rec" || true
         screencapture -x -m "$fade_out/$case-after.png" || true
         cleanup

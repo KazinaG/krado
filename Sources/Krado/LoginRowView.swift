@@ -291,7 +291,7 @@ final class LoginRowView: NSView {
                                                      opacity: opacities.incoming)
         writeCIEvidence(highlighted: highlighted, capsule: capsule, wordRect: wordRect, foreground: foreground, style: style)
         if let startedAt = fade.startedAt, now - startedAt < 1 {
-            print(String(format: "KRADO_CI login fade t=%.4f p=%.4f outgoing=%.4f incoming=%.4f",
+            print(String(format: "KRADO_CI login fade t=%.6f p=%.9f outgoing=%.9f incoming=%.9f",
                          now - startedAt, fade.progress(at: now), opacities.outgoing, opacities.incoming))
         }
         print("KRADO_CI draw login label=\(stateText) highlighted=\(highlighted) frame=\(frame)")
