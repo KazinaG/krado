@@ -2,7 +2,7 @@
 #   コミット: Conventional Commits 1.0.0 を commitlint（@commitlint/config-conventional）で
 #   枝: Conventional Branch の目的別の頭だけ（main と dependabot/ は対象外）
 #   タグ: SemVer 2.0.0、v なし（例 1.2.3）。公開済みの v 付きタグはそのまま残す
-# 決まりの説明は AGENTS.md（または CONTRIBUTING.md）にある。
+# 決まりはこのファイルの中身そのもの。
 name: conventions
 
 on:
