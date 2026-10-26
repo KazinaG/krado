@@ -172,7 +172,8 @@ jobs:
               print(f"::error::trial の commit {trial[:12]} は head {head[:12]} の祖先ではありません（枝を作り直した？）。安全のため止めます。"
                     f" / Trial commit {trial[:12]} is not an ancestor of head {head[:12]}; failing closed.")
               sys.exit(1)
-          diff = git("diff", "--name-only", "-z", trial, head)
+          # --no-renames: 移動は「元を消す＋先に足す」として両方の名前を出す（コードを docs/ へ移して抜けるのを防ぐ）
+          diff = git("diff", "--no-renames", "--name-only", "-z", trial, head)
           if diff.returncode != 0:
               print("::error::trial から head までの差を読めませんでした。 / Could not diff trial..head.")
               sys.exit(1)
