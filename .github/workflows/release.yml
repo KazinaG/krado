@@ -11,6 +11,10 @@ name: Release
 # Runs started by Dependabot get no Actions secrets, so they skip only the signing steps
 # (code signing, Sparkle signing and the checks that need them) and still build an unsigned
 # DMG and render it. Such runs never reach draft-release (tags only, and never Dependabot).
+# Tests are not re-run here for tags and pull requests: a tag must point at a main commit that a
+# merged pull request brought in with the same tree its required tests passed on (main requires
+# branches to be up to date, so the squash tree equals the tested tree). Pull request dry runs rely
+# on that pull request's CI. Trial builds started by hand still run the tests (no PR guarantees them).
 on:
   push:
     tags: ['[0-9]+.[0-9]+.[0-9]+']
@@ -43,6 +47,10 @@ jobs:
   build:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: macos-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: read
     env:
       CLANG_MODULE_CACHE_PATH: ${{ github.workspace }}/.build/module-cache
       SWIFT_MODULECACHE_PATH: ${{ github.workspace }}/.build/module-cache
@@ -68,7 +76,15 @@ jobs:
       - name: Check changelogs
         run: scripts/check-changelog-headings.sh
 
-      - name: Test
+      - name: Check the tag commit is on main and passed its pull request checks
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+        run: scripts/check-tag-tested.sh "$GITHUB_REPOSITORY" "$SHA"
+
+      - name: Test (trial builds started by hand only)
+        if: github.event_name == 'workflow_dispatch'
         run: swift test --disable-keychain
 
       - name: Import code-signing certificate (temporary keychain)
