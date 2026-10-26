@@ -58,4 +58,36 @@ for spec in light-blue:Light: dark-blue:Dark: light-yellow:Light:2 dark-graphite
     done
 done
 osascript -e 'tell application "System Events" to tell appearance preferences to set dark mode to false' || true
+# Anywhere on the row toggles exactly once and the menu stays open (Kazina 10/26 01:53):
+# one launch, Off at first, then a click at the left edge, the capsule and the right edge.
+# Its evidence is named *.geo.json so check-login-hover.py's *-geometry.json cases skip it.
+case=click-anywhere
+geo="$out/$case.geo.json"
+rm -f "$geo"
+NSUnbufferedIO=YES KRADO_CI_LOGIN_FAKE=off KRADO_CI_OPEN_MENU=1 \
+    KRADO_CI_LOGIN_GEOMETRY="$geo" \
+    dist/krado.app/Contents/MacOS/krado -AppleLanguages '(ja)' -AppleLocale ja_JP > "$out/$case-app.log" 2>&1 &
+app_pid=$!
+sleep 5
+"$RUNNER_TEMP/login-hover-windows" "$app_pid" "$out/$case-windows.txt" > "$out/$case-menu.json"
+anywhere() { "$RUNNER_TEMP/login-hover-mouse" "$geo" "$out/$case-menu.json" "$1" >> "$out/$case.log"; }
+anywhere login
+expected=(true false true)
+n=0
+anywhere_failed=0
+for where in click-left click-capsule click-right; do
+    anywhere "$where"; screencapture -x -m "$out/$case-$where.png"
+    n=$((n + 1))
+    clicks=$(grep -c 'KRADO_CI real login row click: fake state=' "$out/$case-app.log" || true)
+    last=$(grep 'KRADO_CI real login row click: fake state=' "$out/$case-app.log" | tail -1 | sed 's/.*fake state=//')
+    state=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("state"))' "$geo")
+    echo "$where: clicks=$clicks last=$last capsule=$state" | tee -a "$out/click-anywhere.txt"
+    want=$([[ "${expected[$((n - 1))]}" == true ]] && echo on || echo off)
+    if [[ "$clicks" != "$n" || "$last" != "${expected[$((n - 1))]}" || "$state" != "$want" ]]; then
+        echo "error: $where did not toggle exactly once with the menu open" >&2
+        anywhere_failed=1
+    fi
+done
+cleanup
 python3 scripts/check-login-hover.py "$out"
+exit "$anywhere_failed"

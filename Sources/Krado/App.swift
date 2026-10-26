@@ -348,6 +348,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         loginToggle.setAccessibilityLabel(title + "、" + value)
         loginToggle.setAccessibilityValue(value)
         (loginToggle.view as? LoginRowView)?.update(title: title, stateText: value,
+                                                    onOffTexts: LoginRowPresentation.onOffTexts.map { L10n.text($0) },
                                                     allStateTexts: LoginRowPresentation.allStateTexts.map { L10n.text($0) },
                                                     state: state, enabled: row.enabled)
         #if KRADO_LOGIN_SWITCH_PROBE

@@ -5,9 +5,11 @@ public struct LoginRowPresentation: Equatable, Sendable {
     /// Every state word the row can show. The row is sized for the widest one,
     /// so toggling never moves or clips the text.
     public static let allStateTexts = ["On", "Off", "Needs approval"]
+    /// On and Off share one capsule width, so toggling never resizes the capsule.
+    public static let onOffTexts = ["On", "Off"]
     public let title = "Launch at Login"
-    /// The visible state word, drawn at the trailing edge of the row and also
-    /// used as the VoiceOver value. There is no separate state mark.
+    /// The visible state word, drawn inside the state capsule at the trailing edge
+    /// of the row and also used as the VoiceOver value.
     public let stateText: String
     public let enabled: Bool
 

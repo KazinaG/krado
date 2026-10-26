@@ -1,5 +1,6 @@
 // CI only. Post real pointer and key events over krado's open menu.
 //   login-hover-mouse <login-geometry.json> <menu.json> away|login|click-stay|slow-to-quit|jump-to-quit|down
+//                     |click-left|click-capsule|click-right
 import CoreGraphics
 import Foundation
 
@@ -35,6 +36,20 @@ case "slow-to-quit":
         move(CGPoint(x: login.x, y: login.y + (quit.y - login.y) * t))
         Thread.sleep(forTimeInterval: 0.016)
     }
+case "click-left", "click-capsule", "click-right":
+    // Anywhere on the row toggles once (Kazina 10/26 01:53): left edge, the capsule, right edge.
+    let state = row["stateRect"] as! [String: Double]
+    let x = command == "click-left" ? d(row, "x") + 3
+        : command == "click-right" ? d(row, "x") + d(row, "width") - 3
+        : state["x"]! + state["width"]! / 2
+    let p = CGPoint(x: x, y: login.y)
+    move(p)
+    Thread.sleep(forTimeInterval: 0.2)
+    for type in [CGEventType.leftMouseDown, .leftMouseUp] {
+        CGEvent(mouseEventSource: source, mouseType: type, mouseCursorPosition: p, mouseButton: .left)!
+            .post(tap: .cghidEventTap)
+        Thread.sleep(forTimeInterval: 0.1)
+    }
 case "jump-to-quit": move(quit)
 case "down":
     for down in [true, false] {
@@ -42,5 +57,5 @@ case "down":
     }
 default: fatalError("unknown command \(command)")
 }
-Thread.sleep(forTimeInterval: command == "click-stay" ? 0.5 : 0.4)
+Thread.sleep(forTimeInterval: command.hasPrefix("click") ? 0.5 : 0.4)
 print(String(format: "login=%.0f,%.0f quit=%.0f,%.0f", login.x, login.y, quit.x, quit.y))
