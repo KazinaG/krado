@@ -1,0 +1,40 @@
+name: Login switch probe
+
+# Diagnosis only: why the Launch at Login NSSwitch draws gray in the status menu, and
+# whether it animates (scripts/login-switch-probe.swift).
+on:
+  push:
+    paths:
+      - scripts/login-switch-probe.swift
+      - scripts/check-login-switch-probe.py
+      - .github/workflows/login-switch-probe.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-26]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - run: python3 -m venv "$RUNNER_TEMP/venv" && "$RUNNER_TEMP/venv/bin/pip" install --quiet Pillow
+      - name: Open a status menu with switch variants, inactive then active
+        run: |
+          swiftc scripts/login-switch-probe.swift -o "$RUNNER_TEMP/probe"
+          sw_vers
+          "$RUNNER_TEMP/probe" "$PWD/probe" &
+          pid=$!
+          for i in $(seq 1 60); do kill -0 $pid 2>/dev/null || break; sleep 1; done
+          kill $pid 2>/dev/null || true
+          "$RUNNER_TEMP/venv/bin/python" scripts/check-login-switch-probe.py "$PWD/probe" | tee probe/summary.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: login-switch-probe-${{ matrix.os }}
+          path: probe/
