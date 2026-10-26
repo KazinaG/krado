@@ -66,6 +66,10 @@ real update check and the uninstall file list:
   and URL, then creates a **draft** GitHub Release with the DMG and appcast.
 - **Branch push touching release files:** the same build, signing and
   verification as a dry run; the files are kept only as a workflow artifact.
+- **Runs started by Dependabot** (`github.actor == 'dependabot[bot]'`): Actions
+  secrets are not available, so the signing steps are skipped. The ad-hoc signed DMG is
+  still built, checked and rendered, and kept only as the `unsigned` workflow artifact.
+  These runs never create a release.
 
 Sparkle's tools come from the checksum-pinned Sparkle SwiftPM artifact
 (`.build/artifacts/.../Sparkle/bin`), matching the framework version in
