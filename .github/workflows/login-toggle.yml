@@ -1,8 +1,6 @@
 name: Login toggle regression
 
 on:
-  push:
-    branches: [codex/login-toggle-fix]
   workflow_dispatch:
 
 permissions:

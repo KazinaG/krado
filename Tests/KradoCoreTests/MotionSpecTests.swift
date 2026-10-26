@@ -20,6 +20,24 @@ struct MotionSpecTests {
         #expect(MotionSpec.frame(from: a, to: b, progress: 0.5).origin.x == 60)
     }
 
+    @Test("Edges move monotonically and never pass the target")
+    func edgesStayInside() {
+        // Move right/down by 15 and shrink by 16: the right and bottom edges go from
+        // 100 to 99. Rounding origin and size separately made them go 99 → 100 → 99
+        // mid-glide (e.g. ticks 4 → 5 of 24; every value is at least 0.02 from a rounding tie).
+        let from = CGRect(x: 0, y: 0, width: 100, height: 100)
+        let to = CGRect(x: 15, y: 15, width: 84, height: 84)
+        var previous = from
+        for tick in 0...24 {
+            let frame = MotionSpec.frame(from: from, to: to, progress: Double(tick) / 24)
+            #expect(frame.maxX <= previous.maxX && frame.maxX >= to.maxX, "tick \(tick) maxX \(frame.maxX)")
+            #expect(frame.maxY <= previous.maxY && frame.maxY >= to.maxY, "tick \(tick) maxY \(frame.maxY)")
+            #expect(frame.minX >= previous.minX && frame.minX <= to.minX, "tick \(tick) minX \(frame.minX)")
+            #expect(frame.minY >= previous.minY && frame.minY <= to.minY, "tick \(tick) minY \(frame.minY)")
+            previous = frame
+        }
+    }
+
     @Test("Display budget")
     func displayBudget() {
         #expect(MotionSpec.frameCount(refreshRate: 60, duration: 0.20) == 12)
