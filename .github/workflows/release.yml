@@ -3,8 +3,9 @@ name: Release
 # A pushed X.Y.Z tag builds, signs, and attaches the DMG and appcast to a DRAFT
 # GitHub Release. Nothing reaches users until the draft is published:
 # SUFeedURL uses releases/latest/download/, which ignores drafts and prereleases.
-# Branch pushes that touch release files run the same pipeline as a dry run
-# (build + sign + verify) and keep the files only as a workflow artifact.
+# Pull requests that touch release files and are ready for review (skipped while draft) run the
+# same pipeline as a dry run (build + sign + verify) and keep the files only as a workflow artifact.
+# Branch pushes do not run it.
 # Every run also opens the built DMG in Finder on macOS 15 and 26 (render job) and keeps
 # screenshots of the real window; a draft release is only created after that passes.
 # Runs started by Dependabot get no Actions secrets, so they skip only the signing steps
@@ -13,7 +14,8 @@ name: Release
 on:
   push:
     tags: ['[0-9]+.[0-9]+.[0-9]+']
-    branches: ['**']
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - .github/workflows/release.yml
       - scripts/build-app.sh
@@ -24,11 +26,6 @@ on:
       - scripts/check-trial-dmg.sh
       - Package.swift
       - Package.resolved
-  pull_request:
-    paths:
-      - .github/workflows/release.yml
-      - scripts/make-dmg.sh
-      - packaging/dmg/**
   workflow_dispatch:
     inputs:
       trial_version:
@@ -44,6 +41,7 @@ concurrency:
 
 jobs:
   build:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: macos-latest
     env:
       CLANG_MODULE_CACHE_PATH: ${{ github.workspace }}/.build/module-cache

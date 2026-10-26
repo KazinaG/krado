@@ -1,0 +1,103 @@
+# Codex（chatgpt-codex-connector）のレビュー判定を、PR の head コミットの commit status
+# 「codex-verdict」にする（4つのリポジトリで同じファイル）。main の ruleset でこれを必須チェックにする。
+#   出どころ: Codex が PR ごとに書き直す要約コメントの <!-- codex-review-state:v1 {...} -->。
+#     指摘が無いとき Codex はレビューを出さず 👍 だけ付けるので、pull_request_review では拾えない。
+#   success: head コミットのレビューが completed で、未解決の指摘が無い
+#   failure: 未解決の指摘がある、または状態が読めない
+#   pending: head コミットのレビューが終わっていない
+#   head が変わったら（push・main に追いつかせた時）新しい head には status が無く、待ちになる。
+# Codex が返さないときは PR に「@codex review」とコメントして頼み直す。1時間待っても返らなければ、
+# 毎回 CoS 経由で Kazinaさんの OK を取る。自動で抜ける仕組みと ruleset の bypass list は使わない（10/26 20:31 決定）。
+# issue_comment の check run は main の commit に付き PR の必須チェックに数えられないので、
+# ジョブの結果ではなく commit status を head SHA に付ける。リポジトリのコードは checkout も実行もしない。
+name: codex-verdict
+
+on:
+  issue_comment:
+    types: [created, edited]
+  # 手で1つの PR の判定を付け直す（ruleset を入れる前から開いている PR など）。判定は Codex のコメントだけから決まる。
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: PR の番号
+        required: true
+
+permissions: {}
+
+concurrency:
+  group: codex-verdict-${{ github.event.issue.number || inputs.pr }}
+  cancel-in-progress: false
+
+jobs:
+  verdict:
+    # Codex の要約コメントだけ。ほかのコメントではジョブを skip する（分数を使わない）。
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.issue.pull_request &&
+       github.event.comment.user.login == 'chatgpt-codex-connector[bot]' &&
+       github.event.comment.user.type == 'Bot' &&
+       contains(github.event.comment.body, '<!-- codex-review-state:v1'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    permissions:
+      issues: read
+      pull-requests: read
+      statuses: write
+    steps:
+      - name: Codex の判定を head コミットの status にする
+        env:
+          PR_NUMBER: ${{ github.event.issue.number || inputs.pr }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+          API: ${{ github.api_url }}
+          PYTHONUTF8: '1'
+        shell: python
+        run: |
+          # 起こしたコメントの本文は使わず、PR の Codex のコメントを API で読み直して最新の状態を使う
+          # （編集が続いたときに古い本文で上書きしないため）。コメントの本文はログに出さない。
+          import json, os, re, sys, urllib.request
+          api, repo, token = os.environ["API"], os.environ["REPO"], os.environ["GH_TOKEN"]
+          num = int(os.environ["PR_NUMBER"])
+          def call(method, path, data=None):
+              req = urllib.request.Request(f"{api}/repos/{repo}{path}", method=method,
+                  data=None if data is None else json.dumps(data).encode(),
+                  headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json",
+                           "X-GitHub-Api-Version": "2022-11-28"})
+              with urllib.request.urlopen(req, timeout=30) as r:
+                  return json.load(r)
+          pr = call("GET", f"/pulls/{num}")
+          head = pr["head"]["sha"]
+          latest, page = None, 1
+          while True:
+              batch = call("GET", f"/issues/{num}/comments?per_page=100&page={page}")
+              for c in batch:
+                  u = c.get("user") or {}
+                  if u.get("login") == "chatgpt-codex-connector[bot]" and u.get("type") == "Bot" \
+                          and "<!-- codex-review-state:v1" in (c.get("body") or ""):
+                      latest = c
+              if len(batch) < 100:
+                  break
+              page += 1
+          if latest is None:
+              print(f"PR #{num} に Codex の要約コメントがまだ無いので status は付けない（@codex review で頼む）")
+              sys.exit(0)
+          m = re.search(r"<!-- codex-review-state:v1 (\{.*?\}) -->", latest["body"])
+          try:
+              cr = json.loads(m.group(1))["code_review"] if m else None
+          except (ValueError, KeyError, TypeError):
+              cr = None
+          if not isinstance(cr, dict):
+              state, desc = "failure", "Codex のレビュー状態が読めません"
+          elif cr.get("commit_sha") != head:
+              # 前の head のレビュー。新しい head の判定は Codex が head をレビューした時に付く。
+              print(f"Codex の状態は {str(cr.get('commit_sha'))[:7]} のもので、head {head[:7]} ではないので status は付けない")
+              sys.exit(0)
+          elif cr.get("status") != "completed":
+              state, desc = "pending", f"Codex のレビュー待ち（{cr.get('status')}）"
+          elif cr.get("has_unresolved_findings") is not False:
+              state, desc = "failure", "未解決の Codex の指摘があります"
+          else:
+              state, desc = "success", f"Codex 問題なし（{head[:7]}）"
+          call("POST", f"/statuses/{head}", {"state": state, "context": "codex-verdict",
+               "description": desc, "target_url": latest["html_url"]})
+          print(f"codex-verdict={state} on {head[:7]}: {desc}")
