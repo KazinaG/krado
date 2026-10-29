@@ -7,9 +7,10 @@
 #   お試しの後の混ざり: PR 本文に `trial: <full sha>`（Kazinaさんが試した commit）があり、その commit から head までの差に
 #     文書（docs/**・*.md）と CI の設定（.github/**）以外のファイルが1つでもあれば落とす。本文に `trial-recheck: <今の head の full sha>`
 #     （Kazinaさんがもう一度試したあと CoS 経由の OK でボットが書く）があれば通す。trial の行が無い PR はそのまま通る（10/27 Kazinaさん A）
-#   sandustry-ai-mod だけ: 同じジョブの中で構文の確かめと 107 件のテスト（1.5 秒ほど）も回す
+#   sandustry-ai-mod だけ: 同じジョブの中で構文の確かめ・テスト・依存の脆弱性・秘密情報（誤検知は理由付きで .gitleaksignore）も見る
 # 決まりはこのファイルの中身そのもの。
-# 枝の push では回さない。PR（draft を含む）で1つのジョブ「conventions」が1回だけ見る（4つのリポ共通の決まりの③）。
+# 枝の push では回さない。PR で1つのジョブ「conventions」が1回だけ見る（4つのリポ共通の決まりの③）。
+# draft の間は回さない（skipped は成功扱いだが draft はマージできない。ready にした時に必ず1回回る。10/29 Kazinaさん 案1）。
 # push で回るのはタグだけ。
 name: conventions
 
@@ -31,6 +32,7 @@ jobs:
   check:
     # PR では枝の名前・コミット・タイトルをこの1つのジョブで見る（必須チェック名は conventions）。
     # edited（タイトルや本文の直し）でも回す。ジョブを skip すると skipped＝成功が前の失敗を上書きするため。
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     name: conventions
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -135,6 +137,20 @@ jobs:
       - name: テスト（sandustry-ai-mod だけ。PR の試しマージの中身で）
         if: github.event_name == 'pull_request' && github.repository == 'KazinaG/sandustry-ai-mod'
         run: npm run check && npm test
+
+      - name: 依存の脆弱性
+        if: github.event_name == 'pull_request' && github.repository == 'KazinaG/sandustry-ai-mod'
+        run: npm audit --audit-level=high
+
+      - name: 秘密情報
+        if: github.event_name == 'pull_request' && github.repository == 'KazinaG/sandustry-ai-mod'
+        run: |
+          curl --fail --silent --show-error --location \
+            https://github.com/gitleaks/gitleaks/releases/download/v8.28.0/gitleaks_8.28.0_linux_x64.tar.gz \
+            --output "$RUNNER_TEMP/gitleaks_8.28.0_linux_x64.tar.gz"
+          (cd "$RUNNER_TEMP" && echo 'a65b5253807a68ac0cafa4414031fd740aeb55f54fb7e55f386acb52e6a840eb  gitleaks_8.28.0_linux_x64.tar.gz' | sha256sum -c -)
+          tar -xzf "$RUNNER_TEMP/gitleaks_8.28.0_linux_x64.tar.gz" -C "$RUNNER_TEMP" gitleaks
+          "$RUNNER_TEMP/gitleaks" git --redact --no-banner --exit-code 1 .
 
       - name: お試しの後の混ざり（trial の commit から head までの差）
         if: github.event_name == 'pull_request'
