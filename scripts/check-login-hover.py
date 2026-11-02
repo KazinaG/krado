@@ -36,8 +36,6 @@ def evidence(case, path, phase):
 
 
 WORDS = {"on": "オン", "off": "オフ"}  # the CI menu runs in Japanese
-# Kazina 10/27 choice C: unlit On word vs 0.9 x title gets 0.02 for measurement error.
-UNLIT_ON_WORD_TOLERANCE = 0.02
 
 
 def check_state_text(case, path, phase, img, g, scale, expected_on):
@@ -76,10 +74,9 @@ def check_state_text(case, path, phase, img, g, scale, expected_on):
                   f"title={title:.2f}:1; capsule fill vs row={fill:.2f}:1")
     # The word must be about as legible as the title.
     bound = 0.9 * title
-    tolerance = UNLIT_ON_WORD_TOLERANCE if expected_on and not g.get("highlighted") else 0.0
-    if word + 1e-6 + tolerance < bound:
+    if word + 1e-6 < bound:
         failures.append(f"{context}: state word {word:.3f}:1 is fainter than the title {title:.3f}:1 "
-                        f"(bound 0.9 x title = {bound:.3f}, tolerance {tolerance:.2f})")
+                        f"(bound 0.9 x title = {bound:.3f})")
     # Only On is filled: visibly when On, not at all for the shipped outline Off.
     # Under the highlight the white On capsule is as visible as the title's own
     # selected-text ink (yellow accent: about 2.4:1 for both), so judge it against that.
@@ -106,11 +103,11 @@ def coverage(pixel, background, ink):
 
 
 def check_on_opacity(context, img, g, scale, row_bg):
-    """Kazina 10/26 03:22, 03:28 and 21:55: On's fill and ring share one opacity, 85 % at
-    rest and 100 % while highlighted. Read from the app's evidence and from the pixels:
+    """Kazina 10/26 03:22 and 21:55: On's fill and ring share one opacity.
+    Kazina 2026-11-02 23:37: 100 % resting and highlighted. Read evidence and pixels:
     fill and top edge coverage both equal that."""
     inks = g.get("inks") or {}
-    want = 1.0 if g.get("highlighted") else 0.85
+    want = 1.0
     if inks.get("fillAlpha") != want or inks.get("ringAlpha") != want or g.get("fillAndRingShareOpacity") is not True:
         failures.append(f"{context}: On fill/ring opacity must both be {want} "
                         f"(fill={inks.get('fillAlpha')}, ring={inks.get('ringAlpha')})")
@@ -151,10 +148,11 @@ def check_fade(case, path, log_path=None):
 
 def check_off_outline(context, img, g, scale, row_bg, title):
     """Kazina 10/26 21:55: Off's outline is as strong as On's fill (the title ink at the same
-    opacity) and as visible as the title (same threshold as On). Read on the straight top edge."""
+    opacity: 100 % resting and highlighted, Kazina 2026-11-02 23:37) and as visible as
+    the title (same threshold as On). Read on the straight top edge."""
     inks = g.get("inks") or {}
     ring = inks.get("ring") or inks.get("text") or [255, 255, 255, 1]
-    want = 1.0 if g.get("highlighted") else 0.85
+    want = 1.0
     if inks.get("ring") != inks.get("title") or inks.get("ringAlpha") != want:
         failures.append(f"{context}: Off outline must be the title ink at On's opacity {want} (inks={inks})")
     r = g["stateRect"]

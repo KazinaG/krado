@@ -64,8 +64,8 @@ and the state word inside a capsule at the trailing edge: On, Off or Needs appro
 (オン / オフ / 承認待ち), 10 pt medium in a 16 pt capsule with 8 pt padding, right-aligned
 17 points from the row edge. Only On is filled (label ink with the menu background
 ink as text; white with #1C1C1E text while highlighted). On's fill and outline are one
-shape in the title's ink at 85 % at rest (the opacity of `labelColor`) and 100 %
-while highlighted (the selected text's own), so the edge is never darker than the
+shape in the title's ink at 100 % in every state, resting and highlighted
+(Kazina 2026-11-02 23:37, confirmed 23:56), so the edge is never darker than the
 fill and On is as visible as the title with every accent; Off's outline uses the same
 ink at the same opacity. A toggle while
 the menu is open cross-fades the old and new capsule over 150 ms (Core Animation's

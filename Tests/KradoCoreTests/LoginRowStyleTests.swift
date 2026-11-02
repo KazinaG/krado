@@ -141,20 +141,21 @@ import Testing
 
     // Kazina 10/26 03:22 "オン時に枠だけ濃さが違うのは絶対にやめた方がいい", and 21:55 "オンの塗りと
     // オフの枠を同じ濃さに": On's fill and ring, and Off's outline, are the title's ink at the
-    // system's own opacity, resting and highlighted.
+    // 100 % opacity, resting and highlighted (Kazina 2026-11-02 23:37, confirmed 23:56).
     @Test func onFillAndRingAndOffOutlineShareTheTitleInk() {
         for highlighted in [false, true] {
             let on = LoginRowStyle.capsule(state: .enabled, highlighted: highlighted, enabled: true)
             let off = LoginRowStyle.capsule(state: .disabled, highlighted: highlighted, enabled: true)
             let title = LoginRowStyle.ink(highlighted: highlighted, enabled: true)
             #expect(on.fill == title && on.ring == title, "highlighted=\(highlighted)")
-            let alpha = highlighted ? 1.0 : 0.85
+            let alpha = 1.0
+            #expect(LoginRowStyle.onOpacity(highlighted: highlighted) == alpha)
             #expect(on.fillAlpha == alpha && on.ringAlpha == alpha, "highlighted=\(highlighted)")
             #expect(off.ring == on.fill && off.ringAlpha == on.fillAlpha, "highlighted=\(highlighted)")
             #expect(on.fillAndRingShareOpacity)
             #expect(on.isSolid)
         }
-        #expect(LoginRowStyle.restOpacity == 0.85)
+        #expect(LoginRowStyle.restOpacity == 1.0)
         // Only the opacity changed: same capsule size and type as 0.1.12.
         #expect(LoginBadgeMetrics.fontSize == 10 && LoginBadgeMetrics.height == 16 && LoginBadgeMetrics.horizontalPadding == 8)
     }

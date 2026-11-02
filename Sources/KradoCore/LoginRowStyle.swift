@@ -71,11 +71,10 @@ public enum LoginRowStyle {
 
     /// On's fill and ring, and Off's outline, share one opacity of the title's ink, so they
     /// are equally strong (Kazina 10/26 03:22, and 21:55 "オンの塗りとオフの枠を同じ濃さに").
-    /// At rest 85 %, the opacity of Apple's labelColor (Kazina 03:28; 216/255 in CI).
-    /// While highlighted 100 %, the opacity of the selected-menu-item text itself: 85 % made
-    /// the yellow accent's On fainter than the title (2.14:1 against 2.42:1).
-    public static let restOpacity = 0.85
-    public static func onOpacity(highlighted: Bool) -> Double { highlighted ? 1 : restOpacity }
+    /// Always 100 %, resting and highlighted (Kazina 2026-11-02 23:37, confirmed 23:56;
+    /// replaces the 10/26 03:28 decision to use 85 % at rest).
+    public static let restOpacity = 1.0
+    public static func onOpacity(highlighted: Bool) -> Double { 1.0 }
 
     /// Faint fill of style B/C: under the highlight it is lighter so the word stays legible.
     public static let faintFillAlpha = 0.12
