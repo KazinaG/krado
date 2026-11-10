@@ -63,3 +63,13 @@ public func statusAppearance(for state: StatusState) -> StatusAppearance {
         : StatusSymbol(name: "checkmark.circle.fill", color: .success)
     return StatusAppearance(menuBar: menuBar, permission: permission, monitor: monitor)
 }
+
+/// Which Status rows can be chosen (Kazina 10/26 03:33: the status rows are rows you
+/// cannot press, so they do not highlight on hover). Only a row that does something
+/// when chosen is enabled: Accessibility while permission is needed (it opens the
+/// setup guide). Apple HIG Menus: an unavailable item appears dimmed and does not
+/// respond to interactions.
+public enum StatusRowPolicy {
+    public static func permissionRowEnabled(for state: StatusState) -> Bool { state == .permissionNeeded }
+    public static let monitorRowEnabled = false
+}

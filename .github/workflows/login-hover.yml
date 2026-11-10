@@ -44,7 +44,7 @@ jobs:
               relevant=false
               while IFS= read -r -d '' path; do
                 case "$path" in
-                  Sources/Krado/LoginRowView.swift|Sources/Krado/App.swift|Sources/KradoCore/LoginRow*.swift|scripts/login-hover*|scripts/check-login-hover.py|.github/workflows/login-hover.yml)
+                  Sources/Krado/LoginRowView.swift|Sources/Krado/App.swift|Sources/KradoCore/LoginRow*.swift|scripts/login-hover*|scripts/check-login-hover.py|Sources/KradoCore/StatusAppearance.swift|scripts/status-rows*|scripts/check-status-rows.py|.github/workflows/login-hover.yml)
                     relevant=true ;;
                 esac
               done < "$RUNNER_TEMP/login-hover-paths"
@@ -67,4 +67,56 @@ jobs:
         with:
           name: login-hover-${{ matrix.os }}
           path: login-hover/
+          if-no-files-found: error
+
+  # Kazina 10/26 03:33: Status rows that only inform cannot be chosen and never highlight.
+  status-rows:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-26]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: relevance
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # A missing diff must run the check, never silently bypass it.
+          relevant=true
+          if [ "$EVENT_NAME" != workflow_dispatch ]; then
+            if git diff --no-renames --name-only -z "$BASE_SHA...$HEAD_SHA" > "$RUNNER_TEMP/status-rows-paths"; then
+              relevant=false
+              while IFS= read -r -d '' path; do
+                case "$path" in
+                  Sources/Krado/LoginRowView.swift|Sources/Krado/App.swift|Sources/KradoCore/LoginRow*.swift|scripts/login-hover*|scripts/check-login-hover.py|Sources/KradoCore/StatusAppearance.swift|scripts/status-rows*|scripts/check-status-rows.py|.github/workflows/login-hover.yml)
+                    relevant=true ;;
+                esac
+              done < "$RUNNER_TEMP/status-rows-paths"
+            fi
+          fi
+          echo "Status rows relevance: $relevant"
+          echo "relevant=$relevant" >> "$GITHUB_OUTPUT"
+      - name: Skip status rows run for unrelated changes
+        if: steps.relevance.outputs.relevant != 'true'
+        run: echo "The Login and Status rows were not touched; passing without running the status rows check."
+      - if: steps.relevance.outputs.relevant == 'true'
+        run: python3 -m venv "$RUNNER_TEMP/venv" && "$RUNNER_TEMP/venv/bin/pip" install --quiet Pillow
+      - name: Put the pointer on the Status rows of the real menu and judge
+        if: steps.relevance.outputs.relevant == 'true'
+        run: |
+          export PATH="$RUNNER_TEMP/venv/bin:$PATH"
+          bash scripts/status-rows.sh
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always() && steps.relevance.outputs.relevant == 'true'
+        with:
+          name: status-rows-${{ matrix.os }}
+          path: status-rows/
           if-no-files-found: error
