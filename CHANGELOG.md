@@ -8,13 +8,11 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
-## [0.2.0]
-
-Not yet released; the publication date will be added after approval.
+## [0.2.0] - 2026-11-11
 
 ### Changed
 
-- Sparkle 2.10.1 is planned for this release via the separate PR #15; it has not been merged yet.
+- Updates use Sparkle 2.10.1.
 - The installer has a light background, square app cards, a colorful krado logo and a mint Applications card linked by a dotted arrow.
 - Launch at Login shows its state as a word in a capsule (On, Off or Needs approval) at the right of the row; only On is filled, with its fill and ring and Off's outline at 100 % opacity in every state, and the capsule fades between states.
 - Status rows that only show information no longer highlight when the pointer passes over them.
