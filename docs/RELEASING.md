@@ -79,6 +79,16 @@ Sparkle's tools come from the checksum-pinned Sparkle SwiftPM artifact
 (`.build/artifacts/.../Sparkle/bin`), matching the framework version in
 `Package.resolved`.
 
+## Next release: 0.2.0 (not yet published)
+
+The next public version is 0.2.0, above the 0.1.x trial versions. The default in
+`scripts/build-app.sh` and the prepared changelog sections use 0.2.0. Sparkle
+2.10.1 is planned via the separate PR #15, which must be merged before the final
+candidate is checked. Distribution will keep the existing self-signed certificate
+without notarization. Mac verification and publication approval are still pending.
+This preparation does not authorize a tag, release, or publication. After those
+checks and separate approval, the release tag will be `0.2.0` (without `v`).
+
 ## Release checklist
 
 1. Bump the default version (`version="${KRADO_VERSION:-…}"`) in
@@ -89,7 +99,9 @@ Sparkle's tools come from the checksum-pinned Sparkle SwiftPM artifact
    Every trial DMG the maintainer checks bumps the patch number `x.y.Z`; never
    reuse a number.
 2. Move the contents of Unreleased to `## [<version>] - <date>` in both
-   changelogs and keep a new empty `## [Unreleased]` section. Describe the final
+   changelogs and keep a new empty `## [Unreleased]` section. While preparing an
+   unpublished version, omit the date and mark it as not yet released; add the
+   actual publication date after approval. Describe the final
    behavior for users upgrading from the last public release, without assuming
    familiarity with unpublished builds. Run `scripts/check-changelog-headings.sh`,
    `swift test --disable-keychain` and `swift build --disable-keychain` on macOS; CI
