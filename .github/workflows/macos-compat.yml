@@ -23,5 +23,28 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: sw_vers && swift --version
+      - name: Resolve packages (retry transient downloads)
+        shell: bash
+        run: |
+          # Fetch dependencies separately: tests and builds below must run only once.
+          log=$(mktemp)
+          trap 'rm -f "$log"' EXIT
+          for attempt in 1 2 3; do
+            if swift package resolve --disable-keychain > "$log" 2>&1; then
+              cat "$log"
+              break
+            else
+              status=$?
+            fi
+            cat "$log"
+            # Retry only temporary HTTP/transport failures, never manifest/checksum errors.
+            if [ "$attempt" -eq 3 ] || ! grep -Eiq \
+              'badResponseStatusCode\((408|429|500|502|503|504)\)|HTTP[^0-9]*(408|429|500|502|503|504)([^0-9]|$)|timed out|connection (reset|timed out)|temporary failure in name resolution|could not resolve host' "$log"; then
+              exit "$status"
+            fi
+            delay=$((attempt * 10))
+            echo "Dependency download failed (attempt $attempt/3); retrying in ${delay}s."
+            sleep "$delay"
+          done
       - run: swift test --disable-keychain
       - run: swift build --disable-keychain
